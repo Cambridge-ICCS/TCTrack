@@ -58,3 +58,11 @@ jobs:
         cd ${{ github.workspace }}
         . tctrack_venv/bin/activate
         ruff check --diff ./
+    
+    - name: mypy
+      if: always()
+      # Run mypy over the src code for the package
+      run: |
+        cd ${{ github.workspace }}
+        . tctrack_venv/bin/activate
+        mypy src/
