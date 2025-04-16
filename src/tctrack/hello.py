@@ -1,7 +1,7 @@
 """Temporary placeholder for TCTrack code as we set up repository boilerplate."""
 
 
-def hello(name: str = "my repo") -> str:
+def message(name: str = "my repo") -> str:
     """
     Return a hello statement with the repository name if supplied.
 
@@ -19,5 +19,5 @@ def hello(name: str = "my repo") -> str:
 
 
 if __name__ == "__main__":
-    message = hello("TCTrack")
+    message = message("TCTrack")
     print(message)
