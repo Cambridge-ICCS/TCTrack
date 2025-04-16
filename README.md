@@ -4,11 +4,9 @@ The TCTrack package aims to provide functionality for running tropical cyclone (
 tracking algorithms and analysing the results. This can be used to compare the output
 of different algorithms for a variety of data sources.
 
-The software is currently in early development and therefore subject to significant
-changes.
-
-For the full documentation, see the website:
-[https://tctrack.readthedocs.io](https://tctrack.readthedocs.io).
+> [!WARNING]  
+> The software is currently in early development and therefore subject to significant
+> changes.
 
 
 ## Installation
@@ -31,7 +29,7 @@ When finished using TCTrack this can be turned off with `deactivate`.
 
 Then install the package using `pip`:
 ```sh
-pip install .
+pip install --editable .
 ```
 
 ## Using TCTrack
@@ -63,8 +61,7 @@ pull request.
 All code contributions should have accompanying unit tests to ensure that all parts of
 the code are functioning properly.
 
-The testing framework uses `pytest` and can be found under
-[examples/test/](https://github.com/Cambridge-ICCS/TCTrack/blob/main/examples/test/).
+When added, the testing framework will utilise `pytest`.
 
 ### Code quality
 
