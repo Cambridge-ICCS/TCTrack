@@ -41,13 +41,6 @@ import TCTrack
 ```
 
 
-## License
-
-Copyright &copy; ICCS
-
-*TCTrack* is distributed under the [MIT Licence](https://github.com/Cambridge-ICCS/TCTrack/blob/main/LICENSE).
-
-
 ## Contributing
 
 Contributions and collaborations are welcome.
@@ -92,3 +85,10 @@ Everyone participating in the _TCTrack_ project, and in particular in the
 issue tracker, pull requests, and social media activity, is expected to treat other
 people with respect and, more generally, to follow the guidelines articulated in the
 [Python Community Code of Conduct](https://www.python.org/psf/codeofconduct/).
+
+
+## License
+
+Copyright &copy; ICCS
+
+*TCTrack* is distributed under the [MIT Licence](https://github.com/Cambridge-ICCS/TCTrack/blob/main/LICENSE).
