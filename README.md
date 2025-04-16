@@ -1,6 +1,6 @@
 # TCTrack
 
-The TCTrack package provides the functionality for running tropical cyclone (TC)
+The TCTrack package aims to provide functionality for running tropical cyclone (TC)
 tracking algorithms and analysing the results. This can be used to compare the output
 of different algorithms for a variety of data sources.
 
@@ -31,7 +31,7 @@ When finished using TCTrack this can be turned off with `deactivate`.
 
 Then install the package using `pip`:
 ```sh
-pip install TCTrack
+pip install .
 ```
 
 ## Using TCTrack
