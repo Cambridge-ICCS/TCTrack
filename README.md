@@ -12,7 +12,7 @@ of different algorithms for a variety of data sources.
 ## Installation
 
 ### Dependencies
-The package requires python3 (>=3.9).
+The package requires Python 3 (>=3.9).
 
 ### Package Installation
 First clone the repository using `git`:
@@ -20,7 +20,7 @@ First clone the repository using `git`:
 git clone https://github.com/Cambridge-ICCS/TCTrack
 ```
 
-Setup and activate a virtual environment:
+Set up and activate a virtual environment:
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
