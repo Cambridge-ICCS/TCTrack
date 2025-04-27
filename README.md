@@ -56,6 +56,12 @@ pull request.
 
 - [pytest](https://docs.pytest.org/en/stable/) is used for unit testing.
 - [ruff](https://docs.astral.sh/ruff/) is used for formatting and linting.
+- [mypy](https://www.mypy-lang.org/) is used for static checking of type hints.
+
+These optional developer dependencies can be installed as follows:
+```sh
+pip install --editable .[dev]
+```
 
 ### Testing
 
@@ -67,15 +73,19 @@ When added, the testing framework will utilise `pytest`.
 ### Code quality
 
 All code should be annotated using [type hints](https://peps.python.org/pep-0484/) and
-formatted using `ruff`:
+formatted using `ruff format`:
 ```sh
 ruff format
 ```
-
-In addition, the code should be linted to check for any errors:
+In addition, the code should be linted using `ruff check` to check for errors:
 ```sh
 ruff check
 ```
+Details of the ruff configuration and specific rules can be found in the
+`pyproject.toml` file.
+
+Code quality is enforced on all pull requests and merges through a continuous
+integration workflow using GitHub actions.
 
 ### Code of Conduct
 Everyone participating in the _TCTrack_ project, and in particular in the
