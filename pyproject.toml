@@ -35,9 +35,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+test = [
+    "pytest",
+]
 lint = [
     "mypy",
     "ruff",
+]
+dev = [
+    "tctrack[test,lint]",
 ]
 
 [project.urls]
