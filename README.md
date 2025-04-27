@@ -32,9 +32,10 @@ Then install the package using `pip`:
 pip install --editable .
 ```
 
+
 ## Using TCTrack
 ```python
-import TCTrack
+import tctrack
 #[Example]
 ```
 
@@ -75,7 +76,6 @@ In addition, the code should be linted to check for any errors:
 ```sh
 ruff check
 ```
-
 
 ### Code of Conduct
 Everyone participating in the _TCTrack_ project, and in particular in the
