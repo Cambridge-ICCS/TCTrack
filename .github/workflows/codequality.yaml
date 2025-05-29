@@ -50,14 +50,14 @@ jobs:
       run: |
         cd ${{ github.workspace }}
         . tctrack_venv/bin/activate
-        ruff format --diff ./
+        ruff format --diff src/
     
     - name: ruff check
       if: always()
       run: |
         cd ${{ github.workspace }}
         . tctrack_venv/bin/activate
-        ruff check --diff ./
+        ruff check --diff src/
     
     - name: mypy
       if: always()
@@ -66,3 +66,11 @@ jobs:
         cd ${{ github.workspace }}
         . tctrack_venv/bin/activate
         mypy src/
+
+    - name: Check docs formatting with blackdoc
+      if: always()
+      # Run blackdoc over the docs
+      run: |
+        cd ${{ github.workspace }}
+        . tctrack_venv/bin/activate
+        blackdoc --diff docs/
