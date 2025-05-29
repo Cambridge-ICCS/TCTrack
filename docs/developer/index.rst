@@ -15,7 +15,7 @@ For details of how to get involved with any of these see below.
 .. note::
 
   Parts of this document are based on the 
-  `xarray contributing guide <https://docs.xarray.dev/en/stable/contributing.html>`_
+  `xarray contributing guide <https://docs.xarray.dev/en/stable/contribute/contributing.html>`_
   which itself is heavily based on the 
   `Pandas Contributing Guide <http://pandas.pydata.org/pandas-docs/stable/contributing.html>`_.
 
