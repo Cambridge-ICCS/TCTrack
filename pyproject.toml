@@ -44,6 +44,8 @@ lint = [
 ]
 doc = [
     "sphinx",
+    "sphinx_rtd_theme",
+    "sphinx-toolbox",
     "blackdoc",
 ]
 dev = [
