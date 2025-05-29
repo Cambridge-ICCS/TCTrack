@@ -42,8 +42,12 @@ lint = [
     "mypy",
     "ruff",
 ]
+doc = [
+    "sphinx",
+    "blackdoc",
+]
 dev = [
-    "tctrack[test,lint]",
+    "tctrack[test,lint,doc]",
 ]
 
 [project.urls]
