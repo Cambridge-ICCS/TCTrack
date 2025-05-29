@@ -41,9 +41,16 @@ test = [
 lint = [
     "mypy",
     "ruff",
+    "blackdoc",
+]
+doc = [
+    "sphinx",
+    "sphinx_rtd_theme",
+    "sphinx-toolbox",
+    "blackdoc",
 ]
 dev = [
-    "tctrack[test,lint]",
+    "tctrack[test,lint,doc]",
 ]
 
 [project.urls]
