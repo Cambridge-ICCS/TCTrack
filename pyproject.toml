@@ -41,6 +41,7 @@ test = [
 lint = [
     "mypy",
     "ruff",
+    "blackdoc",
 ]
 doc = [
     "sphinx",
