@@ -36,8 +36,6 @@ threshold_filters = [
 ]
 
 sn_params = te.StitchNodesParameters(
-    input_file="/rds/project/rds-TqEGHMWTn8A/test_data/test_out/nodes_jack.dat",
-    in_fmt="lon,lat,psl,orog",
     output_file="/rds/project/rds-TqEGHMWTn8A/test_data/test_out/tracks_tctrack.txt",
     max_sep=8.0,
     min_time=10,
