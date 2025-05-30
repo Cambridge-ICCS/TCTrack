@@ -357,6 +357,21 @@ class TETracker:
         else:
             self.stitch_nodes_parameters = StitchNodesParameters()
 
+        # Set StitchNodes input arguments according to DetectNodes parameters, if not provided
+        sn_input_none = self.stitch_nodes_parameters.input_file is None
+        dn_output_none = self.detect_nodes_parameters.output_file is None
+        if sn_input_none and not dn_output_none:
+            self.stitch_nodes_parameters.input_file = (
+                self.detect_nodes_parameters.output_file
+            )
+        sn_infmt_none = self.stitch_nodes_parameters.in_fmt is None
+        dn_outcmd_none = self.detect_nodes_parameters.output_commands is None
+        if sn_infmt_none and not dn_outcmd_none:
+            variables = [
+                output["var"] for output in self.detect_nodes_parameters.output_commands
+            ]
+            self.stitch_nodes_parameters.in_fmt = ",".join(["lon", "lat", *variables])
+
     def _make_detect_nodes_call(self):  # noqa: PLR0912 - all branches same logic
         """
         Construct a DetectNodes call based on options set in parameters.
