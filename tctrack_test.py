@@ -28,10 +28,30 @@ dn_params = te.DetectNodesParameters(
     output_file="/rds/project/rds-TqEGHMWTn8A/test_data/test_out/nodes_jack.dat",
 )
 
+threshold_filters = [
+    {"var": "lat", "operation": "<=", "value": 40, "count": 10},
+    {"var": "lat", "operation": ">=", "value": -40, "count": 10},
+    {"var": "orog", "operation": "<=", "value": 1500, "count": 10},
+    {"var": "orog", "operation": "<=", "value": 10, "count": 4},
+]
+
+sn_params = te.StitchNodesParameters(
+    input_file="/rds/project/rds-TqEGHMWTn8A/test_data/test_out/nodes_jack.dat",
+    in_fmt="lon,lat,psl,orog",
+    output_file="/rds/project/rds-TqEGHMWTn8A/test_data/test_out/tracks_tctrack.txt",
+    max_sep=8.0,
+    min_time=10,
+    max_gap=3,
+    min_endpoint_dist=8.0,
+    threshold_filters=threshold_filters,
+)
+
 print(dn_params)
+print(sn_params)
 
-tracker = te.TETracker(dn_params)
+tracker = te.TETracker(dn_params, sn_params)
 
-result = tracker.detect_nodes()
+dn_result = tracker.detect_nodes()
+sn_result = tracker.stitch_nodes()
 
-print(result["returncode"])
+print(dn_result["returncode"], sn_result["returncode"])
