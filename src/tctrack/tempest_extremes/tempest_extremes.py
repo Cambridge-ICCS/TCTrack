@@ -300,14 +300,14 @@ class StitchNodesParameters:
 
     Attributes
     ----------
+    output_file : str | None
+        The output filename to save the tracks. "out" in TempestExtremes.
     input_file : str | None
         Filename of the DetectNodes output file. If None, it will be taken from the
         DetectNodes parameters. "in" in TempestExtremes.
     in_fmt : str | None
         Comma-separated list of the variables in the input file. If None, it will be
         taken from the DetectNodes parameters.
-    output_file : str | None
-        The output filename to save the tracks. "out" in TempestExtremes.
     max_sep : float | None
         The maximum distance allowed between candidates (degrees). "range" in
         TempestExtremes.
@@ -330,9 +330,9 @@ class StitchNodesParameters:
         Format of the output file. "gfdl", "csv", or "csvnoheader". Default: "gfdl"
     """
 
+    output_file: str | None = None
     input_file: str | None = None
     in_fmt: str | None = None
-    output_file: str | None = None
     max_sep: float | None = None
     min_time: int | str = 1
     max_gap: int = 0
@@ -395,17 +395,13 @@ class TETracker:
         # Set StitchNodes input arguments according to DetectNodes parameters,
         # if not provided
         sn_input_none = self.stitch_nodes_parameters.input_file is None
-        dn_output_none = self.detect_nodes_parameters.output_file is None
-        if sn_input_none and not dn_output_none:
-            self.stitch_nodes_parameters.input_file = (
-                self.detect_nodes_parameters.output_file
-            )
+        dn_output = self.detect_nodes_parameters.output_file
+        if sn_input_none and dn_output is not None:
+            self.stitch_nodes_parameters.input_file = dn_output
         sn_infmt_none = self.stitch_nodes_parameters.in_fmt is None
-        dn_outcmd_none = self.detect_nodes_parameters.output_commands is None
-        if sn_infmt_none and not dn_outcmd_none:
-            variables = [
-                output["var"] for output in self.detect_nodes_parameters.output_commands
-            ]
+        dn_outcmd = self.detect_nodes_parameters.output_commands
+        if sn_infmt_none and dn_outcmd is not None:
+            variables = [output["var"] for output in dn_outcmd]
             self.stitch_nodes_parameters.in_fmt = ",".join(["lon", "lat", *variables])
 
     def _make_detect_nodes_call(self):  # noqa: PLR0912 - all branches same logic
@@ -587,6 +583,13 @@ class TETracker:
         """Call the StitchNodes utility in Tempest Extremes."""
         # Construct StitchNodes call based on options set in the TempestExtremes class
         sn_argslist = ["StitchNodes"]
+        if self.stitch_nodes_parameters.output_file is not None:
+            sn_argslist.extend(
+                [
+                    "--out",
+                    self.stitch_nodes_parameters.output_file,
+                ]
+            )
         if self.stitch_nodes_parameters.input_file is not None:
             sn_argslist.extend(
                 [
@@ -599,13 +602,6 @@ class TETracker:
                 [
                     "--in_fmt",
                     self.stitch_nodes_parameters.in_fmt,
-                ]
-            )
-        if self.stitch_nodes_parameters.output_file is not None:
-            sn_argslist.extend(
-                [
-                    "--out",
-                    self.stitch_nodes_parameters.output_file,
                 ]
             )
         if self.stitch_nodes_parameters.max_sep is not None:
