@@ -296,7 +296,39 @@ class DetectNodesParameters:
 
 @dataclass
 class StitchNodesParameters:
-    """Dataclass containing values used by the StitchNodes operation of TE."""
+    """Dataclass containing values used by the StitchNodes operation of TE.
+
+    Attributes
+    ----------
+    input_file : str | None
+        Filename of the DetectNodes output file. If None, it will be taken from the
+        DetectNodes parameters. "in" in TempestExtremes.
+    in_fmt : str | None
+        Comma-separated list of the variables in the input file. If None, it will be
+        taken from the DetectNodes parameters.
+    output_file : str | None
+        The output filename to save the tracks. "out" in TempestExtremes.
+    max_sep : float | None
+        The maximum distance allowed between candidates (degrees). "range" in
+        TempestExtremes.
+    min_time : int | str
+        The minimum required length of a path. Either as an integer for the number of
+        candidates, or a string for total duration, e.g. "24h". Default: 1
+    max_gap : int
+        The number of missing points allowed between candidates. Default: 0
+    min_endpoint_dist : float
+        The minimum required distance between the first and last candidates (degrees).
+        Default: 0
+    min_path_dist : float
+        The minimum required acumulated distance along the path (degrees). Default: 0
+    threshold_filters: list[TEThreshold] | None
+        Filters for paths based on the number of nodes that satisfy a threshold.
+        "thresholdcmd" in TempestExtremes.
+    timestride : int
+        The frequency of the input times to consider. Default: 1
+    out_file_format : str
+        Format of the output file. "gfdl", "csv", or "csvnoheader". Default: "gfdl"
+    """
 
     input_file: str | None = None
     in_fmt: str | None = None
@@ -305,7 +337,10 @@ class StitchNodesParameters:
     min_time: int | str = 1
     max_gap: int = 0
     min_endpoint_dist: float = 0
+    min_path_dist: float = 0
     threshold_filters: list[TEThreshold] | None = None
+    timestride: int = 1
+    out_file_format: str = "gfdl"
 
     def __str__(self) -> str:
         """Improve the representation to users."""
@@ -357,7 +392,8 @@ class TETracker:
         else:
             self.stitch_nodes_parameters = StitchNodesParameters()
 
-        # Set StitchNodes input arguments according to DetectNodes parameters, if not provided
+        # Set StitchNodes input arguments according to DetectNodes parameters,
+        # if not provided
         sn_input_none = self.stitch_nodes_parameters.input_file is None
         dn_output_none = self.detect_nodes_parameters.output_file is None
         if sn_input_none and not dn_output_none:
@@ -600,11 +636,32 @@ class TETracker:
                     str(self.stitch_nodes_parameters.min_endpoint_dist),
                 ]
             )
+        if self.stitch_nodes_parameters.min_path_dist is not None:
+            sn_argslist.extend(
+                [
+                    "--min_path_dist",
+                    str(self.stitch_nodes_parameters.min_path_dist),
+                ]
+            )
         if self.stitch_nodes_parameters.threshold_filters is not None:
             sn_argslist.extend(
                 [
                     "--threshold",
                     lod_to_te(self.stitch_nodes_parameters.threshold_filters),
+                ]
+            )
+        if self.stitch_nodes_parameters.timestride is not None:
+            sn_argslist.extend(
+                [
+                    "--timestride",
+                    str(self.stitch_nodes_parameters.timestride),
+                ]
+            )
+        if self.stitch_nodes_parameters.out_file_format is not None:
+            sn_argslist.extend(
+                [
+                    "--out_file_format",
+                    self.stitch_nodes_parameters.out_file_format,
                 ]
             )
 
