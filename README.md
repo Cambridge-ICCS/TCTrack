@@ -1,3 +1,8 @@
+![GitHub](https://img.shields.io/github/license/Cambridge-ICCS/TCTrack)
+[![Documentation Status](https://readthedocs.org/projects/TCTrack/badge/?version=latest)](https://tctrack.readthedocs.io/en/latest/?badge=latest)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+
 # TCTrack
 
 The TCTrack package aims to provide functionality for running tropical cyclone (TC)
@@ -34,10 +39,19 @@ pip install --editable .
 
 
 ## Using TCTrack
+
+To use TCTrack from within Python after install import it as you would any other
+library:
+
 ```python
 import tctrack
 #[Example]
 ```
+
+Full details can be found in the
+[getting-started documentation online](https://tctrack.readthedocs.io/developer/index.html).
+For a complete description of the library API see 
+[API documentation](https://tctrack.readthedocs.io/developer/index.html).
 
 
 ## Contributing
@@ -52,42 +66,16 @@ address an [open issue](https://github.com/Cambridge-ICCS/TCTrack/issues), pleas
 [fork the repository](https://github.com/Cambridge-ICCS/TCTrack/fork) and open a
 pull request.
 
-### Additional dependencies for development
-
-- [pytest](https://docs.pytest.org/en/stable/) is used for unit testing.
-- [ruff](https://docs.astral.sh/ruff/) is used for formatting and linting.
-- [mypy](https://www.mypy-lang.org/) is used for static checking of type hints.
-
-These optional developer dependencies can be installed as follows:
+Additional dependencies for deleopment can be installed as follows:
 ```sh
 pip install --editable .[dev]
 ```
 
-### Testing
-
-All code contributions should have accompanying unit tests to ensure that all parts of
-the code are functioning properly.
-
-When added, the testing framework will utilise `pytest`.
-
-### Code quality
-
-All code should be annotated using [type hints](https://peps.python.org/pep-0484/) and
-formatted using `ruff format`:
-```sh
-ruff format
-```
-In addition, the code should be linted using `ruff check` to check for errors:
-```sh
-ruff check
-```
-Details of the ruff configuration and specific rules can be found in the
-`pyproject.toml` file.
-
-Code quality is enforced on all pull requests and merges through a continuous
-integration workflow using GitHub actions.
+Full details for contribution and developers can be found in the
+[online documentation](https://tctrack.readthedocs.io/developer/index.html).
 
 ### Code of Conduct
+
 Everyone participating in the _TCTrack_ project, and in particular in the
 issue tracker, pull requests, and social media activity, is expected to treat other
 people with respect and, more generally, to follow the guidelines articulated in the
