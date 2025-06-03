@@ -3,8 +3,8 @@
 from .tempest_extremes import (
     DetectNodesParameters,
     TEContour,
-    TEOutputComand,
+    TEOutputCommand,
     TETracker,
 )
 
-__all__ = ["DetectNodesParameters", "TEContour", "TEOutputComand", "TETracker"]
+__all__ = ["DetectNodesParameters", "TEContour", "TEOutputCommand", "TETracker"]
