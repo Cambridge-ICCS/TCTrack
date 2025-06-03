@@ -197,6 +197,18 @@ The full *ruff* configuration for the project is contained in the
 file.
 
 
+.. _testing:
+
+Testing
+-------
+
+All code contributions should have accompanying unit and integration tests to ensure
+that all parts of the code are functioning properly.
+
+TCTrack uses the `pytest <https://docs.pytest.org>`_ framework for testing,
+with subprocess calls mocked with `pytest-mock <https://pytest-mock.readthedocs.io>`_.
+
+
 .. _documentation:
 
 Documentation
