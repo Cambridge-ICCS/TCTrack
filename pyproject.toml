@@ -37,6 +37,7 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest",
+    "pytest-mock",
 ]
 lint = [
     "mypy",
@@ -91,3 +92,6 @@ convention = "numpy"
 # Ignore S101 (use of assert) in tests
 # Ignore PLR2004 (magic values) in tests as we regularly compare to a numerical value
 "**/tests/*" = ["S101", "PLR2004"]
+
+[tool.pytest.ini_options]
+mock_use_standalone_module = true
