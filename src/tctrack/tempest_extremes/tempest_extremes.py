@@ -330,38 +330,42 @@ class StitchNodesParameters:
     ----------
     output_file : str | None
         The output filename to save the tracks. "out" in TempestExtremes.
-    input_file : str | None
+    input_file : str | None, optional
         Filename of the DetectNodes output file. If None, it will be taken from the
         DetectNodes parameters. "in" in TempestExtremes.
-    in_fmt : str | None
+    in_fmt : str | None, optional
         Comma-separated list of the variables in the input file. If None, it will be
         taken from the DetectNodes parameters.
-    max_sep : float | None
+    max_sep : float | None, default=0
         The maximum distance allowed between candidates (degrees). "range" in
         TempestExtremes.
-    min_time : int | str
+    min_time : int | str, default=1
         The minimum required length of a path. Either as an integer for the number of
-        candidates, or a string for total duration, e.g. "24h". Default: 1
-    max_gap : int
-        The number of missing points allowed between candidates. Default: 0
-    min_endpoint_dist : float
+        candidates, or a string for total duration, e.g. "24h".
+    max_gap : int, default=0
+        The number of missing points allowed between candidates.
+    min_endpoint_dist : float, default=0
         The minimum required distance between the first and last candidates (degrees).
-        Default: 0
-    min_path_dist : float
-        The minimum required acumulated distance along the path (degrees). Default: 0
-    threshold_filters: list[TEThreshold] | None
+    min_path_dist : float, default=0
+        The minimum required acumulated distance along the path (degrees).
+    threshold_filters: list[TEThreshold] | None, optional
         Filters for paths based on the number of nodes that satisfy a threshold.
         "thresholdcmd" in TempestExtremes.
-    timestride : int
-        The frequency of the input times to consider. Default: 1
-    out_file_format : str
-        Format of the output file. "gfdl", "csv", or "csvnoheader". Default: "gfdl"
+    timestride : int, default=1
+        The frequency of the input times to consider.
+    out_file_format : str, default="gfdl"
+        Format of the output file. "gfdl", "csv", or "csvnoheader".
+
+    References
+    ----------
+    TempestExtremes Documentation: https://climate.ucdavis.edu/tempestextremes.php#StitchNodes
+    Source: https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/StitchNodes.cpp
     """
 
-    output_file: str | None = None
+    output_file: str | None
     input_file: str | None = None
     in_fmt: str | None = None
-    max_sep: float | None = None
+    max_sep: float | None = 0
     min_time: int | str = 1
     max_gap: int = 0
     min_endpoint_dist: float = 0
@@ -418,7 +422,7 @@ class TETracker:
                 stitch_nodes_parameters
             )
         else:
-            self.stitch_nodes_parameters = StitchNodesParameters()
+            self.stitch_nodes_parameters = StitchNodesParameters("tracks.txt")
 
         # Set StitchNodes input arguments according to DetectNodes parameters,
         # if not provided
@@ -646,34 +650,30 @@ class TETracker:
                     str(self.stitch_nodes_parameters.max_sep),
                 ]
             )
-        if self.stitch_nodes_parameters.min_time is not None:
-            sn_argslist.extend(
-                [
-                    "--mintime",
-                    str(self.stitch_nodes_parameters.min_time),
-                ]
-            )
-        if self.stitch_nodes_parameters.max_gap is not None:
-            sn_argslist.extend(
-                [
-                    "--maxgap",
-                    str(self.stitch_nodes_parameters.max_gap),
-                ]
-            )
-        if self.stitch_nodes_parameters.min_endpoint_dist is not None:
-            sn_argslist.extend(
-                [
-                    "--min_endpoint_dist",
-                    str(self.stitch_nodes_parameters.min_endpoint_dist),
-                ]
-            )
-        if self.stitch_nodes_parameters.min_path_dist is not None:
-            sn_argslist.extend(
-                [
-                    "--min_path_dist",
-                    str(self.stitch_nodes_parameters.min_path_dist),
-                ]
-            )
+        sn_argslist.extend(
+            [
+                "--mintime",
+                str(self.stitch_nodes_parameters.min_time),
+            ]
+        )
+        sn_argslist.extend(
+            [
+                "--maxgap",
+                str(self.stitch_nodes_parameters.max_gap),
+            ]
+        )
+        sn_argslist.extend(
+            [
+                "--min_endpoint_dist",
+                str(self.stitch_nodes_parameters.min_endpoint_dist),
+            ]
+        )
+        sn_argslist.extend(
+            [
+                "--min_path_dist",
+                str(self.stitch_nodes_parameters.min_path_dist),
+            ]
+        )
         if self.stitch_nodes_parameters.threshold_filters is not None:
             sn_argslist.extend(
                 [
@@ -681,20 +681,18 @@ class TETracker:
                     lod_to_te(self.stitch_nodes_parameters.threshold_filters),
                 ]
             )
-        if self.stitch_nodes_parameters.timestride is not None:
-            sn_argslist.extend(
-                [
-                    "--timestride",
-                    str(self.stitch_nodes_parameters.timestride),
-                ]
-            )
-        if self.stitch_nodes_parameters.out_file_format is not None:
-            sn_argslist.extend(
-                [
-                    "--out_file_format",
-                    self.stitch_nodes_parameters.out_file_format,
-                ]
-            )
+        sn_argslist.extend(
+            [
+                "--timestride",
+                str(self.stitch_nodes_parameters.timestride),
+            ]
+        )
+        sn_argslist.extend(
+            [
+                "--out_file_format",
+                self.stitch_nodes_parameters.out_file_format,
+            ]
+        )
 
         return sn_argslist
 
