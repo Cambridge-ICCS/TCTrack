@@ -449,7 +449,7 @@ class TETracker:
             )
             raise FileNotFoundError(msg) from exc
 
-    def _make_stitch_nodes_call(self):  # noqa: PLR0912 - all branches same logic
+    def _make_stitch_nodes_call(self):
         """
         Construct a StitchNodes call based on options set in parameters.
 
