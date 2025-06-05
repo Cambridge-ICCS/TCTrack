@@ -37,6 +37,7 @@ threshold_filters = [
 
 sn_params = te.StitchNodesParameters(
     output_file="/rds/project/rds-TqEGHMWTn8A/test_data/test_out/tracks_tctrack.txt",
+    caltype="360_day",
     max_sep=8.0,
     min_time=10,
     max_gap=3,

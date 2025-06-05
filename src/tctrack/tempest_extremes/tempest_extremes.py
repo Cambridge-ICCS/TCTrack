@@ -330,20 +330,31 @@ class StitchNodesParameters:
     ----------
     output_file : str | None
         The output filename to save the tracks. "out" in TempestExtremes.
-    input_file : str | None, optional
-        Filename of the DetectNodes output file. If None, it will be taken from the
-        DetectNodes parameters. "in" in TempestExtremes.
+    in_file : str | None, optional
+        Filename of the DetectNodes output file. If this and `in_list` are None, it will
+        be taken from the DetectNodes parameters. "in" in TempestExtremes.
+    in_list : str | None, optional
+        File containing a list of input files to be processed together.
     in_fmt : str | None, optional
         Comma-separated list of the variables in the input file. If None, it will be
         taken from the DetectNodes parameters.
-    max_sep : float | None, default=0
+    allow_repeated_times : bool, default=False
+        If False, an error is thrown if there are multiple sections in the input
+        nodefile with the same time.
+    caltype : str, default="standard"
+        Type of calendar to use. Options are: "standard", "noleap", "360_day"
+    time_begin : str | None, optional
+        Starting date / time for stitching tracks. Earlier times will be ignored.
+    time_end : str | None, optional
+        Ending date / time for stitching tracks. Later times will be ignored.
+    max_sep : float, default=5.0
         The maximum distance allowed between candidates (degrees). "range" in
         TempestExtremes.
+    max_gap : int, default=0
+        The number of missing points allowed between candidates.
     min_time : int | str, default=1
         The minimum required length of a path. Either as an integer for the number of
         candidates, or a string for total duration, e.g. "24h".
-    max_gap : int, default=0
-        The number of missing points allowed between candidates.
     min_endpoint_dist : float, default=0
         The minimum required distance between the first and last candidates (degrees).
     min_path_dist : float, default=0
@@ -351,10 +362,17 @@ class StitchNodesParameters:
     threshold_filters: list[TEThreshold] | None, optional
         Filters for paths based on the number of nodes that satisfy a threshold.
         "thresholdcmd" in TempestExtremes.
-    timestride : int, default=1
-        The frequency of the input times to consider.
+    prioritize : str | None, optional
+        The variable to use to determine the precedence (lowest to highest) of nodes for
+        matching to the next position.
+    add_velocity : bool, default=False
+        Whether to include the velocity components (m/s) of the movement of the TC to
+        the output file.
     out_file_format : str, default="gfdl"
         Format of the output file. "gfdl", "csv", or "csvnoheader".
+    out_seconds : bool, default=False
+        For GFDL output file types, determines whether to report the sub-daily time in
+        seconds (True) or hours (False).
 
     References
     ----------
@@ -363,16 +381,23 @@ class StitchNodesParameters:
     """
 
     output_file: str | None
-    input_file: str | None = None
+    in_file: str | None = None
+    in_list: str | None = None
     in_fmt: str | None = None
-    max_sep: float | None = 0
-    min_time: int | str = 1
+    allow_repeated_times: bool = False
+    caltype: str = "standard"
+    time_begin: str | None = None
+    time_end: str | None = None
+    max_sep: float = 5
     max_gap: int = 0
+    min_time: int | str = 1
     min_endpoint_dist: float = 0
     min_path_dist: float = 0
     threshold_filters: list[TEThreshold] | None = None
-    timestride: int = 1
+    prioritize: str | None = None
+    add_velocity: bool = False
     out_file_format: str = "gfdl"
+    out_seconds: bool = False
 
     def __str__(self) -> str:
         """Improve the representation to users."""
@@ -426,15 +451,14 @@ class TETracker:
 
         # Set StitchNodes input arguments according to DetectNodes parameters,
         # if not provided
-        sn_input_none = self.stitch_nodes_parameters.input_file is None
-        dn_output = self.detect_nodes_parameters.output_file
-        if sn_input_none and dn_output is not None:
-            self.stitch_nodes_parameters.input_file = dn_output
-        sn_infmt_none = self.stitch_nodes_parameters.in_fmt is None
-        dn_outcmd = self.detect_nodes_parameters.output_commands
-        if sn_infmt_none and dn_outcmd is not None:
-            variables = [output["var"] for output in dn_outcmd]
-            self.stitch_nodes_parameters.in_fmt = ",".join(["lon", "lat", *variables])
+        sn_params = self.stitch_nodes_parameters
+        dn_params = self.detect_nodes_parameters
+        sn_input_none = sn_params.in_file is None and sn_params.in_list is None
+        if sn_input_none and dn_params.output_file is not None:
+            sn_params.in_file = dn_params.output_file
+        if sn_params.in_fmt is None and dn_params.output_commands is not None:
+            variables = [output["var"] for output in dn_params.output_commands]
+            sn_params.in_fmt = ",".join(["lon", "lat", *variables])
 
     def _make_detect_nodes_call(self):  # noqa: PLR0912 - all branches same logic
         """
@@ -622,77 +646,36 @@ class TETracker:
             based on the parameters set in self.stitch_nodes_parameters
         """
         sn_argslist = ["StitchNodes"]
-        if self.stitch_nodes_parameters.output_file is not None:
-            sn_argslist.extend(
-                [
-                    "--out",
-                    self.stitch_nodes_parameters.output_file,
-                ]
-            )
-        if self.stitch_nodes_parameters.input_file is not None:
-            sn_argslist.extend(
-                [
-                    "--in",
-                    self.stitch_nodes_parameters.input_file,
-                ]
-            )
-        if self.stitch_nodes_parameters.in_fmt is not None:
-            sn_argslist.extend(
-                [
-                    "--in_fmt",
-                    self.stitch_nodes_parameters.in_fmt,
-                ]
-            )
-        if self.stitch_nodes_parameters.max_sep is not None:
-            sn_argslist.extend(
-                [
-                    "--range",
-                    str(self.stitch_nodes_parameters.max_sep),
-                ]
-            )
-        sn_argslist.extend(
-            [
-                "--mintime",
-                str(self.stitch_nodes_parameters.min_time),
-            ]
-        )
-        sn_argslist.extend(
-            [
-                "--maxgap",
-                str(self.stitch_nodes_parameters.max_gap),
-            ]
-        )
-        sn_argslist.extend(
-            [
-                "--min_endpoint_dist",
-                str(self.stitch_nodes_parameters.min_endpoint_dist),
-            ]
-        )
-        sn_argslist.extend(
-            [
-                "--min_path_dist",
-                str(self.stitch_nodes_parameters.min_path_dist),
-            ]
-        )
-        if self.stitch_nodes_parameters.threshold_filters is not None:
-            sn_argslist.extend(
-                [
-                    "--threshold",
-                    lod_to_te(self.stitch_nodes_parameters.threshold_filters),
-                ]
-            )
-        sn_argslist.extend(
-            [
-                "--timestride",
-                str(self.stitch_nodes_parameters.timestride),
-            ]
-        )
-        sn_argslist.extend(
-            [
-                "--out_file_format",
-                self.stitch_nodes_parameters.out_file_format,
-            ]
-        )
+        sn_params = self.stitch_nodes_parameters
+        if sn_params.output_file is not None:
+            sn_argslist.extend(["--out", sn_params.output_file])
+        if sn_params.in_file is not None:
+            sn_argslist.extend(["--in", sn_params.in_file])
+        if sn_params.in_list is not None:
+            sn_argslist.extend(["--in_list", sn_params.in_list])
+        if sn_params.in_fmt is not None:
+            sn_argslist.extend(["--in_fmt", sn_params.in_fmt])
+        if sn_params.allow_repeated_times:
+            sn_argslist.extend(["--allow_repeated_times"])
+        sn_argslist.extend(["--caltype", str(sn_params.caltype)])
+        if sn_params.time_begin is not None:
+            sn_argslist.extend(["--time_begin", str(sn_params.time_begin)])
+        if sn_params.time_end is not None:
+            sn_argslist.extend(["--time_end", str(sn_params.time_end)])
+        sn_argslist.extend(["--range", str(sn_params.max_sep)])
+        sn_argslist.extend(["--maxgap", str(sn_params.max_gap)])
+        sn_argslist.extend(["--mintime", str(sn_params.min_time)])
+        sn_argslist.extend(["--min_endpoint_dist", str(sn_params.min_endpoint_dist)])
+        sn_argslist.extend(["--min_path_dist", str(sn_params.min_path_dist)])
+        if sn_params.threshold_filters is not None:
+            sn_argslist.extend(["--threshold", lod_to_te(sn_params.threshold_filters)])
+        if sn_params.prioritize is not None:
+            sn_argslist.extend(["--prioritize", str(sn_params.prioritize)])
+        if sn_params.add_velocity:
+            sn_argslist.extend(["--add_velocity"])
+        sn_argslist.extend(["--out_file_format", sn_params.out_file_format])
+        if sn_params.out_seconds:
+            sn_argslist.extend(["--out_seconds"])
 
         return sn_argslist
 
