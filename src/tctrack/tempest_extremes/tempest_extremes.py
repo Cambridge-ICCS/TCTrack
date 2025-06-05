@@ -134,12 +134,40 @@ class TEOutputCommand(TypedDict):
 
 
 class TEThreshold(TypedDict):
-    """Data required for a threshold filter for a track in StitchNodes."""
+    """Data required for a threshold filter for a track in StitchNodes.
 
-    var: str  # `col` in Tempest Extremes
-    operation: str  # `op` in Tempest Extremes
+    Any tracks that do not satisfy the threshold value for a given number of points will
+    be filtered out. Each condition is of the form "var,op,value,count" and conditions
+    are separated by ";".
+
+    Attributes
+    ----------
+    var : str
+        Name of the variable being tested. "col" in TempestExtremes.
+    op : str
+        Operator being used for the comparison (options include >,>=,<,<=,=,!=,|>=,|<=).
+    value : float
+        Value on the right-hand-side of the comparison.
+    cout : str
+        Either the minimum number of points where the threshold must be satisfied or the
+        instruction "all", "first", or "last". "all" for all points along the path,
+        "first" for just the first point, and "last" for only the last point.
+
+    See Also
+    --------
+    TETracker.stitch_nodes : The StitchNodes call from the TETracker object.
+    StitchNodesParameters : The StitchNodes parameter class.
+
+    References
+    ----------
+    TempestExtremes Documentation: https://climate.ucdavis.edu/tempestextremes.php#StitchNodes
+    Source: https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/StitchNodes.cpp
+    """
+
+    var: str
+    op: str
     value: float
-    count: str  # Number or 'all', 'first', or 'last'
+    count: str
 
 
 @dataclass
