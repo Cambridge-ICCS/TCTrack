@@ -1,0 +1,97 @@
+Tempest Extremes
+================
+
+Tempest Extremes is a popular software for detecting and tracking tropical cyclones
+and other weather systems in climate datasets.
+It is written by Paul Ullrich and released under a BSD 2-clause license.
+
+The code can be found `on GitHub <https://github.com/ClimateGlobalChange/tempestextremes>`_,
+with `online documentation available <https://climate.ucdavis.edu/tempestextremes.php>`_.
+
+TCTrack provides bindings for tropical cyclone tracking sections of Tempest Extremes,
+namely the ``DetectNodes`` and ``StitchNodes`` functionalities.
+Other components may be added in future is required by users.
+
+For full details of the Tempest Extremes API in TCTrack see the
+:doc:`TCTrack Tempest Extremes API documentation <../api/tempest_extremes_api>`.
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+
+
+Installation
+------------
+
+Using the Tempest Extremes module in TCTrack requires Tempest Extremes to be installed
+on a user's system.
+
+The code is built using CMake.
+It requires a C++ compiler and an installation of NetCDF with C++ bindings.
+Full instructions for this can be found in the
+`Tempest Extremes Documentation <https://github.com/ClimateGlobalChange/tempestextremes/tree/master?tab=readme-ov-file#installation-via-cmake-recommended>`_
+but are summarised here::
+
+    git clone https://github.com/ClimateGlobalChange/tempestextremes.git
+    cd tempestextremes/
+    git checkout 5feb3a04d29fd62a1f13fa9c0b85daeefcbecd6f
+    mkdir build
+    cmake -B build/ -DCMAKE_BUILD_TYPE=Release -DENABLE_MPI=OFF .
+    cmake --build build/
+
+This will clone the Tempest Extremes code and check out the most recent commit that
+TCTrack has been built against (5feb3a0 - a more recent version may work if you require
+the latest features).
+It will then build using CMake
+Once this is complete the Tempest Extremes executeables can then be found in
+``tempestextremes/build_serial/bin/``.
+
+
+Usage
+-----
+
+Cyclone tracking in Tempest Extremes consists of two phases: node detection of candidate
+storms for each snapshot in time, and stitching of nodes across timesteps to generate
+tracks.
+
+Usage of Tempest Extremes in TCTrack is done through the ``tempest_extremes`` module.
+
+This provides the ``TETracker`` class that stores algorithm parameters and provides access
+to the methods.
+The detection and stitching algorithm can be configured through the various parameters
+in the 
+
+In the following example we set up the DetectNodes functionality to run on a series of
+input files to generate output. We configure detection to be done based on minima in
+psl, with closed contours of psl and zgdiff, and merging of candidates within 6 degrees
+of one another:
+
+.. code-block:: python
+
+    import tctrack.tempest_extremes as te
+
+    input_files = [
+        "psl_E3hr_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195001010300-195006302100.nc",
+        "zgdiff_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195001-195003.nc",
+        "orog_fx_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn.nc",
+    ]
+
+    closed_contours = [
+        te.TEContour(var="psl", delta=200.0, dist=5.5, minmaxdist=0.0),
+        te.TEContour(var="zgdiff", delta=-6.0, dist=6.5, minmaxdist=1.0),
+    ]
+
+    dn_params = te.DetectNodesParameters(
+        in_data=input_files,
+        search_by_min="psl",
+        merge_dist=6.0,
+        closed_contours=closed_contours,
+        out_header=True,
+        output_file="nodes_out.dat",
+    )
+
+    te_tracker = te.TETracker(dn_params)
+
+    result = te_tracker.detect_nodes()
+
+

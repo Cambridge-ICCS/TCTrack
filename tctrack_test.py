@@ -9,13 +9,13 @@ input_files = [
 ]
 
 closed_contours = [
-    {"var": "psl", "delta": 200.0, "dist": 5.5, "minmaxdist": 0},
-    {"var": "zgdiff", "delta": -6.0, "dist": 6.5, "minmaxdist": 1.0},
+    te.TEContour(var="psl", delta=200.0, dist=5.5, minmaxdist=0.0),
+    te.TEContour(var="zgdiff", delta=-6.0, dist=6.5, minmaxdist=1.0),
 ]
 
 output_commands = [
-    {"var": "psl", "operation": "min", "dist": 0.0},
-    {"var": "orog", "operation": "max", "dist": 0.0},
+    te.TEOutputCommand(var="psl", operator="min", dist=0.0),
+    te.TEOutputCommand(var="orog", operator="max", dist=0.0),
 ]
 
 dn_params = te.DetectNodesParameters(

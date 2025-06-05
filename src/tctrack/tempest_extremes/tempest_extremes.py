@@ -28,79 +28,109 @@ def lod_to_te(inputs: list[dict]) -> str:
     -------
     str
         Single string of values separated by `,` and dicts separated by `;`
+
+    Examples
+    --------
+    >>> lod_to_te([{"a": 1, "b": 2, "c": 3}, {"d": 4, "e": 5, "f": 6}])
+    '1,2,3;4,5,6'
     """
     return ";".join(",".join(str(value) for value in d.values()) for d in inputs)
 
 
 class TEContour(TypedDict):
     """
-    Data required for contouring a single variable in DetectNodes.
+    Data required for checking a contour of a single variable in DetectNodes.
 
-    Points will be eliminated in a DetectNodes search if they fail this criterion
-
-    Attributes
-    ----------
-    var : str
-        Name of the variable to contour in NetCDF files.
-    delta : float
-        Amount by which the field must change from the pivot value.
-        If positive (negative) the field must increase (decrease) by this value along
-        the contour.
-    dist : float
-         Great-circle distance (degrees) from the pivot within which the
-         criteria must be satisfied.
-    minmaxdist : float
-        Great-circle distance away from the candidate to search for the minima/maxima.
-        If delta is positive (negative), the pivot is a local minimum (maximum).
+    Points will be eliminated in a DetectNodes search if they fail this criterion.
+    The closed contour is determined by breadth first search: if any paths exist from
+    the candidate point (or nearby minima/maxima if minmaxdist is specified) that
+    reach the specified distance before achieving the specified delta then we say no
+    closed contour is present.
+    Each contour takes the form of a ``dict`` with keys ``"var"``, ``"delta"``,
+    ``"dist"``, and ``"minmaxdist"``.
 
     See Also
     --------
-    TETracker.DetectNodes : The Detect Nodes call from the TETracker object
+    TETracker.detect_nodes : The Detect Nodes call from the TETracker object
     DetectNodesParameters : The DetectNodes parameter class
 
     References
     ----------
-    TempestExtremes Documentation: https://climate.ucdavis.edu/tempestextremes.php#DetectNodes
-    Source: https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/DetectNodes.cpp
+    `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#DetectNodes>`_
+    and the `DetectNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/DetectNodes.cpp>`_
+
+    Examples
+    --------
+    To add a contour requirement on ``"psl"`` with a change of ``200.0`` within
+    ``5.5`` degrees of the candidate we create a TEContour as follows:
+
+    >>> TEContour(var="psl", delta=200.0, dist=5.5, minmaxdist=0.0)
+    {'var': 'psl', 'delta': 200.0, 'dist': 5.5, 'minmaxdist': 0.0}
     """
 
     var: str
+    """Name of the variable to contour in NetCDF files."""
+
     delta: float
+    """
+    Amount by which the field must change from the pivot value.
+    If positive (negative) the field must increase (decrease) by this value along
+    the contour.
+    """
+
     dist: float
+    """
+    Great-circle distance (degrees) from the pivot within which the
+    criteria must be satisfied.
+    """
+
     minmaxdist: float
+    """
+    Great-circle distance away from the candidate to search for the minima/maxima.
+    If delta is positive (negative), the pivot is a local minimum (maximum).
+    """
 
 
 class TEOutputCommand(TypedDict):
     """
     Data required to specify an additional column in the DetectNodes output.
 
-    Each output command takes the form "var,op,dist".
-
-    Attributes
-    ----------
-    var : str
-        Name of the variable to write in output files.
-    op : string
-        Operator that is applied over all points within the specified distance of the
-        candidate (options include max, min, avg, maxdist, mindist).
-    dist : float
-         Great-circle distance (degrees) from the candidate within which the
-         operator is applied.
+    Each output command takes the form of a ``dict`` with keys ``"var"``, ``"op"``, and
+    ``"dist"``.
 
     See Also
     --------
-    TETracker.DetectNodes : The Detect Nodes call from the TETracker object
+    TETracker.detect_nodes : The Detect Nodes call from the TETracker object
     DetectNodesParameters : The DetectNodes parameter class
 
     References
     ----------
-    TempestExtremes Documentation: https://climate.ucdavis.edu/tempestextremes.php#DetectNodes
-    Source: https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/DetectNodes.cpp
+    `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#DetectNodes>`_
+    and the `DetectNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/DetectNodes.cpp>`_
+
+    Examples
+    --------
+    To add an output column with the minimum ``"psl"`` at the candidate point:
+
+    >>> TEOutputCommand(var="psl", operator="min", dist=0.0)
+    {'var': 'psl', 'operator': 'min', 'dist': 0.0}
     """
 
     var: str
-    op: str
+    """Name of the variable to write in output files."""
+
+    operator: str
+    """
+    Operator that is applied over all points within the specified distance of the
+    candidate (options include ``"max"``, ``"min"``, ``"avg"``, ``"maxdist"``, and
+    ``"mindist"``).
+    """
+
     dist: float
+    """
+    Great-circle distance (degrees) from the candidate within which the
+    operator is applied.
+    """
 
 
 @dataclass
@@ -108,76 +138,147 @@ class DetectNodesParameters:
     """
     Dataclass containing values used by the DetectNodes operation of TE.
 
-    Attributes
+    Parameters
     ----------
     in_data : list[str] | None
-        List of strings of NetCDF input files. Defaults to None.
+        List of strings of NetCDF input files.
+        Defaults to ``None``.
     out_header : bool
-        Whether to include header at the top of the output file. Defaults to False.
+        Whether to include header at the top of the output file.
+        Defaults to ``False``.
     output_file : str | None
-        The output nodefile to write to from the detection procedure. Defaults to None.
+        Output nodefile to write to from the detection procedure.
+        Defaults to ``None``.
     search_by_min : str | None
         Input variable in NetCDF files for selecting candidate points (defined as local
-        minima). Defaults to None in TCTrack (and then "PSL" in Tempest Extremes).
+        minima).
+        Defaults to ``None`` in TCTrack (and then ``"PSL"`` in Tempest Extremes).
     search_by_max : str | None
         Input variable in NetCDF files for selecting candidate points (defined as local
-        maxima). Defaults to None.
+        maxima).
+        Defaults to ``None``.
     closed_contours : list[TEContour] | None
         Criteria for candidates to be eliminated if they do not have a closed contour.
-        Defaults to None.
-        Criteria are provided as a list of separate TEContour criteria.
+        Criteria are provided as a list of separate ``TEContour`` criteria.
+        Defaults to ``None``.
     merge_dist : float
         DetectNodes merges candidate points with a distance (in degrees
         great-circle-distance) shorter than the specified value. Among two candidates
         within the merge distance, only the candidate with the lowest value of the
         search_by_min field or highest value of the search_by_max field are retained.
-        Defaults to 0.0.
+        Defaults to ``0.0``.
     lat_name : str
-        string for the longitude dimension in the NetCDF files, defaults to "lat"
+        string for the longitude dimension in the NetCDF files.
+        Defaults to ``"lat"``.
     lat_name : str
-        string for the longitude dimension in the NetCDF files, defaults to "lat"
+        string for the longitude dimension in the NetCDF files.
+        Defaults to ``"lat"``.
     min_lat : float
-        Minimum latitude for candidate points. Defaults to `0.0`
+        Minimum latitude for candidate points.
+        Defaults to ``0.0``.
     min_lat : float
-        Maximum latitude for candidate points. Defaults to `0.0`
+        Maximum latitude for candidate points.
+        Defaults to ``0.0``.
         If max_lat and min_lat are equal then these arguments are ignored.
     min_lon : float
-        Minimum longitude for candidate points. Defaults to `0.0`
+        Minimum longitude for candidate points.
+        Defaults to ``0.0``.
     min_lon : float
-        Maximum longitude for candidate points. Defaults to `0.0`
+        Maximum longitude for candidate points.
+        Defaults to ``0.0``.
         If max_lon and min_lon are equal then these arguments are ignored.
     regional : bool
         should lat-lon grid be periodic in the longitudinal direction.
-        Defaults to False
+        Defaults to ``False``
     output_commands : list[TEOutputCommand] | None
         Criteria for any additional columns to be added to the output.
-        Defaults to None.
-        Criteria are provided as a list of separate TEOutputCommand criteria.
+        Criteria are provided as a list of separate ``TEOutputCommand`` criteria.
+        Defaults to ``None``.
+
+    See Also
+    --------
+    TEContour : The class used to define contour criteria
+    TEOutputCommand : The class used to define additional outputs
 
     References
     ----------
-    TempestExtremes Documentation: https://climate.ucdavis.edu/tempestextremes.php#DetectNodes
-    Source: https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/DetectNodes.cpp
+    `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#DetectNodes>`_
+    and the `DetectNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/DetectNodes.cpp>`_
     """
 
     in_data: list[str] | None = None
+    """List of strings of NetCDF input files. Defaults to ``None``."""
+
     out_header: bool = False
+    """Include header at the top of the output file? Defaults to ``False``."""
+
     output_file: str | None = None
+    """Output nodefile to write to. Defaults to ``None``."""
+
     search_by_min: str | None = None
+    """
+    Input variable in NetCDF files for selecting candidate points (defined as local
+    minima). Defaults to ``None`` in TCTrack (and then ``"PSL"`` in Tempest Extremes).
+    """
+
     search_by_max: str | None = None
+    """
+    Input variable in NetCDF files for selecting candidate points (defined as local
+    maxima). Defaults to ``None``.
+    """
+
     closed_contours: list[TEContour] | None = None
+    """
+    Criteria for candidates to be eliminated if they do not have a closed contour
+    as a list of separate ``TEContour`` criteria.
+    Defaults to ``None``.
+    """
+
     merge_dist: float = 0.0
+    """
+    DetectNodes merges candidate points with a distance (in degrees
+    great-circle-distance) shorter than the specified value. Among two candidates
+    within the merge distance, only the candidate with the lowest value of the
+    search_by_min field or highest value of the search_by_max field are retained.
+    Defaults to ``0.0``.
+    """
+
     lat_name: str = "lat"
+    """String for the latitude dimension in the NetCDF files, defaults to ``"lat"``."""
+
     lon_name: str = "lon"
+    """String for the longitude dimension in the NetCDF files, defaults to ``"lat"``."""
+
     min_lat: float = 0.0
+    """Minimum latitude for candidate points. Defaults to ``0.0``."""
+
     max_lat: float = 0.0
+    """
+    Maximum latitude for candidate points. Defaults to ``0.0``.
+    If max_lat and min_lat are equal then these arguments are ignored.
+    """
+
     min_lon: float = 0.0
+    """Minimum longitude for candidate points. Defaults to ``0.0``."""
+
     max_lon: float = 0.0
+    """
+    Maximum longitude for candidate points. Defaults to ``0.0``.
+    If ``max_lon`` and ``min_lon`` are equal then these arguments are ignored.
+    """
+
     regional: bool = False
+    """Should lat-lon grid be periodic in longitude. Defaults to ``False``."""
+
     output_commands: list[TEOutputCommand] | None = None
+    """
+    Criteria for any additional columns to be added to the output.
+    Criteria are provided as a list of separate ``TEOutputCommand`` criteria.
+    Defaults to ``None``.
+    """
 
     def __str__(self) -> str:
-        """Improve the representation to users."""
+        """Improve the representation of DetectNodesParameters to users."""
         attributes = "\n\t".join(
             f"{key} \t = {value}" for key, value in asdict(self).items()
         )
@@ -190,8 +291,7 @@ class TETracker:
     Attributes
     ----------
     detect_nodes_parameters : DetectNodesParameters
-        class containing the parameters for the DetectNodes algorithm
-
+        Class containing the parameters for the DetectNodes algorithm
     """
 
     def __init__(
@@ -204,8 +304,8 @@ class TETracker:
         Parameters
         ----------
         detect_nodes_parameters : DetectNodesParameters
-            class containing the parameters for the DetectNodes algorithm
-            Defaults to the default values in DetectNodesParameters Class
+            Class containing the parameters for the DetectNodes algorithm.
+            Defaults to the default values in DetectNodesParameters Class.
         """
         if detect_nodes_parameters is not None:
             self.detect_nodes_parameters: DetectNodesParameters = (
@@ -319,7 +419,34 @@ class TETracker:
         return dn_argslist
 
     def detect_nodes(self):
-        """Call the DetectNodes utility in Tempest Extremes."""
+        """
+        Call the DetectNodes utility of Tempest Extremes.
+
+        This will make a system call out to the DetectNodes method from
+        Tempest Extremes (provided it has been installed as an external dependency).
+        DetectNodes will be run according to the parameters in the
+        ``detect_nodes_parameters`` attribute that were set when the ``TETracker``
+        instance was created.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the DetectNodes executeable from TempestExtremes cannot be found.
+
+        References
+        ----------
+        `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#DetectNodes>`_
+        and the `DetectNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/DetectNodes.cpp>`_
+
+        Examples
+        --------
+        To set the parameters, instantiate a ``TETracker`` instance and run
+        DetectNodes:
+
+        >>> my_params = DetectNodesParameters(...)
+        >>> my_tracker = TETracker(my_params)
+        >>> TETracker.detect_nodes()
+        """
         dn_call_list = self._make_detect_nodes_call()
 
         try:
