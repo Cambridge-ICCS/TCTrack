@@ -579,9 +579,16 @@ class TETracker:
             )
             raise RuntimeError(msg) from exc
 
-    def stitch_nodes(self):
-        """Call the StitchNodes utility in Tempest Extremes."""
-        # Construct StitchNodes call based on options set in the TempestExtremes class
+    def _make_stitch_nodes_call(self):  # noqa: PLR0912 - all branches same logic
+        """
+        Construct a StitchNodes call based on options set in parameters.
+
+        Returns
+        -------
+        list[str]
+            list of strings that can be combined to form a StitchNodes command
+            based on the parameters set in self.stitch_nodes_parameters
+        """
         sn_argslist = ["StitchNodes"]
         if self.stitch_nodes_parameters.output_file is not None:
             sn_argslist.extend(
@@ -661,8 +668,14 @@ class TETracker:
                 ]
             )
 
+        return sn_argslist
+
+    def stitch_nodes(self):
+        """Call the StitchNodes utility in Tempest Extremes."""
+        sn_call_list = self._make_stitch_nodes_call()
+
         try:
-            subprocess.run(sn_argslist, check=True)  # noqa: S603 - no shell
+            subprocess.run(sn_call_list, check=True)  # noqa: S603 - no shell
         except FileNotFoundError as exc:
             msg = (
                 "StitchNodes failed because the executable could not be found.\n"

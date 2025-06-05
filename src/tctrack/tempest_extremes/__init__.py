@@ -4,7 +4,7 @@ from .tempest_extremes import (
     DetectNodesParameters,
     StitchNodesParameters,
     TEContour,
-    TEOutputComand,
+    TEOutputCommand,
     TEThreshold,
     TETracker,
 )
@@ -13,7 +13,7 @@ __all__ = [
     "DetectNodesParameters",
     "StitchNodesParameters",
     "TEContour",
-    "TEOutputComand",
+    "TEOutputCommand",
     "TEThreshold",
     "TETracker",
 ]
