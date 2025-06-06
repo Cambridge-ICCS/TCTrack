@@ -428,10 +428,17 @@ class TETracker:
         ``detect_nodes_parameters`` attribute that were set when the ``TETracker``
         instance was created.
 
+        Returns
+        -------
+        dict
+            dict of subprocess output corresponding to stdout, stderr, and returncode.
+
         Raises
         ------
         FileNotFoundError
             If the DetectNodes executeable from TempestExtremes cannot be found.
+        RuntimeError
+            If Tempest Extremes DetectNodes returns a non-zero exit code.
 
         References
         ----------
@@ -445,15 +452,39 @@ class TETracker:
 
         >>> my_params = DetectNodesParameters(...)
         >>> my_tracker = TETracker(my_params)
-        >>> TETracker.detect_nodes()
+        >>> result = TETracker.detect_nodes()
         """
         dn_call_list = self._make_detect_nodes_call()
 
         try:
-            subprocess.run(dn_call_list, check=True)  # noqa: S603 - no shell
+            result = subprocess.run(  # noqa: S603 - no shell
+                dn_call_list,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            print("DetectNodes completed successfully.")
+            print(
+                f"First 12 lines of output:\n"
+                f"{''.join(result.stdout.splitlines(True)[:12])}"
+                f"\n...\n\n"
+                f"Last 12 lines of output:\n"
+                f"{''.join(result.stdout.splitlines(True)[-12:])}"
+            )
+            return {
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "returncode": result.returncode,
+            }
         except FileNotFoundError as exc:
             msg = (
                 "DetectNodes failed because the executable could not be found.\n"
                 "Did you provide the full executeable path or add it to $PATH?\n"
             )
             raise FileNotFoundError(msg) from exc
+        except subprocess.CalledProcessError as exc:
+            msg = (
+                f"DetectNodes failed with a non-zero exit code: ({exc.returncode}):\n"
+                f"{exc.stderr}"
+            )
+            raise RuntimeError(msg) from exc
