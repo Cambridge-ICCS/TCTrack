@@ -13,12 +13,12 @@ TCTrack is a Python library providing tracking algorithms for tropical cyclones.
    :caption: Contents:
 
    Getting Started <getting-started/index>
+   Tracking Algorithms <tracking-algorithms/index>
    API Documentation <api/index>
    Developer Information <developer/index>
 
-Indices and tables
-==================
+Indices
+=======
 
 * :ref:`genindex`
 * :ref:`modindex`
-* :ref:`search`

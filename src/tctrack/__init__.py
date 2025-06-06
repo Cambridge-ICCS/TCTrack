@@ -1,7 +1,5 @@
 """Package providing tropical cyclone tracking utilities."""
 
-from tctrack.hello import get_message
+from tctrack import tempest_extremes
 
-__all__ = [
-    "get_message",
-]
+__all__ = ["tempest_extremes"]

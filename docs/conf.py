@@ -6,10 +6,16 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+import os
+import sys
+
 project = "TCTrack"
 copyright = "2025, Jack Atkinson, Sam Avis"
 author = "Jack Atkinson, Sam Avis"
 release = "0.1.0"
+
+# Set the root for the project to be analysed in sphinx
+sys.path.insert(0, os.path.abspath("../src"))
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

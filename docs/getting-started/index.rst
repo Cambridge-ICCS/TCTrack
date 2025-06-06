@@ -3,14 +3,12 @@ Getting Started
 
 This getting started guide is intended for new users of TCTrack to get them up
 and running as quickly as possible whilst introducing the main concepts.
-More advanced users should consult the full :ref:`api_doc`.
+More advanced users should consult the full :doc:`API documentation`<../api/index>`.
 
 .. toctree::
    :maxdepth: 3
    :hidden:
 
-
-.. _installing:
 
 Installation
 ------------
@@ -38,8 +36,11 @@ additional developer dependencies::
 The `dev` optional dependencies include the `test`, `lint`, and `doc` subgroups.
 
 
-.. _dependencies:
-
 Dependencies
 ------------
 
+To use some tracking algorithms requires additional dependencies to be installed, namely
+the libraries that they are wrapping.
+
+For detailed information see the specific
+:doc:`tracking algorithms documentation<../tracking-algorithms/index>`.
