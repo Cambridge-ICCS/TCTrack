@@ -33,3 +33,5 @@ print(dn_params)
 tracker = te.TETracker(dn_params)
 
 result = tracker.detect_nodes()
+
+print(result["returncode"])
