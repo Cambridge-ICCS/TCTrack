@@ -25,14 +25,14 @@ dn_params = te.DetectNodesParameters(
     closed_contours=closed_contours,
     out_header=True,
     output_commands=output_commands,
-    output_file="/rds/project/rds-TqEGHMWTn8A/test_data/test_out/nodes_jack.dat",
+    output_file="/rds/project/rds-TqEGHMWTn8A/test_data/test_out/nodes_tctrack.dat",
 )
 
 threshold_filters = [
-    {"var": "lat", "operation": "<=", "value": 40, "count": 10},
-    {"var": "lat", "operation": ">=", "value": -40, "count": 10},
-    {"var": "orog", "operation": "<=", "value": 1500, "count": 10},
-    {"var": "orog", "operation": "<=", "value": 10, "count": 4},
+    te.TEThreshold(var="lat", op="<=", value=40, count=10),
+    te.TEThreshold(var="lat", op=">=", value=-40, count=10),
+    te.TEThreshold(var="orog", op="<=", value=1500, count=10),
+    te.TEThreshold(var="orog", op="<=", value=10, count=4),
 ]
 
 sn_params = te.StitchNodesParameters(
