@@ -340,7 +340,8 @@ class StitchNodesParameters:
         Filename of the DetectNodes output file. If this and `in_list` are ``None``, it
         will be taken from the DetectNodes parameters. Called "in" in TempestExtremes.
     in_list : str | None, optional
-        File containing a list of input files to be processed together.
+        File containing a list of input files to be processed together. This is
+        unadvised to use at present as it is likely to be changed.
     in_fmt : str | None, optional
         Comma-separated list of the variables in the input file. If ``None``, it will be
         taken from the DetectNodes parameters.
@@ -399,8 +400,8 @@ class StitchNodesParameters:
 
     in_list: str | None = None
     """
-    File containing a list of input files to be processed together.
-    Defaults to ``None``.
+    File containing a list of input files to be processed together. This is unadvised to
+    use at present as it is likely to be changed. Defaults to ``None``.
     """
 
     in_fmt: str | None = None
