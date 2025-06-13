@@ -349,8 +349,8 @@ class StitchNodesParameters:
         If ``False``, an error is thrown if there are multiple sections in the input
         nodefile with the same time.
     caltype : str, default="standard"
-        Type of calendar to use. Options are: ``"standard"``, ``"noleap"``,
-        ``"360_day"``.
+        Type of calendar to use. Options are: ``"standard"`` (365 days with
+        leap years), ``"noleap"``, ``"360_day"``.
     time_begin : str | None, optional
         Starting date / time for stitching tracks. Earlier times will be ignored.
     time_end : str | None, optional
@@ -418,8 +418,8 @@ class StitchNodesParameters:
 
     caltype: str = "standard"
     """
-    Type of calendar to use. Options are: ``"standard"``, ``"noleap"``, ``"360_day"``.
-    Defaults to ``"standard"``.
+    Type of calendar to use. Options are: ``"standard"`` (365 days with leap
+    years), ``"noleap"``, ``"360_day"``. Defaults to ``"standard"``.
     """
 
     time_begin: str | None = None
