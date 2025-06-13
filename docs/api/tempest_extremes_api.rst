@@ -18,12 +18,22 @@ For an overview of the functionalities, installation, and usage see the
    :undoc-members:
    :show-inheritance:
 
+.. autoclass:: tctrack.tempest_extremes.StitchNodesParameters
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 .. autoclass:: tctrack.tempest_extremes.TEContour
    :members:
    :undoc-members:
    :show-inheritance:
 
 .. autoclass:: tctrack.tempest_extremes.TEOutputCommand
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. autoclass:: tctrack.tempest_extremes.TEThreshold
    :members:
    :undoc-members:
    :show-inheritance:

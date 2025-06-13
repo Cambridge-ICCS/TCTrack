@@ -59,7 +59,7 @@ Usage of Tempest Extremes in TCTrack is done through the ``tempest_extremes`` mo
 This provides the ``TETracker`` class that stores algorithm parameters and provides access
 to the methods.
 The detection and stitching algorithm can be configured through the various parameters
-in the 
+in the ``DetectNodesParameters`` and ``StitchNodesParameters`` dataclasses.
 
 In the following example we set up the DetectNodes functionality to run on a series of
 input files to generate output. We configure detection to be done based on minima in
@@ -81,6 +81,11 @@ of one another:
         te.TEContour(var="zgdiff", delta=-6.0, dist=6.5, minmaxdist=1.0),
     ]
 
+    output_commands = [
+        te.TEOutputCommand(var="psl", operator="min", dist=0.0),
+        te.TEOutputCommand(var="orog", operator="max", dist=0.0),
+    ]
+
     dn_params = te.DetectNodesParameters(
         in_data=input_files,
         search_by_min="psl",
@@ -94,4 +99,30 @@ of one another:
 
     result = te_tracker.detect_nodes()
 
+This can then followed by StitchNodes which is set up to combine nodes into a track that
+are less than 8 degrees from one another, with a track length of at least 10 nodes and 8
+degrees end-to-end, with a maximum of 3 times missing between each pair of nodes. This
+is then filtered based upon the lattitude and surface altitude:
 
+.. code-block:: python
+
+    threshold_filters = [
+        te.TEThreshold(var="lat", op="<=", value=40, count=10),
+        te.TEThreshold(var="lat", op=">=", value=-40, count=10),
+        te.TEThreshold(var="orog", op="<=", value=1500, count=10),
+        te.TEThreshold(var="orog", op="<=", value=10, count=4),
+    ]
+
+    sn_params = te.StitchNodesParameters(
+        output_file="tracks_out.txt",
+        caltype="360_day",
+        max_sep=8.0,
+        min_time=10,
+        max_gap=3,
+        min_endpoint_dist=8.0,
+        threshold_filters=threshold_filters,
+    )
+
+    te_tracker = te.TETracker(dn_params, sn_params)
+
+    result = te_tracker.stitch_nodes()
