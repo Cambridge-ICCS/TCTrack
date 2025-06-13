@@ -64,7 +64,8 @@ in the ``DetectNodesParameters`` and ``StitchNodesParameters`` dataclasses.
 In the following example we set up the DetectNodes functionality to run on a series of
 input files to generate output. We configure detection to be done based on minima in
 psl, with closed contours of psl and zgdiff, and merging of candidates within 6 degrees
-of one another:
+of one another. Additional output fields are also added for psl and orog so that they
+may be used with StitchNodes:
 
 .. code-block:: python
 
@@ -92,6 +93,7 @@ of one another:
         merge_dist=6.0,
         closed_contours=closed_contours,
         out_header=True,
+        output_commands=output_commands,
         output_file="nodes_out.dat",
     )
 
