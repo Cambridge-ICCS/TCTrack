@@ -460,6 +460,62 @@ class TETracker:
             variables = [output["var"] for output in dn_params.output_commands]
             sn_params.in_fmt = ",".join(["lon", "lat", *variables])
 
+    def _run_te_process(self, command_name: str, command_list: list[str]):
+        """Run a TempestExtremes command (DetectNodes or StitchNodes).
+
+        Parameters
+        ----------
+        command_name : str
+            The name of the command to be used in the log and error reporting.
+        command_list : list[str]
+            The list of strings that produce the command as given by
+            _make_detect_nodes_call and _make_stitch_nodes_call.
+
+        Returns
+        -------
+        dict
+            dict of subprocess output corresponding to stdout, stderr, and returncode.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the DetectNodes executeable from TempestExtremes cannot be found.
+        RuntimeError
+            If Tempest Extremes DetectNodes returns a non-zero exit code.
+        """
+        try:
+            result = subprocess.run(  # noqa: S603 - no shell
+                command_list,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            print(f"{command_name} completed successfully.")
+            print(
+                f"First 12 lines of output:\n"
+                f"{''.join(result.stdout.splitlines(True)[:12])}"
+                f"\n...\n\n"
+                f"Last 12 lines of output:\n"
+                f"{''.join(result.stdout.splitlines(True)[-12:])}"
+            )
+            return {
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "returncode": result.returncode,
+            }
+        except FileNotFoundError as exc:
+            msg = (
+                f"{command_name} failed because the executable could not be found.\n"
+                "Did you provide the full executeable path or add it to $PATH?\n"
+            )
+            raise FileNotFoundError(msg) from exc
+        except subprocess.CalledProcessError as exc:
+            msg = (
+                f"{command_name} failed with a non-zero exit code: ({exc.returncode}):\n"
+                f"{exc.stderr}"
+            )
+            raise RuntimeError(msg) from exc
+
     def _make_detect_nodes_call(self):  # noqa: PLR0912 - all branches same logic
         """
         Construct a DetectNodes call based on options set in parameters.
@@ -597,43 +653,11 @@ class TETracker:
         DetectNodes:
 
         >>> my_params = DetectNodesParameters(...)
-        >>> my_tracker = TETracker(my_params)
+        >>> my_tracker = TETracker(detect_nodes_parameters=my_params)
         >>> result = TETracker.detect_nodes()
         """
         dn_call_list = self._make_detect_nodes_call()
-
-        try:
-            result = subprocess.run(  # noqa: S603 - no shell
-                dn_call_list,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            print("DetectNodes completed successfully.")
-            print(
-                f"First 12 lines of output:\n"
-                f"{''.join(result.stdout.splitlines(True)[:12])}"
-                f"\n...\n\n"
-                f"Last 12 lines of output:\n"
-                f"{''.join(result.stdout.splitlines(True)[-12:])}"
-            )
-            return {
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-                "returncode": result.returncode,
-            }
-        except FileNotFoundError as exc:
-            msg = (
-                "DetectNodes failed because the executable could not be found.\n"
-                "Did you provide the full executeable path or add it to $PATH?\n"
-            )
-            raise FileNotFoundError(msg) from exc
-        except subprocess.CalledProcessError as exc:
-            msg = (
-                f"DetectNodes failed with a non-zero exit code: ({exc.returncode}):\n"
-                f"{exc.stderr}"
-            )
-            raise RuntimeError(msg) from exc
+        return self._run_te_process("DetectNodes", dn_call_list)
 
     def _make_stitch_nodes_call(self):
         """
@@ -680,14 +704,39 @@ class TETracker:
         return sn_argslist
 
     def stitch_nodes(self):
-        """Call the StitchNodes utility in Tempest Extremes."""
-        sn_call_list = self._make_stitch_nodes_call()
+        """Call the StitchNodes utility in Tempest Extremes.
 
-        try:
-            subprocess.run(sn_call_list, check=True)  # noqa: S603 - no shell
-        except FileNotFoundError as exc:
-            msg = (
-                "StitchNodes failed because the executable could not be found.\n"
-                "Did you provide the full executeable path or add it to $PATH?\n"
-            )
-            raise FileNotFoundError(msg) from exc
+        This will make a system call out to the StitchNodes method from
+        Tempest Extremes (provided it has been installed as an external dependency).
+        StitchNodes will be run according to the parameters in the
+        ``stitch_nodes_parameters`` attribute that were set when the ``TETracker``
+        instance was created.
+
+        Returns
+        -------
+        dict
+            dict of subprocess output corresponding to stdout, stderr, and returncode.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the StitchNodes executeable from TempestExtremes cannot be found.
+        RuntimeError
+            If Tempest Extremes StitchNodes returns a non-zero exit code.
+
+        References
+        ----------
+        `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#StitchNodes>`_
+        and the `StitchNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/StitchNodes.cpp>`_
+
+        Examples
+        --------
+        To set the parameters, instantiate a ``TETracker`` instance and run
+        StitchNodes:
+
+        >>> my_params = StitchNodesParameters(...)
+        >>> my_tracker = TETracker(stitch_nodes_parameters=my_params)
+        >>> result = TETracker.stitch_nodes()
+        """
+        sn_call_list = self._make_stitch_nodes_call()
+        return self._run_te_process("StitchNodes", sn_call_list)
