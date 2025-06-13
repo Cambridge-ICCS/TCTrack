@@ -171,8 +171,9 @@ class TEThreshold(TypedDict):
     count: str
     """
     Either the minimum number of points where the threshold must be satisfied or the
-    instruction "all", "first", or "last". "all" for all points along the path,
-    "first" for just the first point, and "last" for only the last point.
+    instruction ``"all"``, ``"first"``, or ``"last"``. ``"all"`` for all points along
+    the path, ``"first"`` for just the first point, and ``"last"`` for only the last
+    point.
     """
 
 
