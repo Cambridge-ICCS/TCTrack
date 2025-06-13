@@ -140,19 +140,6 @@ class TEThreshold(TypedDict):
     be filtered out. Each condition is of the form "var,op,value,count" and conditions
     are separated by ";".
 
-    Attributes
-    ----------
-    var : str
-        Name of the variable being tested. "col" in TempestExtremes.
-    op : str
-        Operator being used for the comparison (options include >,>=,<,<=,=,!=,|>=,|<=).
-    value : float
-        Value on the right-hand-side of the comparison.
-    cout : str
-        Either the minimum number of points where the threshold must be satisfied or the
-        instruction "all", "first", or "last". "all" for all points along the path,
-        "first" for just the first point, and "last" for only the last point.
-
     See Also
     --------
     TETracker.stitch_nodes : The StitchNodes call from the TETracker object.
@@ -162,12 +149,31 @@ class TEThreshold(TypedDict):
     ----------
     TempestExtremes Documentation: https://climate.ucdavis.edu/tempestextremes.php#StitchNodes
     Source: https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/StitchNodes.cpp
+
+    Examples
+    --------
+    To add a filter requiring latitude ``"lat"`` to be less than 40 degrees for
+    10 or more points in each track:
+
+    >>> TEOutputCommand(var="lat", op="<=", value=40, count=10)
+    {"var": "lat", "op": "<=", "value": 40, "count": 10},
     """
 
     var: str
+    """Name of the variable being tested. "col" in TempestExtremes."""
+
     op: str
+    """Operator being used for the comparison (options include >,>=,<,<=,=,!=,|>=,|<=)."""
+
     value: float
+    """Value on the right-hand-side of the comparison."""
+
     count: str
+    """
+    Either the minimum number of points where the threshold must be satisfied or the
+    instruction "all", "first", or "last". "all" for all points along the path,
+    "first" for just the first point, and "last" for only the last point.
+    """
 
 
 @dataclass
@@ -326,23 +332,24 @@ class DetectNodesParameters:
 class StitchNodesParameters:
     """Dataclass containing values used by the StitchNodes operation of TE.
 
-    Attributes
+    Parameters
     ----------
     output_file : str | None
         The output filename to save the tracks. "out" in TempestExtremes.
     in_file : str | None, optional
-        Filename of the DetectNodes output file. If this and `in_list` are None, it will
-        be taken from the DetectNodes parameters. "in" in TempestExtremes.
+        Filename of the DetectNodes output file. If this and `in_list` are ``None``, it
+        will be taken from the DetectNodes parameters. "in" in TempestExtremes.
     in_list : str | None, optional
         File containing a list of input files to be processed together.
     in_fmt : str | None, optional
-        Comma-separated list of the variables in the input file. If None, it will be
+        Comma-separated list of the variables in the input file. If ``None``, it will be
         taken from the DetectNodes parameters.
     allow_repeated_times : bool, default=False
-        If False, an error is thrown if there are multiple sections in the input
+        If ``False``, an error is thrown if there are multiple sections in the input
         nodefile with the same time.
     caltype : str, default="standard"
-        Type of calendar to use. Options are: "standard", "noleap", "360_day"
+        Type of calendar to use. Options are: ``"standard"``, ``"noleap"``,
+        ``"360_day"``.
     time_begin : str | None, optional
         Starting date / time for stitching tracks. Earlier times will be ignored.
     time_end : str | None, optional
@@ -354,7 +361,7 @@ class StitchNodesParameters:
         The number of missing points allowed between candidates.
     min_time : int | str, default=1
         The minimum required length of a path. Either as an integer for the number of
-        candidates, or a string for total duration, e.g. "24h".
+        candidates, or a string for total duration, e.g. ``"24h"``.
     min_endpoint_dist : float, default=0
         The minimum required distance between the first and last candidates (degrees).
     min_path_dist : float, default=0
@@ -369,10 +376,10 @@ class StitchNodesParameters:
         Whether to include the velocity components (m/s) of the movement of the TC to
         the output file.
     out_file_format : str, default="gfdl"
-        Format of the output file. "gfdl", "csv", or "csvnoheader".
+        Format of the output file. ``"gfdl"``, ``"csv"``, or ``"csvnoheader"``.
     out_seconds : bool, default=False
         For GFDL output file types, determines whether to report the sub-daily time in
-        seconds (True) or hours (False).
+        seconds (``True``) or hours (``False``).
 
     References
     ----------
@@ -381,23 +388,107 @@ class StitchNodesParameters:
     """
 
     output_file: str | None
+    """The output filename to save the tracks. "out" in TempestExtremes."""
+
     in_file: str | None = None
+    """
+    Filename of the DetectNodes output file. If this and `in_list` are ``None``, it will
+    be taken from the DetectNodes parameters. "in" in TempestExtremes. Defaults to
+    ``None``.
+    """
+
     in_list: str | None = None
+    """
+    File containing a list of input files to be processed together.
+    Defaults to ``None``.
+    """
+
     in_fmt: str | None = None
+    """
+    Comma-separated list of the variables in the input file. If ``None``, it will be
+    taken from the DetectNodes parameters. Defaults to ``None``.
+    """
+
     allow_repeated_times: bool = False
+    """
+    If ``False``, an error is thrown if there are multiple sections in the input
+    nodefile with the same time. Defaults to ``False``.
+    """
+
     caltype: str = "standard"
+    """
+    Type of calendar to use. Options are: ``"standard"``, ``"noleap"``, ``"360_day"``.
+    Defaults to ``"standard"``.
+    """
+
     time_begin: str | None = None
+    """
+    Starting date / time for stitching tracks. Earlier times will be ignored.
+    Defaults to ``None``.
+    """
+
     time_end: str | None = None
+    """
+    Ending date / time for stitching tracks. Later times will be ignored.
+    Defaults to ``None``.
+    """
+
     max_sep: float = 5
+    """
+    The maximum distance allowed between candidates (degrees). "range" in
+    TempestExtremes. Defaults to ``5.0``.
+    """
+
     max_gap: int = 0
+    """The number of missing points allowed between candidates. Defaults to ``0``."""
+
     min_time: int | str = 1
+    """
+    The minimum required length of a path. Either as an integer for the number of
+    candidates, or a string for total duration, e.g. ``"24h"``. Defaults to ``1``.
+    """
+
     min_endpoint_dist: float = 0
+    """
+    The minimum required distance between the first and last candidates (degrees).
+    Defaults to ``0``.
+    """
+
     min_path_dist: float = 0
+    """
+    The minimum required acumulated distance along the path (degrees).
+    Defaults to ``0``.
+    """
+
     threshold_filters: list[TEThreshold] | None = None
+    """
+    Filters for paths based on the number of nodes that satisfy a threshold.
+    "thresholdcmd" in TempestExtremes. Defaults to ``None``.
+    """
+
     prioritize: str | None = None
+    """
+    The variable to use to determine the precedence (lowest to highest) of nodes for
+    matching to the next position. Defaults to ``None``.
+    """
+
     add_velocity: bool = False
+    """
+    Whether to include the velocity components (m/s) of the movement of the TC to
+    the output file. Defaults to ``False``.
+    """
+
     out_file_format: str = "gfdl"
+    """
+    Format of the output file. ``"gfdl"``, ``"csv"``, or ``"csvnoheader"``.
+    Defaults to ``"gfdl"``.
+    """
+
     out_seconds: bool = False
+    """
+    For GFDL output file types, determines whether to report the sub-daily time in
+    seconds (``True``) or hours (``False``). Defaults to ``False``.
+    """
 
     def __str__(self) -> str:
         """Improve the representation to users."""
