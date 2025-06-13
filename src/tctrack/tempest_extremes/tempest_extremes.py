@@ -160,7 +160,7 @@ class TEThreshold(TypedDict):
     """
 
     var: str
-    """Name of the variable being tested. "col" in TempestExtremes."""
+    """Name of the variable being tested. Called "col" in TempestExtremes."""
 
     op: str
     """Operator being used for the comparison (options include >,>=,<,<=,=,!=,|>=,|<=)."""
@@ -335,10 +335,10 @@ class StitchNodesParameters:
     Parameters
     ----------
     output_file : str | None
-        The output filename to save the tracks. "out" in TempestExtremes.
+        The output filename to save the tracks. Called "out" in TempestExtremes.
     in_file : str | None, optional
         Filename of the DetectNodes output file. If this and `in_list` are ``None``, it
-        will be taken from the DetectNodes parameters. "in" in TempestExtremes.
+        will be taken from the DetectNodes parameters. Called "in" in TempestExtremes.
     in_list : str | None, optional
         File containing a list of input files to be processed together.
     in_fmt : str | None, optional
@@ -368,7 +368,7 @@ class StitchNodesParameters:
         The minimum required acumulated distance along the path (degrees).
     threshold_filters: list[TEThreshold] | None, optional
         Filters for paths based on the number of nodes that satisfy a threshold.
-        "thresholdcmd" in TempestExtremes.
+        Called "thresholdcmd" in TempestExtremes.
     prioritize : str | None, optional
         The variable to use to determine the precedence (lowest to highest) of nodes for
         matching to the next position.
@@ -388,13 +388,13 @@ class StitchNodesParameters:
     """
 
     output_file: str | None
-    """The output filename to save the tracks. "out" in TempestExtremes."""
+    """The output filename to save the tracks. Called "out" in TempestExtremes."""
 
     in_file: str | None = None
     """
     Filename of the DetectNodes output file. If this and `in_list` are ``None``, it will
-    be taken from the DetectNodes parameters. "in" in TempestExtremes. Defaults to
-    ``None``.
+    be taken from the DetectNodes parameters. Called "in" in TempestExtremes.
+    Defaults to ``None``.
     """
 
     in_list: str | None = None
@@ -463,7 +463,7 @@ class StitchNodesParameters:
     threshold_filters: list[TEThreshold] | None = None
     """
     Filters for paths based on the number of nodes that satisfy a threshold.
-    "thresholdcmd" in TempestExtremes. Defaults to ``None``.
+    Called "thresholdcmd" in TempestExtremes. Defaults to ``None``.
     """
 
     prioritize: str | None = None
