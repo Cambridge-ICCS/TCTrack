@@ -50,7 +50,7 @@ When reporting a bug, please include the following:
       ```python
       import tctrack
 
-      x = 1 + 2
+      """Your code here."""
       ...
       ```
 
