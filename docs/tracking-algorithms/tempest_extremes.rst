@@ -99,7 +99,7 @@ may be used with StitchNodes:
 
     te_tracker = te.TETracker(dn_params)
 
-    result = te_tracker.detect_nodes()
+    run_info = te_tracker.detect_nodes()
 
 This can then followed by StitchNodes which is set up to combine nodes into a track that
 are less than 8 degrees from one another, with a track length of at least 10 nodes and 8
@@ -127,4 +127,13 @@ is then filtered based upon the lattitude and surface altitude:
 
     te_tracker = te.TETracker(dn_params, sn_params)
 
-    result = te_tracker.stitch_nodes()
+    run_info = te_tracker.stitch_nodes()
+
+However, it is likely preferable to run both `detect_nodes` and `stitch_nodes`
+together. Which can be done with a single `TETracker` object:
+
+.. code-block:: python
+
+    te_tracker = te.TETracker(dn_params, sn_params)
+    te_tracker.detect_nodes()
+    te_tracker.stitch_nodes()
