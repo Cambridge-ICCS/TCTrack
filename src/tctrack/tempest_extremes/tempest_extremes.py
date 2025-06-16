@@ -379,6 +379,7 @@ class StitchNodesParameters:
         the output file.
     out_file_format : str, default="gfdl"
         Format of the output file. ``"gfdl"``, ``"csv"``, or ``"csvnoheader"``.
+        See :ref:`stitch-nodes-output-format` for details.
     out_seconds : bool, default=False
         For GFDL output file types, determines whether to report the sub-daily time in
         seconds (``True``) or hours (``False``).
@@ -483,7 +484,7 @@ class StitchNodesParameters:
     out_file_format: str = "gfdl"
     """
     Format of the output file. ``"gfdl"``, ``"csv"``, or ``"csvnoheader"``.
-    Defaults to ``"gfdl"``.
+    Defaults to ``"gfdl"``. See :ref:`stitch-nodes-output-format` for details.
     """
 
     out_seconds: bool = False
@@ -742,7 +743,7 @@ class TETracker:
 
         Examples
         --------
-        To set the parameters, instantiate a ``TETracker`` instance and run
+        To set the parameters, instantiate a :class:``TETracker`` instance and run
         DetectNodes:
 
         >>> my_params = DetectNodesParameters(...)
@@ -799,11 +800,11 @@ class TETracker:
     def stitch_nodes(self):
         """Call the StitchNodes utility in Tempest Extremes.
 
-        This will make a system call out to the StitchNodes method from
-        Tempest Extremes (provided it has been installed as an external dependency).
-        StitchNodes will be run according to the parameters in the
-        ``stitch_nodes_parameters`` attribute that were set when the ``TETracker``
-        instance was created.
+        This will make a system call out to the StitchNodes method from Tempest Extremes
+        (provided it has been installed as an external dependency).  StitchNodes will be
+        run according to the parameters in the ``stitch_nodes_parameters`` attribute
+        that were set when the :class:``TETracker`` instance was created. The output
+        file containing the tracks is described in :ref:`stitch-nodes-output-format`.
 
         Returns
         -------
@@ -824,7 +825,7 @@ class TETracker:
 
         Examples
         --------
-        To set the parameters, instantiate a ``TETracker`` instance and run
+        To set the parameters, instantiate a :class:``TETracker`` instance and run
         StitchNodes:
 
         >>> my_params = StitchNodesParameters(...)
