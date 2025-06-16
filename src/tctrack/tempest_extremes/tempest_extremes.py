@@ -147,8 +147,8 @@ class TEThreshold(TypedDict):
 
     References
     ----------
-    TempestExtremes Documentation: https://climate.ucdavis.edu/tempestextremes.php#StitchNodes
-    Source: https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/StitchNodes.cpp
+    `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#StitchNodes>`_
+    and the `StitchNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/StitchNodes.cpp>`_
 
     Examples
     --------
@@ -385,8 +385,8 @@ class StitchNodesParameters:
 
     References
     ----------
-    TempestExtremes Documentation: https://climate.ucdavis.edu/tempestextremes.php#StitchNodes
-    Source: https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/StitchNodes.cpp
+    `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#StitchNodes>`_
+    and the `StitchNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/StitchNodes.cpp>`_
     """
 
     output_file: str | None
