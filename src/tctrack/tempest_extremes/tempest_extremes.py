@@ -163,7 +163,7 @@ class TEThreshold(TypedDict):
     """Name of the variable being tested. Called "col" in TempestExtremes."""
 
     op: str
-    """Operator being used for the comparison (options include >,>=,<,<=,=,!=,|>=,|<=)."""
+    """Operator used for the comparison (options include >,>=,<,<=,=,!=,|>=,|<=)."""
 
     value: float
     """Value on the right-hand-side of the comparison."""
@@ -605,7 +605,8 @@ class TETracker:
             raise FileNotFoundError(msg) from exc
         except subprocess.CalledProcessError as exc:
             msg = (
-                f"{command_name} failed with a non-zero exit code: ({exc.returncode}):\n"
+                f"{command_name} failed with a non-zero exit code:"
+                f"({exc.returncode}):\n"
                 f"{exc.stderr}"
             )
             raise RuntimeError(msg) from exc
