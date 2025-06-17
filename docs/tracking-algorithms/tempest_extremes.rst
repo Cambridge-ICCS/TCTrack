@@ -104,7 +104,9 @@ may be used with StitchNodes:
 This can then followed by StitchNodes which is set up to combine nodes into a track that
 are less than 8 degrees from one another, with a track length of at least 10 nodes and 8
 degrees end-to-end, with a maximum of 3 times missing between each pair of nodes. This
-is then filtered based upon the lattitude and surface altitude:
+is then filtered based upon the lattitude and surface altitude. The format of the
+``"tracks_out.txt"`` output file is described in
+:meth:`~tctrack.tempest_extremes.TETracker.stitch_nodes`:
 
 .. code-block:: python
 

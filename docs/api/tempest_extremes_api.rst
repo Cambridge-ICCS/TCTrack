@@ -39,23 +39,3 @@ For an overview of the functionalities, installation, and usage see the
    :members:
    :undoc-members:
    :show-inheritance:
-
-
-.. _stitch-nodes-output-format:
-``stitch_nodes()`` Output Format
---------------------------------
-
-The default ``"gfdl"`` output of :meth:`TETracker.stitch_nodes` is a plain-text "nodefile" format which
-contains a number of tracks, each of which in the form below.
-
-.. code-block:: text
-
-   start <N> <year> <month> <day> <hour>
-   	 <i> <j> <lon> <lat> <var1> <var2> ... <year> <month> <day> <hour>
-   	 ...
-   	 <i> <j> <lon> <lat> <var1> <var2> ... <year> <month> <day> <hour>
-
-- ``N`` is the number of nodes in the track (and number of lines below header).
-- ``i``, ``j`` are grid indices.
-- ``var1``, ``var2``, etc., are scalar variables as defined by :attr:`StitchNodesParameters.in_fmt` (typically, psl, orog).
-- ``hour`` may instead be seconds if :attr:`StitchNodesParameters.out_seconds` is ``True``.

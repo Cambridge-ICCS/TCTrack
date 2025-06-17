@@ -379,7 +379,7 @@ class StitchNodesParameters:
         the output file.
     out_file_format : str, default="gfdl"
         Format of the output file. ``"gfdl"``, ``"csv"``, or ``"csvnoheader"``.
-        See :ref:`stitch-nodes-output-format` for details.
+        See :meth:`TETracker.stitch_nodes` for details.
     out_seconds : bool, default=False
         For GFDL output file types, determines whether to report the sub-daily time in
         seconds (``True``) or hours (``False``).
@@ -484,7 +484,7 @@ class StitchNodesParameters:
     out_file_format: str = "gfdl"
     """
     Format of the output file. ``"gfdl"``, ``"csv"``, or ``"csvnoheader"``.
-    Defaults to ``"gfdl"``. See :ref:`stitch-nodes-output-format` for details.
+    Defaults to ``"gfdl"``. See :meth:`TETracker.stitch_nodes` for details.
     """
 
     out_seconds: bool = False
@@ -744,7 +744,7 @@ class TETracker:
 
         Examples
         --------
-        To set the parameters, instantiate a :class:``TETracker`` instance and run
+        To set the parameters, instantiate a :class:`TETracker` instance and run
         DetectNodes:
 
         >>> my_params = DetectNodesParameters(...)
@@ -803,9 +803,26 @@ class TETracker:
 
         This will make a system call out to the StitchNodes method from Tempest Extremes
         (provided it has been installed as an external dependency).  StitchNodes will be
-        run according to the parameters in the ``stitch_nodes_parameters`` attribute
-        that were set when the :class:``TETracker`` instance was created. The output
-        file containing the tracks is described in :ref:`stitch-nodes-output-format`.
+        run according to the parameters in the :attr:`stitch_nodes_parameters` attribute
+        that were set when the :class:`TETracker` instance was created.
+
+        The format of the output file containing the tracks depends on the
+        :attr:`~StitchNodesParameters.out_file_format` parameter. The default ``"gfdl"``
+        output is a plain-text "nodefile" format which contains a number of tracks, each
+        of which in the form.
+
+        .. code-block:: text
+
+           start <N> <year> <month> <day> <hour>
+                 <i> <j> <lon> <lat> <var1> <var2> ... <year> <month> <day> <hour>
+                 ...
+                 <i> <j> <lon> <lat> <var1> <var2> ... <year> <month> <day> <hour>
+
+        - ``N`` is the number of nodes in the track (and number of lines below header).
+        - ``i``, ``j`` are grid indices.
+        - ``var1``, ``var2``, etc., are scalar variables as defined by
+          :attr:`~StitchNodesParameters.in_fmt` (typically, psl, orog).
+        - ``hour`` may instead be seconds if :attr:`~StitchNodesParameters.out_seconds` is ``True``.
 
         Returns
         -------
@@ -826,7 +843,7 @@ class TETracker:
 
         Examples
         --------
-        To set the parameters, instantiate a :class:``TETracker`` instance and run
+        To set the parameters, instantiate a :class:`TETracker` instance and run
         StitchNodes:
 
         >>> my_params = StitchNodesParameters(...)
