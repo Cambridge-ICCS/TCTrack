@@ -9,8 +9,6 @@ For an overview of the functionalities, installation, and usage see the
 :doc:`Tempest Extremes section of the documentation <../tracking-algorithms/tempest_extremes>`.
 
 .. automodule:: tctrack.tempest_extremes
-   :members:
-   :noindex:
 
 .. autoclass:: TETracker
    :members:
