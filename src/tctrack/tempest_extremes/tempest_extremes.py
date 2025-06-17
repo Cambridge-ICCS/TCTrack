@@ -133,6 +133,50 @@ class TEOutputCommand(TypedDict):
     """
 
 
+class TEThreshold(TypedDict):
+    """Data required for a threshold filter for a track in StitchNodes.
+
+    Any tracks that do not satisfy the threshold value for a given number of points will
+    be filtered out. Each condition is of the form "var,op,value,count" and conditions
+    are separated by ";".
+
+    See Also
+    --------
+    TETracker.stitch_nodes : The StitchNodes call from the TETracker object.
+    StitchNodesParameters : The StitchNodes parameter class.
+
+    References
+    ----------
+    `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#StitchNodes>`_
+    and the `StitchNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/StitchNodes.cpp>`_
+
+    Examples
+    --------
+    To add a filter requiring latitude ``"lat"`` to be less than 40 degrees for
+    10 or more points in each track:
+
+    >>> TEOutputCommand(var="lat", op="<=", value=40, count=10)
+    {"var": "lat", "op": "<=", "value": 40, "count": 10},
+    """
+
+    var: str
+    """Name of the variable being tested. Called "col" in TempestExtremes."""
+
+    op: str
+    """Operator used for the comparison (options include >,>=,<,<=,=,!=,|>=,|<=)."""
+
+    value: float
+    """Value on the right-hand-side of the comparison."""
+
+    count: str
+    """
+    Either the minimum number of points where the threshold must be satisfied or the
+    instruction ``"all"``, ``"first"``, or ``"last"``. ``"all"`` for all points along
+    the path, ``"first"`` for just the first point, and ``"last"`` for only the last
+    point.
+    """
+
+
 @dataclass
 class DetectNodesParameters:
     """
@@ -285,6 +329,178 @@ class DetectNodesParameters:
         return f"DetectNodesParameters(\n\t{attributes}\n)"
 
 
+@dataclass
+class StitchNodesParameters:
+    """Dataclass containing values used by the StitchNodes operation of TE.
+
+    Parameters
+    ----------
+    output_file : str | None
+        The output filename to save the tracks. Called "out" in TempestExtremes.
+    in_file : str | None, optional
+        Filename of the DetectNodes output file. If this and `in_list` are ``None``, it
+        will be taken from the DetectNodes parameters. Called "in" in TempestExtremes.
+    in_list : str | None, optional
+        File containing a list of input files to be processed together. This is
+        unadvised to use at present as it is likely to be changed.
+    in_fmt : str | None, optional
+        Comma-separated list of the variables in the input file. If ``None``, it will be
+        taken from the DetectNodes parameters.
+    allow_repeated_times : bool, default=False
+        If ``False``, an error is thrown if there are multiple sections in the input
+        nodefile with the same time.
+    caltype : str, default="standard"
+        Type of calendar to use. Options are: ``"standard"`` (365 days with
+        leap years), ``"noleap"``, ``"360_day"``.
+    time_begin : str | None, optional
+        Starting date / time for stitching tracks. Earlier times will be ignored.
+    time_end : str | None, optional
+        Ending date / time for stitching tracks. Later times will be ignored.
+    max_sep : float, default=5.0
+        The maximum distance allowed between candidates (degrees). "range" in
+        TempestExtremes.
+    max_gap : int, default=0
+        The number of missing points allowed between candidates.
+    min_time : int | str, default=1
+        The minimum required length of a path. Either as an integer for the number of
+        candidates, or a string for total duration, e.g. ``"24h"``.
+    min_endpoint_dist : float, default=0
+        The minimum required distance between the first and last candidates (degrees).
+    min_path_dist : float, default=0
+        The minimum required acumulated distance along the path (degrees).
+    threshold_filters: list[TEThreshold] | None, optional
+        Filters for paths based on the number of nodes that satisfy a threshold.
+        Called "thresholdcmd" in TempestExtremes.
+    prioritize : str | None, optional
+        The variable to use to determine the precedence (lowest to highest) of nodes for
+        matching to the next position.
+    add_velocity : bool, default=False
+        Whether to include the velocity components (m/s) of the movement of the TC to
+        the output file.
+    out_file_format : str, default="gfdl"
+        Format of the output file. ``"gfdl"``, ``"csv"``, or ``"csvnoheader"``.
+        See :meth:`TETracker.stitch_nodes` for details.
+    out_seconds : bool, default=False
+        For GFDL output file types, determines whether to report the sub-daily time in
+        seconds (``True``) or hours (``False``).
+
+    References
+    ----------
+    `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#StitchNodes>`_
+    and the `StitchNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/StitchNodes.cpp>`_
+    """
+
+    output_file: str | None
+    """The output filename to save the tracks. Called "out" in TempestExtremes."""
+
+    in_file: str | None = None
+    """
+    Filename of the DetectNodes output file. If this and `in_list` are ``None``, it will
+    be taken from the DetectNodes parameters. Called "in" in TempestExtremes.
+    Defaults to ``None``.
+    """
+
+    in_list: str | None = None
+    """
+    File containing a list of input files to be processed together. This is unadvised to
+    use at present as it is likely to be changed. Defaults to ``None``.
+    """
+
+    in_fmt: str | None = None
+    """
+    Comma-separated list of the variables in the input file. If ``None``, it will be
+    taken from the DetectNodes parameters. Defaults to ``None``.
+    """
+
+    allow_repeated_times: bool = False
+    """
+    If ``False``, an error is thrown if there are multiple sections in the input
+    nodefile with the same time. Defaults to ``False``.
+    """
+
+    caltype: str = "standard"
+    """
+    Type of calendar to use. Options are: ``"standard"`` (365 days with leap
+    years), ``"noleap"``, ``"360_day"``. Defaults to ``"standard"``.
+    """
+
+    time_begin: str | None = None
+    """
+    Starting date / time for stitching tracks. Earlier times will be ignored.
+    Defaults to ``None``.
+    """
+
+    time_end: str | None = None
+    """
+    Ending date / time for stitching tracks. Later times will be ignored.
+    Defaults to ``None``.
+    """
+
+    max_sep: float = 5
+    """
+    The maximum distance allowed between candidates (degrees). "range" in
+    TempestExtremes. Defaults to ``5.0``.
+    """
+
+    max_gap: int = 0
+    """The number of missing points allowed between candidates. Defaults to ``0``."""
+
+    min_time: int | str = 1
+    """
+    The minimum required length of a path. Either as an integer for the number of
+    candidates, or a string for total duration, e.g. ``"24h"``. Defaults to ``1``.
+    """
+
+    min_endpoint_dist: float = 0
+    """
+    The minimum required distance between the first and last candidates (degrees).
+    Defaults to ``0``.
+    """
+
+    min_path_dist: float = 0
+    """
+    The minimum required acumulated distance along the path (degrees).
+    Defaults to ``0``.
+    """
+
+    threshold_filters: list[TEThreshold] | None = None
+    """
+    Filters for paths based on the number of nodes that satisfy a threshold.
+    Called "thresholdcmd" in TempestExtremes. Defaults to ``None``.
+    """
+
+    prioritize: str | None = None
+    """
+    The variable to use to determine the precedence (lowest to highest) of nodes for
+    matching to the next position. Defaults to ``None``.
+    """
+
+    add_velocity: bool = False
+    """
+    Whether to include the velocity components (m/s) of the movement of the TC to
+    the output file. Defaults to ``False``.
+    """
+
+    out_file_format: str = "gfdl"
+    """
+    Format of the output file. ``"gfdl"``, ``"csv"``, or ``"csvnoheader"``.
+    Defaults to ``"gfdl"``. See :meth:`TETracker.stitch_nodes` for details.
+    """
+
+    out_seconds: bool = False
+    """
+    For GFDL output file types, determines whether to report the sub-daily time in
+    seconds (``True``) or hours (``False``). Defaults to ``False``.
+    """
+
+    def __str__(self) -> str:
+        """Improve the representation to users."""
+        attributes = "\n\t".join(
+            f"{key} \t = {value}" for key, value in asdict(self).items()
+        )
+        return f"StitchNodesParameters(\n\t{attributes}\n)"
+
+
 class TETracker:
     """Class containing bindings to the Tempest Extremes code.
 
@@ -292,11 +508,14 @@ class TETracker:
     ----------
     detect_nodes_parameters : DetectNodesParameters
         Class containing the parameters for the DetectNodes algorithm
+    stitch_nodes_parameters : StitchNodesParameters | None
+        Class containing the parameters for the StitchNodes algorithm
     """
 
     def __init__(
         self,
         detect_nodes_parameters: DetectNodesParameters | None = None,
+        stitch_nodes_parameters: StitchNodesParameters | None = None,
     ):
         """
         Construct the TempestExtremes class.
@@ -304,8 +523,11 @@ class TETracker:
         Parameters
         ----------
         detect_nodes_parameters : DetectNodesParameters
-            Class containing the parameters for the DetectNodes algorithm.
-            Defaults to the default values in DetectNodesParameters Class.
+            Class containing the parameters for the DetectNodes algorithm
+            Defaults to the default values in DetectNodesParameters Class
+        stitch_nodes_parameters : StitchNodesParameters | None
+            Class containing the parameters for the StitchNodes algorithm
+            Defaults to the default values in StitchNodesParameters Class
         """
         if detect_nodes_parameters is not None:
             self.detect_nodes_parameters: DetectNodesParameters = (
@@ -313,6 +535,81 @@ class TETracker:
             )
         else:
             self.detect_nodes_parameters = DetectNodesParameters()
+
+        if stitch_nodes_parameters is not None:
+            self.stitch_nodes_parameters: StitchNodesParameters = (
+                stitch_nodes_parameters
+            )
+        else:
+            self.stitch_nodes_parameters = StitchNodesParameters("tracks.txt")
+
+        # Set StitchNodes input arguments according to DetectNodes parameters,
+        # if not provided
+        sn_params = self.stitch_nodes_parameters
+        dn_params = self.detect_nodes_parameters
+        sn_input_none = sn_params.in_file is None and sn_params.in_list is None
+        if sn_input_none and dn_params.output_file is not None:
+            sn_params.in_file = dn_params.output_file
+        if sn_params.in_fmt is None and dn_params.output_commands is not None:
+            variables = [output["var"] for output in dn_params.output_commands]
+            sn_params.in_fmt = ",".join(["lon", "lat", *variables])
+
+    def _run_te_process(self, command_name: str, command_list: list[str]):
+        """Run a TempestExtremes command (DetectNodes or StitchNodes).
+
+        Parameters
+        ----------
+        command_name : str
+            The name of the command to be used in the log and error reporting.
+        command_list : list[str]
+            The list of strings that produce the command as given by
+            _make_detect_nodes_call and _make_stitch_nodes_call.
+
+        Returns
+        -------
+        dict
+            dict of subprocess output corresponding to stdout, stderr, and returncode.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the DetectNodes executeable from TempestExtremes cannot be found.
+        RuntimeError
+            If Tempest Extremes DetectNodes returns a non-zero exit code.
+        """
+        try:
+            result = subprocess.run(  # noqa: S603 - no shell
+                command_list,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            print(f"{command_name} completed successfully.")
+            print(
+                f"First 12 lines of output:\n"
+                f"{''.join(result.stdout.splitlines(True)[:12])}"
+                f"\n...\n\n"
+                f"Last 12 lines of output:\n"
+                f"{''.join(result.stdout.splitlines(True)[-12:])}"
+            )
+            return {
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "returncode": result.returncode,
+            }
+        except FileNotFoundError as exc:
+            msg = (
+                f"{command_name} failed because the executable could not be found.\n"
+                "Did you provide the full executeable path or add it to $PATH?\n"
+            )
+            raise FileNotFoundError(msg) from exc
+        except subprocess.CalledProcessError as exc:
+            msg = (
+                f"{command_name} failed with a non-zero exit code:"
+                f"({exc.returncode}):\n"
+                f"{exc.stderr}"
+            )
+            raise RuntimeError(msg) from exc
 
     def _make_detect_nodes_call(self):  # noqa: PLR0912 - all branches same logic
         """
@@ -447,44 +744,111 @@ class TETracker:
 
         Examples
         --------
-        To set the parameters, instantiate a ``TETracker`` instance and run
+        To set the parameters, instantiate a :class:`TETracker` instance and run
         DetectNodes:
 
         >>> my_params = DetectNodesParameters(...)
-        >>> my_tracker = TETracker(my_params)
+        >>> my_tracker = TETracker(detect_nodes_parameters=my_params)
         >>> result = TETracker.detect_nodes()
         """
         dn_call_list = self._make_detect_nodes_call()
+        return self._run_te_process("DetectNodes", dn_call_list)
 
-        try:
-            result = subprocess.run(  # noqa: S603 - no shell
-                dn_call_list,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            print("DetectNodes completed successfully.")
-            print(
-                f"First 12 lines of output:\n"
-                f"{''.join(result.stdout.splitlines(True)[:12])}"
-                f"\n...\n\n"
-                f"Last 12 lines of output:\n"
-                f"{''.join(result.stdout.splitlines(True)[-12:])}"
-            )
-            return {
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-                "returncode": result.returncode,
-            }
-        except FileNotFoundError as exc:
-            msg = (
-                "DetectNodes failed because the executable could not be found.\n"
-                "Did you provide the full executeable path or add it to $PATH?\n"
-            )
-            raise FileNotFoundError(msg) from exc
-        except subprocess.CalledProcessError as exc:
-            msg = (
-                f"DetectNodes failed with a non-zero exit code: ({exc.returncode}):\n"
-                f"{exc.stderr}"
-            )
-            raise RuntimeError(msg) from exc
+    def _make_stitch_nodes_call(self):
+        """
+        Construct a StitchNodes call based on options set in parameters.
+
+        Returns
+        -------
+        list[str]
+            list of strings that can be combined to form a StitchNodes command
+            based on the parameters set in self.stitch_nodes_parameters
+        """
+        sn_argslist = ["StitchNodes"]
+        sn_params = self.stitch_nodes_parameters
+        if sn_params.output_file is not None:
+            sn_argslist.extend(["--out", sn_params.output_file])
+        if sn_params.in_file is not None:
+            sn_argslist.extend(["--in", sn_params.in_file])
+        if sn_params.in_list is not None:
+            sn_argslist.extend(["--in_list", sn_params.in_list])
+        if sn_params.in_fmt is not None:
+            sn_argslist.extend(["--in_fmt", sn_params.in_fmt])
+        if sn_params.allow_repeated_times:
+            sn_argslist.extend(["--allow_repeated_times"])
+        sn_argslist.extend(["--caltype", str(sn_params.caltype)])
+        if sn_params.time_begin is not None:
+            sn_argslist.extend(["--time_begin", str(sn_params.time_begin)])
+        if sn_params.time_end is not None:
+            sn_argslist.extend(["--time_end", str(sn_params.time_end)])
+        sn_argslist.extend(["--range", str(sn_params.max_sep)])
+        sn_argslist.extend(["--maxgap", str(sn_params.max_gap)])
+        sn_argslist.extend(["--mintime", str(sn_params.min_time)])
+        sn_argslist.extend(["--min_endpoint_dist", str(sn_params.min_endpoint_dist)])
+        sn_argslist.extend(["--min_path_dist", str(sn_params.min_path_dist)])
+        if sn_params.threshold_filters is not None:
+            sn_argslist.extend(["--threshold", lod_to_te(sn_params.threshold_filters)])
+        if sn_params.prioritize is not None:
+            sn_argslist.extend(["--prioritize", str(sn_params.prioritize)])
+        if sn_params.add_velocity:
+            sn_argslist.extend(["--add_velocity"])
+        sn_argslist.extend(["--out_file_format", sn_params.out_file_format])
+        if sn_params.out_seconds:
+            sn_argslist.extend(["--out_seconds"])
+
+        return sn_argslist
+
+    def stitch_nodes(self):
+        """Call the StitchNodes utility in Tempest Extremes.
+
+        This will make a system call out to the StitchNodes method from Tempest Extremes
+        (provided it has been installed as an external dependency).  StitchNodes will be
+        run according to the parameters in the :attr:`stitch_nodes_parameters` attribute
+        that were set when the :class:`TETracker` instance was created.
+
+        The format of the output file containing the tracks depends on the
+        :attr:`~StitchNodesParameters.out_file_format` parameter. The default ``"gfdl"``
+        output is a plain-text "nodefile" format which contains a number of tracks, each
+        of which in the form.
+
+        .. code-block:: text
+
+           start <N> <year> <month> <day> <hour>
+                 <i> <j> <lon> <lat> <var1> <var2> ... <year> <month> <day> <hour>
+                 ...
+                 <i> <j> <lon> <lat> <var1> <var2> ... <year> <month> <day> <hour>
+
+        - ``N`` is the number of nodes in the track (and number of lines below header).
+        - ``i``, ``j`` are grid indices.
+        - ``var1``, ``var2``, etc., are scalar variables as defined by
+          :attr:`~StitchNodesParameters.in_fmt` (typically, psl, orog).
+        - ``hour`` may instead be seconds if :attr:`~StitchNodesParameters.out_seconds` is ``True``.
+
+        Returns
+        -------
+        dict
+            dict of subprocess output corresponding to stdout, stderr, and returncode.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the StitchNodes executeable from TempestExtremes cannot be found.
+        RuntimeError
+            If Tempest Extremes StitchNodes returns a non-zero exit code.
+
+        References
+        ----------
+        `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#StitchNodes>`_
+        and the `StitchNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/StitchNodes.cpp>`_
+
+        Examples
+        --------
+        To set the parameters, instantiate a :class:`TETracker` instance and run
+        StitchNodes:
+
+        >>> my_params = StitchNodesParameters(...)
+        >>> my_tracker = TETracker(stitch_nodes_parameters=my_params)
+        >>> result = TETracker.stitch_nodes()
+        """
+        sn_call_list = self._make_stitch_nodes_call()
+        return self._run_te_process("StitchNodes", sn_call_list)

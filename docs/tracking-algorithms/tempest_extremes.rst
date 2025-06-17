@@ -59,12 +59,13 @@ Usage of Tempest Extremes in TCTrack is done through the ``tempest_extremes`` mo
 This provides the ``TETracker`` class that stores algorithm parameters and provides access
 to the methods.
 The detection and stitching algorithm can be configured through the various parameters
-in the 
+in the ``DetectNodesParameters`` and ``StitchNodesParameters`` dataclasses.
 
 In the following example we set up the DetectNodes functionality to run on a series of
 input files to generate output. We configure detection to be done based on minima in
 psl, with closed contours of psl and zgdiff, and merging of candidates within 6 degrees
-of one another:
+of one another. Additional output fields are also added for psl and orog so that they
+may be used with StitchNodes:
 
 .. code-block:: python
 
@@ -81,17 +82,62 @@ of one another:
         te.TEContour(var="zgdiff", delta=-6.0, dist=6.5, minmaxdist=1.0),
     ]
 
+    output_commands = [
+        te.TEOutputCommand(var="psl", operator="min", dist=0.0),
+        te.TEOutputCommand(var="orog", operator="max", dist=0.0),
+    ]
+
     dn_params = te.DetectNodesParameters(
         in_data=input_files,
         search_by_min="psl",
         merge_dist=6.0,
         closed_contours=closed_contours,
         out_header=True,
+        output_commands=output_commands,
         output_file="nodes_out.dat",
     )
 
     te_tracker = te.TETracker(dn_params)
 
-    result = te_tracker.detect_nodes()
+    run_info = te_tracker.detect_nodes()
 
+This can then followed by StitchNodes which is set up to combine nodes into a track that
+are less than 8 degrees from one another, with a track length of at least 10 nodes and 8
+degrees end-to-end, with a maximum of 3 times missing between each pair of nodes. This
+is then filtered based upon the lattitude and surface altitude. The format of the
+``"tracks_out.txt"`` output file is described in
+:meth:`~tctrack.tempest_extremes.TETracker.stitch_nodes`:
 
+.. code-block:: python
+
+    threshold_filters = [
+        te.TEThreshold(var="lat", op="<=", value=40, count=10),
+        te.TEThreshold(var="lat", op=">=", value=-40, count=10),
+        te.TEThreshold(var="orog", op="<=", value=1500, count=10),
+        te.TEThreshold(var="orog", op="<=", value=10, count=4),
+    ]
+
+    sn_params = te.StitchNodesParameters(
+        output_file="tracks_out.txt",
+        caltype="360_day",
+        max_sep=8.0,
+        min_time=10,
+        max_gap=3,
+        min_endpoint_dist=8.0,
+        threshold_filters=threshold_filters,
+    )
+
+    te_tracker = te.TETracker(dn_params, sn_params)
+
+    run_info = te_tracker.stitch_nodes()
+
+However, it is likely preferable to run both
+:meth:`~tctrack.tempest_extremes.TETracker.detect_nodes` and
+:meth:`~tctrack.tempest_extremes.TETracker.stitch_nodes` together. Which can be done
+with a single :class:`~tctrack.tempest_extremes.TETracker` object:
+
+.. code-block:: python
+
+    te_tracker = te.TETracker(dn_params, sn_params)
+    te_tracker.detect_nodes()
+    te_tracker.stitch_nodes()

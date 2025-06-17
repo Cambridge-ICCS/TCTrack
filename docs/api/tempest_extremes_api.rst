@@ -8,23 +8,34 @@ It is written by Paul Ullrich and released under a BSD 2-clause license.
 For an overview of the functionalities, installation, and usage see the
 :doc:`Tempest Extremes section of the documentation <../tracking-algorithms/tempest_extremes>`.
 
-.. autoclass:: tctrack.tempest_extremes.TETracker
+.. automodule:: tctrack.tempest_extremes
+
+.. autoclass:: TETracker
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. autoclass:: tctrack.tempest_extremes.DetectNodesParameters
+.. autoclass:: DetectNodesParameters
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. autoclass:: tctrack.tempest_extremes.TEContour
+.. autoclass:: StitchNodesParameters
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. autoclass:: tctrack.tempest_extremes.TEOutputCommand
+.. autoclass:: TEContour
    :members:
    :undoc-members:
    :show-inheritance:
 
+.. autoclass:: TEOutputCommand
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. autoclass:: TEThreshold
+   :members:
+   :undoc-members:
+   :show-inheritance:
