@@ -129,8 +129,10 @@ is then filtered based upon the lattitude and surface altitude:
 
     run_info = te_tracker.stitch_nodes()
 
-However, it is likely preferable to run both `detect_nodes` and `stitch_nodes`
-together. Which can be done with a single `TETracker` object:
+However, it is likely preferable to run both
+:meth:`~tctrack.tempest_extremes.TETracker.detect_nodes` and
+:meth:`~tctrack.tempest_extremes.TETracker.stitch_nodes` together. Which can be done
+with a single :class:`~tctrack.tempest_extremes.TETracker` object:
 
 .. code-block:: python
 
