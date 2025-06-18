@@ -1250,3 +1250,31 @@ class TETracker:
 
         # Write to file
         cf.write(fields, output_file)  # type: ignore[operator]
+
+    def run_tracker(self):
+        """Run the TempestExtremes tracker to obtain the tropical cyclone tracks.
+
+        This first runs :meth:`detect_nodes` to get TC candidates at each time. Then
+        these are combined into tracks using :meth:`stitch_nodes`. The track output
+        file format is described in :meth:`stitch_nodes`
+
+        Raises
+        ------
+        FileNotFoundError
+            If the TempestExtremes executables cannot be found.
+        RuntimeError
+            If the TempestExtremes commands return a non-zero exit code.
+
+        Examples
+        --------
+        To set the parameters, instantiate a :class:`TETracker` instance and run
+        StitchNodes:
+
+        >>> dn_params = DetectNodesParameters(...)
+        >>> sn_params = StitchNodesParameters(...)
+        >>> my_tracker = TETracker(dn_params, sn_params)
+        >>> TETracker.run_tracker()
+        """
+        self.detect_nodes()
+        self.stitch_nodes()
+        # TODO: convert output to IBTrACS format
