@@ -285,7 +285,8 @@ class StitchNodesParameters:
     in_file: str | None = None
     """
     Filename of the DetectNodes output file. If this and ``in_list`` are ``None``, it
-    will be taken from the DetectNodes parameters. Called "in" in TempestExtremes.
+    will be taken from :attr:`DetectNodesParameters.output_file`. Called "in" in
+    TempestExtremes.
     """
 
     in_list: str | None = None
@@ -297,7 +298,8 @@ class StitchNodesParameters:
     in_fmt: str | None = None
     """
     Comma-separated list of the variables in the input file. If ``None``, it will be
-    taken from the DetectNodes parameters.
+    ``"lon,lat"`` and any others defined in
+    :attr:`DetectNodesParameters.output_commands`.
     """
 
     allow_repeated_times: bool = False
@@ -600,6 +602,23 @@ class TETracker:
         run according to the parameters in the :attr:`detect_nodes_parameters` attribute
         that were set when the :class:`TETracker` instance was created.
 
+        The output file is a plain text file containing each of the TC candidates at
+        each time from the input files. If :attr:`~DetectNodesParameters.out_header` is
+        ``True`` the first two lines will be a header describing the structure of the
+        data. After this each time is listed in the format:
+
+        .. code-block:: text
+
+           <year> <month> <day> <count> <hour>
+                  <i> <j> <lon> <lat> <var1> <var2> ...
+                  ...
+                  <i> <j> <lon> <lat> <var1> <var2> ...
+
+        - ``count`` is the number of nodes at that time.
+        - ``i``, ``j`` are the grid indices of the node.
+        - ``var1``, ``var2``, etc., are scalar variables as defined by
+          :attr:`~DetectNodesParameters.output_commands` (typically, psl, orog).
+
         Returns
         -------
         dict
@@ -689,15 +708,16 @@ class TETracker:
         .. code-block:: text
 
            start <N> <year> <month> <day> <hour>
-                 <i> <j> <lon> <lat> <var1> <var2> ... <year> <month> <day> <hour>
+                 <i> <j> <var1> <var2> ... <year> <month> <day> <hour>
                  ...
-                 <i> <j> <lon> <lat> <var1> <var2> ... <year> <month> <day> <hour>
+                 <i> <j> <var1> <var2> ... <year> <month> <day> <hour>
 
         - ``N`` is the number of nodes in the track (and number of lines below header).
         - ``i``, ``j`` are grid indices.
         - ``var1``, ``var2``, etc., are scalar variables as defined by
-          :attr:`~StitchNodesParameters.in_fmt` (typically, psl, orog).
-        - ``hour`` may instead be seconds if :attr:`~StitchNodesParameters.out_seconds` is ``True``.
+          :attr:`~StitchNodesParameters.in_fmt` (typically, lon, lat, psl, orog).
+        - ``hour`` may instead be seconds if :attr:`~StitchNodesParameters.out_seconds`
+          is ``True``.
 
         Returns
         -------
