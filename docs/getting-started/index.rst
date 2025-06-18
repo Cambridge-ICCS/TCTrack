@@ -16,7 +16,7 @@ Installation
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-TCTrack is a Python package.
+TCTrack is a Python package (Python 3.10+).
 It can be installed by cloning the repository from GitHub and using pip::
 
     git clone https://github.com/Cambridge-ICCS/TCTrack
