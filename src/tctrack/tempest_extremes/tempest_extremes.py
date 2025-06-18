@@ -203,7 +203,7 @@ class DetectNodesParameters:
         Defaults to ``None``.
     closed_contours : list[TEContour] | None
         Criteria for candidates to be eliminated if they do not have a closed contour.
-        Criteria are provided as a list of separate ``TEContour`` criteria.
+        Criteria are provided as a list of separate :class:`TEContour` criteria.
         Defaults to ``None``.
     merge_dist : float
         DetectNodes merges candidate points with a distance (in degrees
@@ -236,8 +236,8 @@ class DetectNodesParameters:
         Defaults to ``False``
     output_commands : list[TEOutputCommand] | None
         Criteria for any additional columns to be added to the output.
-        Criteria are provided as a list of separate ``TEOutputCommand`` criteria.
-        Defaults to ``None``.
+        Criteria are provided as a list of separate :class:`TEOutputCommand`
+        criteria.  Defaults to ``None``.
 
     See Also
     --------
@@ -274,7 +274,7 @@ class DetectNodesParameters:
     closed_contours: list[TEContour] | None = None
     """
     Criteria for candidates to be eliminated if they do not have a closed contour
-    as a list of separate ``TEContour`` criteria.
+    as a list of separate :class:`TEContour` criteria.
     Defaults to ``None``.
     """
 
@@ -316,9 +316,8 @@ class DetectNodesParameters:
 
     output_commands: list[TEOutputCommand] | None = None
     """
-    Criteria for any additional columns to be added to the output.
-    Criteria are provided as a list of separate ``TEOutputCommand`` criteria.
-    Defaults to ``None``.
+    Criteria for any additional columns to be added to the output. Criteria are provided
+    as a list of separate :class:`TEOutputCommand` criteria.  Defaults to ``None``.
     """
 
     def __str__(self) -> str:
@@ -338,8 +337,9 @@ class StitchNodesParameters:
     output_file : str | None
         The output filename to save the tracks. Called "out" in TempestExtremes.
     in_file : str | None, optional
-        Filename of the DetectNodes output file. If this and `in_list` are ``None``, it
-        will be taken from the DetectNodes parameters. Called "in" in TempestExtremes.
+        Filename of the DetectNodes output file. If this and ``in_list`` are ``None``,
+        it will be taken from the DetectNodes parameters. Called "in" in
+        TempestExtremes.
     in_list : str | None, optional
         File containing a list of input files to be processed together. This is
         unadvised to use at present as it is likely to be changed.
@@ -357,7 +357,7 @@ class StitchNodesParameters:
     time_end : str | None, optional
         Ending date / time for stitching tracks. Later times will be ignored.
     max_sep : float, default=5.0
-        The maximum distance allowed between candidates (degrees). "range" in
+        The maximum distance allowed between candidates (degrees). Called "range" in
         TempestExtremes.
     max_gap : int, default=0
         The number of missing points allowed between candidates.
@@ -395,8 +395,8 @@ class StitchNodesParameters:
 
     in_file: str | None = None
     """
-    Filename of the DetectNodes output file. If this and `in_list` are ``None``, it will
-    be taken from the DetectNodes parameters. Called "in" in TempestExtremes.
+    Filename of the DetectNodes output file. If this and ``in_list`` are ``None``, it
+    will be taken from the DetectNodes parameters. Called "in" in TempestExtremes.
     Defaults to ``None``.
     """
 
@@ -438,7 +438,7 @@ class StitchNodesParameters:
 
     max_sep: float = 5
     """
-    The maximum distance allowed between candidates (degrees). "range" in
+    The maximum distance allowed between candidates (degrees). Called "range" in
     TempestExtremes. Defaults to ``5.0``.
     """
 
@@ -719,11 +719,10 @@ class TETracker:
         """
         Call the DetectNodes utility of Tempest Extremes.
 
-        This will make a system call out to the DetectNodes method from
-        Tempest Extremes (provided it has been installed as an external dependency).
-        DetectNodes will be run according to the parameters in the
-        ``detect_nodes_parameters`` attribute that were set when the ``TETracker``
-        instance was created.
+        This will make a system call out to the DetectNodes method from Tempest Extremes
+        (provided it has been installed as an external dependency). DetectNodes will be
+        run according to the parameters in the :attr:`detect_nodes_parameters` attribute
+        that were set when the :class:`TETracker` instance was created.
 
         Returns
         -------
