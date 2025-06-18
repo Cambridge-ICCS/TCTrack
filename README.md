@@ -17,7 +17,7 @@ of different algorithms for a variety of data sources.
 ## Installation
 
 ### Dependencies
-The package requires Python 3 (>=3.9).
+The package requires Python 3 (>=3.10).
 
 ### Package Installation
 First clone the repository using `git`:
