@@ -11,7 +11,8 @@ on:
   pull_request:
     paths:
       - '**.py'
-      - '.github/workflows/codequality.yml'
+      - 'docs/**'
+      - '.github/workflows/codequality.yaml'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -45,21 +46,21 @@ jobs:
         . tctrack_venv/bin/activate
         pip install .[lint,doc]
 
-    - name: ruff format
+    - name: ruff format tctrack
       if: always()
       run: |
         cd ${{ github.workspace }}
         . tctrack_venv/bin/activate
         ruff format --diff src/
     
-    - name: ruff check
+    - name: ruff check tctrack
       if: always()
       run: |
         cd ${{ github.workspace }}
         . tctrack_venv/bin/activate
         ruff check --diff src/
     
-    - name: mypy
+    - name: mypy tctrack
       if: always()
       # Run mypy over the src code for the package
       run: |
@@ -74,3 +75,26 @@ jobs:
         cd ${{ github.workspace }}
         . tctrack_venv/bin/activate
         blackdoc --diff docs/
+
+    - name: ruff format tests
+      if: always()
+      run: |
+        cd ${{ github.workspace }}
+        . tctrack_venv/bin/activate
+        ruff format --diff tests/
+    
+    - name: ruff check tctrack
+      if: always()
+      run: |
+        cd ${{ github.workspace }}
+        . tctrack_venv/bin/activate
+        ruff check --diff tests/
+
+    - name: mypy tests
+      if: always()
+      # Run mypy over the tests, but include src for tctrack stubs
+      run: |
+        cd ${{ github.workspace }}
+        . tctrack_venv/bin/activate
+        mypy src tests
+
