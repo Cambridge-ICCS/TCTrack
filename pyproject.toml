@@ -46,6 +46,7 @@ lint = [
 doc = [
     "sphinx<8.2.0",  # Pin version due to autodoc type hints incompatibilities
     "sphinx_rtd_theme",
+    "sphinx_autodoc_typehints",
     "blackdoc",
 ]
 dev = [
