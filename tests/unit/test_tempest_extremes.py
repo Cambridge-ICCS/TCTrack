@@ -419,7 +419,11 @@ class TestTETrackerStitchNodes:
     def test_stitch_nodes_threshold_filters(
         self, mocker, threshold_filters, expected_cmd
     ) -> None:
-        """Checks the correct stitch_nodes call is made with threshold filters."""
+        """
+        Checks the correct stitch_nodes call is made with threshold filters.
+
+        Also checks use of string and int inputs to TEThreshold["count"].
+        """
         # Mock subprocess.run to simulate successful execution
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.return_value = mocker.MagicMock(

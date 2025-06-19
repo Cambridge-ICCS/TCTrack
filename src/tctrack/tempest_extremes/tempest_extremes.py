@@ -168,7 +168,7 @@ class TEThreshold(TypedDict):
     value: float
     """Value on the right-hand-side of the comparison."""
 
-    count: str
+    count: int | str
     """
     Either the minimum number of points where the threshold must be satisfied or the
     instruction ``"all"``, ``"first"``, or ``"last"``. ``"all"`` for all points along
