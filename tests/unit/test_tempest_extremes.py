@@ -5,6 +5,10 @@ Note that these do not require a Tempest Extremes installation to run and make u
 pytest-mock to mock the results of subprocess calls to the system.
 """
 
+import subprocess
+
+import pytest
+
 from tctrack.tempest_extremes import (
     DetectNodesParameters,
     TEContour,
@@ -69,7 +73,7 @@ class TestTETracker:
         assert tracker.detect_nodes_parameters.output_file == "output.txt"
 
     def test_te_tracker_detect_nodes_defaults(self, mocker) -> None:
-        """Checks the correct detect_nodes call is made out for defaults."""
+        """Checks the correct detect_nodes call is made for defaults."""
         # Mock subprocess.run to simulate successful execution
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.return_value = mocker.MagicMock(
@@ -106,3 +110,155 @@ class TestTETracker:
         assert result["stdout"] == "Mocked stdout output"
         assert result["stderr"] == "Mocked stderr output"
         assert result["returncode"] == 0
+
+    def test_te_tracker_detect_nodes_non_defaults(self, mocker) -> None:
+        """Checks the correct detect_nodes call is made for non-default values."""
+        # Mock subprocess.run to simulate successful execution
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.return_value = mocker.MagicMock(
+            returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
+        )
+
+        # Create a TETracker with non-default parameters and call detect_nodes method
+        params = DetectNodesParameters(
+            merge_dist=10.0,
+            lat_name="latitude",
+            lon_name="longitude",
+            min_lat=-90.0,
+            max_lat=90.0,
+            min_lon=-180.0,
+            max_lon=180.0,
+        )
+        tracker = TETracker(detect_nodes_parameters=params)
+        result = tracker.detect_nodes()
+
+        # Check subprocess call made as expected and returned outputs are passed back up
+        mock_subprocess_run.assert_called_once_with(
+            [
+                "DetectNodes",
+                "--mergedist",
+                "10.0",
+                "--latname",
+                "latitude",
+                "--lonname",
+                "longitude",
+                "--minlat",
+                "-90.0",
+                "--maxlat",
+                "90.0",
+                "--minlon",
+                "-180.0",
+                "--maxlon",
+                "180.0",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        assert result["stdout"] == "Mocked stdout output"
+        assert result["stderr"] == "Mocked stderr output"
+        assert result["returncode"] == 0
+
+    def test_te_tracker_detect_nodes_optional_parameters(self, mocker) -> None:
+        """
+        Checks the correct detect_nodes call is made for optional parameters.
+
+        This will implicitly check the lod_to_te utility function.
+        """
+        # Mock subprocess.run to simulate successful execution
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.return_value = mocker.MagicMock(
+            returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
+        )
+
+        # Create a TETracker with optional parameters and call detect_nodes method
+        params = DetectNodesParameters(
+            in_data=["input1.nc", "input2.nc"],
+            out_header=True,
+            output_file="output.txt",
+            search_by_min="psl",
+            closed_contours=[
+                TEContour(var="psl", delta=200.0, dist=5.5, minmaxdist=0.0)
+            ],
+            output_commands=[
+                TEOutputCommand(var="psl", operator="min", dist=0.0),
+                TEOutputCommand(var="orog", operator="max", dist=3.0),
+            ],
+            regional=True,
+        )
+        tracker = TETracker(detect_nodes_parameters=params)
+        result = tracker.detect_nodes()
+
+        # Check subprocess call made as expected and returned outputs are passed back up
+        mock_subprocess_run.assert_called_once_with(
+            [
+                "DetectNodes",
+                "--in_data",
+                "input1.nc;input2.nc",
+                "--out_header",
+                "--out",
+                "output.txt",
+                "--searchbymin",
+                "psl",
+                "--closedcontourcmd",
+                "psl,200.0,5.5,0.0",
+                "--mergedist",
+                "0.0",
+                "--latname",
+                "lat",
+                "--lonname",
+                "lon",
+                "--minlat",
+                "0.0",
+                "--maxlat",
+                "0.0",
+                "--minlon",
+                "0.0",
+                "--maxlon",
+                "0.0",
+                "--regional",
+                "--outputcmd",
+                "psl,min,0.0;orog,max,3.0",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        assert result["stdout"] == "Mocked stdout output"
+        assert result["stderr"] == "Mocked stderr output"
+        assert result["returncode"] == 0
+
+    def test_te_tracker_detect_nodes_file_not_found(self, mocker) -> None:
+        """Check detect_nodes raises FileNotFoundError when executable is missing."""
+        # Mock subprocess.run to simulate a FileNotFoundError
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.side_effect = FileNotFoundError("Executable not found")
+
+        # Create a TETracker instance
+        params = DetectNodesParameters(output_file="output.txt")
+        tracker = TETracker(detect_nodes_parameters=params)
+
+        # Assert that detect_nodes raises FileNotFoundError
+        with pytest.raises(
+            FileNotFoundError,
+            match="DetectNodes failed because the executable could not be found",
+        ):
+            tracker.detect_nodes()
+
+    def test_te_tracker_detect_nodes_failure(self, mocker) -> None:
+        """Check detect_nodes raises RuntimeError on subprocess failure."""
+        # Mock subprocess.run to simulate a failure
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.side_effect = subprocess.CalledProcessError(
+            returncode=1, cmd="DetectNodes", stderr="Error occurred"
+        )
+
+        # Create a TETracker instance
+        params = DetectNodesParameters(output_file="output.txt")
+        tracker = TETracker(detect_nodes_parameters=params)
+
+        # Assert that detect_nodes raises RuntimeError
+        with pytest.raises(
+            RuntimeError, match="DetectNodes failed with a non-zero exit code"
+        ):
+            tracker.detect_nodes()
