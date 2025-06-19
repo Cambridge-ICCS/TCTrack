@@ -155,7 +155,7 @@ class TEThreshold(TypedDict):
     To add a filter requiring latitude ``"lat"`` to be less than 40 degrees for
     10 or more points in each track:
 
-    >>> TEOutputCommand(var="lat", op="<=", value=40, count=10)
+    >>> TEThreshold(var="lat", op="<=", value=40, count=10)
     {"var": "lat", "op": "<=", "value": 40, "count": 10},
     """
 
@@ -182,63 +182,6 @@ class DetectNodesParameters:
     """
     Dataclass containing values used by the DetectNodes operation of TE.
 
-    Parameters
-    ----------
-    in_data : list[str] | None
-        List of strings of NetCDF input files.
-        Defaults to ``None``.
-    out_header : bool
-        Whether to include header at the top of the output file.
-        Defaults to ``False``.
-    output_file : str | None
-        Output nodefile to write to from the detection procedure.
-        Defaults to ``None``.
-    search_by_min : str | None
-        Input variable in NetCDF files for selecting candidate points (defined as local
-        minima).
-        Defaults to ``None`` in TCTrack (and then ``"PSL"`` in Tempest Extremes).
-    search_by_max : str | None
-        Input variable in NetCDF files for selecting candidate points (defined as local
-        maxima).
-        Defaults to ``None``.
-    closed_contours : list[TEContour] | None
-        Criteria for candidates to be eliminated if they do not have a closed contour.
-        Criteria are provided as a list of separate ``TEContour`` criteria.
-        Defaults to ``None``.
-    merge_dist : float
-        DetectNodes merges candidate points with a distance (in degrees
-        great-circle-distance) shorter than the specified value. Among two candidates
-        within the merge distance, only the candidate with the lowest value of the
-        search_by_min field or highest value of the search_by_max field are retained.
-        Defaults to ``0.0``.
-    lat_name : str
-        string for the longitude dimension in the NetCDF files.
-        Defaults to ``"lat"``.
-    lat_name : str
-        string for the longitude dimension in the NetCDF files.
-        Defaults to ``"lat"``.
-    min_lat : float
-        Minimum latitude for candidate points.
-        Defaults to ``0.0``.
-    min_lat : float
-        Maximum latitude for candidate points.
-        Defaults to ``0.0``.
-        If max_lat and min_lat are equal then these arguments are ignored.
-    min_lon : float
-        Minimum longitude for candidate points.
-        Defaults to ``0.0``.
-    min_lon : float
-        Maximum longitude for candidate points.
-        Defaults to ``0.0``.
-        If max_lon and min_lon are equal then these arguments are ignored.
-    regional : bool
-        should lat-lon grid be periodic in the longitudinal direction.
-        Defaults to ``False``
-    output_commands : list[TEOutputCommand] | None
-        Criteria for any additional columns to be added to the output.
-        Criteria are provided as a list of separate ``TEOutputCommand`` criteria.
-        Defaults to ``None``.
-
     See Also
     --------
     TEContour : The class used to define contour criteria
@@ -251,31 +194,30 @@ class DetectNodesParameters:
     """
 
     in_data: list[str] | None = None
-    """List of strings of NetCDF input files. Defaults to ``None``."""
+    """List of strings of NetCDF input files."""
 
     out_header: bool = False
-    """Include header at the top of the output file? Defaults to ``False``."""
+    """Include header at the top of the output file?"""
 
     output_file: str | None = None
-    """Output nodefile to write to. Defaults to ``None``."""
+    """Output nodefile to write to."""
 
     search_by_min: str | None = None
     """
     Input variable in NetCDF files for selecting candidate points (defined as local
-    minima). Defaults to ``None`` in TCTrack (and then ``"PSL"`` in Tempest Extremes).
+    minima). If ``None``, then uses ``"PSL"`` in Tempest Extremes.
     """
 
     search_by_max: str | None = None
     """
     Input variable in NetCDF files for selecting candidate points (defined as local
-    maxima). Defaults to ``None``.
+    maxima).
     """
 
     closed_contours: list[TEContour] | None = None
     """
     Criteria for candidates to be eliminated if they do not have a closed contour
-    as a list of separate ``TEContour`` criteria.
-    Defaults to ``None``.
+    as a list of separate :class:`TEContour` criteria.
     """
 
     merge_dist: float = 0.0
@@ -284,41 +226,39 @@ class DetectNodesParameters:
     great-circle-distance) shorter than the specified value. Among two candidates
     within the merge distance, only the candidate with the lowest value of the
     search_by_min field or highest value of the search_by_max field are retained.
-    Defaults to ``0.0``.
     """
 
     lat_name: str = "lat"
-    """String for the latitude dimension in the NetCDF files, defaults to ``"lat"``."""
+    """String for the latitude dimension in the NetCDF files."""
 
     lon_name: str = "lon"
-    """String for the longitude dimension in the NetCDF files, defaults to ``"lat"``."""
+    """String for the longitude dimension in the NetCDF files."""
 
     min_lat: float = 0.0
-    """Minimum latitude for candidate points. Defaults to ``0.0``."""
+    """Minimum latitude for candidate points."""
 
     max_lat: float = 0.0
     """
-    Maximum latitude for candidate points. Defaults to ``0.0``.
+    Maximum latitude for candidate points.
     If max_lat and min_lat are equal then these arguments are ignored.
     """
 
     min_lon: float = 0.0
-    """Minimum longitude for candidate points. Defaults to ``0.0``."""
+    """Minimum longitude for candidate points."""
 
     max_lon: float = 0.0
     """
-    Maximum longitude for candidate points. Defaults to ``0.0``.
+    Maximum longitude for candidate points.
     If ``max_lon`` and ``min_lon`` are equal then these arguments are ignored.
     """
 
     regional: bool = False
-    """Should lat-lon grid be periodic in longitude. Defaults to ``False``."""
+    """Should lat-lon grid be periodic in longitude."""
 
     output_commands: list[TEOutputCommand] | None = None
     """
-    Criteria for any additional columns to be added to the output.
-    Criteria are provided as a list of separate ``TEOutputCommand`` criteria.
-    Defaults to ``None``.
+    Criteria for any additional columns to be added to the output. Criteria are provided
+    as a list of separate :class:`TEOutputCommand` criteria.
     """
 
     def __str__(self) -> str:
@@ -333,57 +273,6 @@ class DetectNodesParameters:
 class StitchNodesParameters:
     """Dataclass containing values used by the StitchNodes operation of TE.
 
-    Parameters
-    ----------
-    output_file : str | None
-        The output filename to save the tracks. Called "out" in TempestExtremes.
-    in_file : str | None, optional
-        Filename of the DetectNodes output file. If this and `in_list` are ``None``, it
-        will be taken from the DetectNodes parameters. Called "in" in TempestExtremes.
-    in_list : str | None, optional
-        File containing a list of input files to be processed together. This is
-        unadvised to use at present as it is likely to be changed.
-    in_fmt : str | None, optional
-        Comma-separated list of the variables in the input file. If ``None``, it will be
-        taken from the DetectNodes parameters.
-    allow_repeated_times : bool, default=False
-        If ``False``, an error is thrown if there are multiple sections in the input
-        nodefile with the same time.
-    caltype : str, default="standard"
-        Type of calendar to use. Options are: ``"standard"`` (365 days with
-        leap years), ``"noleap"``, ``"360_day"``.
-    time_begin : str | None, optional
-        Starting date / time for stitching tracks. Earlier times will be ignored.
-    time_end : str | None, optional
-        Ending date / time for stitching tracks. Later times will be ignored.
-    max_sep : float, default=5.0
-        The maximum distance allowed between candidates (degrees). "range" in
-        TempestExtremes.
-    max_gap : int, default=0
-        The number of missing points allowed between candidates.
-    min_time : int | str, default=1
-        The minimum required length of a path. Either as an integer for the number of
-        candidates, or a string for total duration, e.g. ``"24h"``.
-    min_endpoint_dist : float, default=0
-        The minimum required distance between the first and last candidates (degrees).
-    min_path_dist : float, default=0
-        The minimum required acumulated distance along the path (degrees).
-    threshold_filters: list[TEThreshold] | None, optional
-        Filters for paths based on the number of nodes that satisfy a threshold.
-        Called "thresholdcmd" in TempestExtremes.
-    prioritize : str | None, optional
-        The variable to use to determine the precedence (lowest to highest) of nodes for
-        matching to the next position.
-    add_velocity : bool, default=False
-        Whether to include the velocity components (m/s) of the movement of the TC to
-        the output file.
-    out_file_format : str, default="gfdl"
-        Format of the output file. ``"gfdl"``, ``"csv"``, or ``"csvnoheader"``.
-        See :meth:`TETracker.stitch_nodes` for details.
-    out_seconds : bool, default=False
-        For GFDL output file types, determines whether to report the sub-daily time in
-        seconds (``True``) or hours (``False``).
-
     References
     ----------
     `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#StitchNodes>`_
@@ -395,102 +284,91 @@ class StitchNodesParameters:
 
     in_file: str | None = None
     """
-    Filename of the DetectNodes output file. If this and `in_list` are ``None``, it will
-    be taken from the DetectNodes parameters. Called "in" in TempestExtremes.
-    Defaults to ``None``.
+    Filename of the DetectNodes output file. If this and ``in_list`` are ``None``, it
+    will be taken from :attr:`DetectNodesParameters.output_file`. Called "in" in
+    TempestExtremes.
     """
 
     in_list: str | None = None
     """
     File containing a list of input files to be processed together. This is unadvised to
-    use at present as it is likely to be changed. Defaults to ``None``.
+    use at present as it is likely to be changed.
     """
 
     in_fmt: str | None = None
     """
     Comma-separated list of the variables in the input file. If ``None``, it will be
-    taken from the DetectNodes parameters. Defaults to ``None``.
+    ``"lon,lat"`` and any others defined in
+    :attr:`DetectNodesParameters.output_commands`.
     """
 
     allow_repeated_times: bool = False
     """
     If ``False``, an error is thrown if there are multiple sections in the input
-    nodefile with the same time. Defaults to ``False``.
+    nodefile with the same time.
     """
 
     caltype: str = "standard"
     """
-    Type of calendar to use. Options are: ``"standard"`` (365 days with leap
-    years), ``"noleap"``, ``"360_day"``. Defaults to ``"standard"``.
+    The type of calendar to use. Options are ``"standard"`` (365 days with leap years),
+    ``"noleap"``, ``"360_day"``.
     """
 
     time_begin: str | None = None
-    """
-    Starting date / time for stitching tracks. Earlier times will be ignored.
-    Defaults to ``None``.
-    """
+    """Starting date / time for stitching tracks. Earlier times will be ignored."""
 
     time_end: str | None = None
-    """
-    Ending date / time for stitching tracks. Later times will be ignored.
-    Defaults to ``None``.
-    """
+    """Ending date / time for stitching tracks. Later times will be ignored."""
 
     max_sep: float = 5
     """
-    The maximum distance allowed between candidates (degrees). "range" in
-    TempestExtremes. Defaults to ``5.0``.
+    The maximum distance allowed between candidates (degrees). Called "range" in
+    TempestExtremes.
     """
 
     max_gap: int = 0
-    """The number of missing points allowed between candidates. Defaults to ``0``."""
+    """The number of missing points allowed between candidates."""
 
     min_time: int | str = 1
     """
     The minimum required length of a path. Either as an integer for the number of
-    candidates, or a string for total duration, e.g. ``"24h"``. Defaults to ``1``.
+    candidates, or a string for total duration, e.g. ``"24h"``.
     """
 
     min_endpoint_dist: float = 0
-    """
-    The minimum required distance between the first and last candidates (degrees).
-    Defaults to ``0``.
-    """
+    """The minimum required distance between the first and last candidates (degrees)."""
 
     min_path_dist: float = 0
-    """
-    The minimum required acumulated distance along the path (degrees).
-    Defaults to ``0``.
-    """
+    """The minimum required acumulated distance along the path (degrees)."""
 
     threshold_filters: list[TEThreshold] | None = None
     """
-    Filters for paths based on the number of nodes that satisfy a threshold.
-    Called "thresholdcmd" in TempestExtremes. Defaults to ``None``.
+    Filters for paths based on the number of nodes that satisfy a threshold. Uses a list
+    of :class:`TEThreshold` objects.  Called "thresholdcmd" in TempestExtremes.
     """
 
     prioritize: str | None = None
     """
     The variable to use to determine the precedence (lowest to highest) of nodes for
-    matching to the next position. Defaults to ``None``.
+    matching to the next position.
     """
 
     add_velocity: bool = False
     """
-    Whether to include the velocity components (m/s) of the movement of the TC to
-    the output file. Defaults to ``False``.
+    Whether to include the velocity components (m/s) of the movement of the TC to the
+    output file.
     """
 
     out_file_format: str = "gfdl"
     """
     Format of the output file. ``"gfdl"``, ``"csv"``, or ``"csvnoheader"``.
-    Defaults to ``"gfdl"``. See :meth:`TETracker.stitch_nodes` for details.
+    See :meth:`TETracker.stitch_nodes` for details.
     """
 
     out_seconds: bool = False
     """
     For GFDL output file types, determines whether to report the sub-daily time in
-    seconds (``True``) or hours (``False``). Defaults to ``False``.
+    seconds (``True``) or hours (``False``).
     """
 
     def __str__(self) -> str:
@@ -719,11 +597,27 @@ class TETracker:
         """
         Call the DetectNodes utility of Tempest Extremes.
 
-        This will make a system call out to the DetectNodes method from
-        Tempest Extremes (provided it has been installed as an external dependency).
-        DetectNodes will be run according to the parameters in the
-        ``detect_nodes_parameters`` attribute that were set when the ``TETracker``
-        instance was created.
+        This will make a system call out to the DetectNodes method from Tempest Extremes
+        (provided it has been installed as an external dependency). DetectNodes will be
+        run according to the parameters in the :attr:`detect_nodes_parameters` attribute
+        that were set when the :class:`TETracker` instance was created.
+
+        The output file is a plain text file containing each of the TC candidates at
+        each time from the input files. If :attr:`~DetectNodesParameters.out_header` is
+        ``True`` the first two lines will be a header describing the structure of the
+        data. After this each time is listed in the format:
+
+        .. code-block:: text
+
+           <year> <month> <day> <count> <hour>
+                  <i> <j> <lon> <lat> <var1> <var2> ...
+                  ...
+                  <i> <j> <lon> <lat> <var1> <var2> ...
+
+        - ``count`` is the number of nodes at that time.
+        - ``i``, ``j`` are the grid indices of the node.
+        - ``var1``, ``var2``, etc., are scalar variables as defined by
+          :attr:`~DetectNodesParameters.output_commands` (typically, psl, orog).
 
         Returns
         -------
@@ -814,15 +708,16 @@ class TETracker:
         .. code-block:: text
 
            start <N> <year> <month> <day> <hour>
-                 <i> <j> <lon> <lat> <var1> <var2> ... <year> <month> <day> <hour>
+                 <i> <j> <var1> <var2> ... <year> <month> <day> <hour>
                  ...
-                 <i> <j> <lon> <lat> <var1> <var2> ... <year> <month> <day> <hour>
+                 <i> <j> <var1> <var2> ... <year> <month> <day> <hour>
 
         - ``N`` is the number of nodes in the track (and number of lines below header).
         - ``i``, ``j`` are grid indices.
         - ``var1``, ``var2``, etc., are scalar variables as defined by
-          :attr:`~StitchNodesParameters.in_fmt` (typically, psl, orog).
-        - ``hour`` may instead be seconds if :attr:`~StitchNodesParameters.out_seconds` is ``True``.
+          :attr:`~StitchNodesParameters.in_fmt` (typically, lon, lat, psl, orog).
+        - ``hour`` may instead be seconds if :attr:`~StitchNodesParameters.out_seconds`
+          is ``True``.
 
         Returns
         -------

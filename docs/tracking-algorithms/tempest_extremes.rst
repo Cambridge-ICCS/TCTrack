@@ -19,6 +19,8 @@ For full details of the Tempest Extremes API in TCTrack see the
    :maxdepth: 2
    :hidden:
 
+.. Import the tempest_extremes module to use references throughout this page.
+.. py:module:: tctrack.tempest_extremes
 
 Installation
 ------------
@@ -56,16 +58,16 @@ tracks.
 
 Usage of Tempest Extremes in TCTrack is done through the ``tempest_extremes`` module.
 
-This provides the ``TETracker`` class that stores algorithm parameters and provides access
-to the methods.
-The detection and stitching algorithm can be configured through the various parameters
-in the ``DetectNodesParameters`` and ``StitchNodesParameters`` dataclasses.
+This provides the :class:`TETracker` class that stores algorithm parameters and provides
+access to the methods. The detection and stitching algorithm can be configured through
+the various parameters in the :class:`DetectNodesParameters` and
+:class:`StitchNodesParameters` dataclasses.
 
-In the following example we set up the DetectNodes functionality to run on a series of
-input files to generate output. We configure detection to be done based on minima in
-psl, with closed contours of psl and zgdiff, and merging of candidates within 6 degrees
-of one another. Additional output fields are also added for psl and orog so that they
-may be used with StitchNodes:
+In the following example we set up the :meth:`~TETracker.detect_nodes` functionality to
+run on a series of input files to generate output. We configure detection to be done
+based on minima in psl, with closed contours of psl and zgdiff, and merging of
+candidates within 6 degrees of one another. Additional output fields are also added for
+psl and orog so that they may be used with :meth:`~TETracker.stitch_nodes`:
 
 .. code-block:: python
 
@@ -105,8 +107,8 @@ This can then followed by StitchNodes which is set up to combine nodes into a tr
 are less than 8 degrees from one another, with a track length of at least 10 nodes and 8
 degrees end-to-end, with a maximum of 3 times missing between each pair of nodes. This
 is then filtered based upon the lattitude and surface altitude. The format of the
-``"tracks_out.txt"`` output file is described in
-:meth:`~tctrack.tempest_extremes.TETracker.stitch_nodes`:
+``"tracks_out.txt"`` output file is described in the documentation for
+:meth:`~TETracker.stitch_nodes`:
 
 .. code-block:: python
 
