@@ -19,6 +19,7 @@ For full details of the Tempest Extremes API in TCTrack see the
    :maxdepth: 2
    :hidden:
 
+.. Import the tempest_extremes module to use references throughout this page.
 .. py:module:: tctrack.tempest_extremes
 
 Installation
