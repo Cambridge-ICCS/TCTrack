@@ -39,9 +39,10 @@ test = [
     "pytest-mock",
 ]
 lint = [
-    "mypy",
     "ruff",
     "blackdoc",
+    "mypy",
+    "pytest",
 ]
 doc = [
     "sphinx<8.2.0",  # Pin version due to autodoc type hints incompatibilities
