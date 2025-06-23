@@ -83,7 +83,7 @@ jobs:
         . tctrack_venv/bin/activate
         ruff format --diff tests/
     
-    - name: ruff check tctrack
+    - name: ruff check tests
       if: always()
       run: |
         cd ${{ github.workspace }}
