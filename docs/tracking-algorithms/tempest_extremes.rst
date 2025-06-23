@@ -46,8 +46,15 @@ TCTrack has been built against (5feb3a0 - a more recent version may work if you 
 the latest features).
 It will then build using CMake
 Once this is complete the Tempest Extremes executeables can then be found in
-``tempestextremes/build_serial/bin/``.
+``tempestextremes/build/bin/``.
 
+To use these from TCTrack you will need to add the directory to your ``PATH`` so that
+the executeables can be found at runtime::
+
+    export PATH=$PATH:~/tempestextremes/build/bin
+
+Note: you will need to modify this as appropriate if you cloned Tempest Extremes
+somewhere other than ``~/``.
 
 Usage
 -----
