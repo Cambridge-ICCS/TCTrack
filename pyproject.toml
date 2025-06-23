@@ -25,7 +25,7 @@ classifiers = [
     'Programming Language :: Python :: 3.12',
     'Programming Language :: Python :: 3.13',
     'Typing :: Typed',
-    "Operating System :: OS Independent",
+    "Operating System :: Unix",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Atmospheric Science",
     "Intended Audience :: Science/Research",
@@ -39,9 +39,10 @@ test = [
     "pytest-mock",
 ]
 lint = [
-    "mypy",
     "ruff",
     "blackdoc",
+    "mypy",
+    "pytest",
 ]
 doc = [
     "sphinx<8.2.0",  # Pin version due to autodoc type hints incompatibilities
@@ -91,6 +92,3 @@ convention = "numpy"
 # Ignore S101 (use of assert) in tests
 # Ignore PLR2004 (magic values) in tests as we regularly compare to a numerical value
 "**/tests/*" = ["S101", "PLR2004"]
-
-[tool.pytest.ini_options]
-mock_use_standalone_module = true

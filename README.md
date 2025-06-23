@@ -1,4 +1,5 @@
-![GitHub](https://img.shields.io/github/license/Cambridge-ICCS/TCTrack)
+![GitHub License](https://img.shields.io/github/license/Cambridge-ICCS/TCTrack)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Cambridge-ICCS/TCTrack/unit-tests.yaml?label=unit-tests)
 [![Documentation Status](https://readthedocs.org/projects/TCTrack/badge/?version=latest)](https://tctrack.readthedocs.io/en/latest/?badge=latest)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)

@@ -168,7 +168,7 @@ class TEThreshold(TypedDict):
     value: float
     """Value on the right-hand-side of the comparison."""
 
-    count: str
+    count: int | str
     """
     Either the minimum number of points where the threshold must be satisfied or the
     instruction ``"all"``, ``"first"``, or ``"last"``. ``"all"`` for all points along
@@ -279,8 +279,8 @@ class StitchNodesParameters:
     and the `StitchNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/StitchNodes.cpp>`_
     """
 
-    output_file: str | None
-    """The output filename to save the tracks. Called "out" in TempestExtremes."""
+    output_file: str = "tracks.txt"
+    """The output filename to save the tracks to. Called "out" in TempestExtremes."""
 
     in_file: str | None = None
     """

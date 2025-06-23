@@ -197,6 +197,9 @@ The full *ruff* configuration for the project is contained in the
 `pyproject.toml <https://github.com/Cambridge-ICCS/TCTrack/blob/main/pyproject.toml>`_
 file.
 
+Code quality is enforced for pull requests through a code-quality continuous integration
+workflow run using GitHub actions.
+
 
 .. _testing:
 
@@ -207,7 +210,38 @@ All code contributions should have accompanying unit and integration tests to en
 that all parts of the code are functioning properly.
 
 TCTrack uses the `pytest <https://docs.pytest.org>`_ framework for testing,
-with subprocess calls mocked with `pytest-mock <https://pytest-mock.readthedocs.io>`_.
+with subprocess calls mocked with `pytest-mock <https://pytest-mock.readthedocs.io>`_ in
+unit tests.
+
+Tests are stored separately from the main code in the ``tests/`` directory at the root
+of the package. There are separate subdirectories for ``unit`` (testing the TCTrack
+Python code) and ``integration`` (testing the interaction with other libraries) tests.
+
+To run the tests from a development install use, from the command-line:
+
+.. code-block:: shell
+
+    pytest tests/unit
+    pytest tests/integration
+
+to run both the unit and integration tests sequentially.
+Note that the integration tests require installation of third-party libraries that
+TCTrack wraps.
+
+Code quality of the tests is maintained using ruff and mypy (see :ref:`linting`).
+Check these from a development install by running:
+
+.. code-block:: shell
+
+    ruff format tests/
+    ruff check tests/
+    mypy src tests
+
+Note that mypy is run over both src and tests to pick up the TCTrack type hints.
+
+Testing standards are enforced for pull requests through continuous integration
+workflows run using GitHub actions.
+These are run for a number of Python versions and operating systems.
 
 
 .. _documentation:
