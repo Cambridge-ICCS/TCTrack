@@ -601,3 +601,243 @@ class TestTETrackerStitchNodes:
             RuntimeError, match="StitchNodes failed with a non-zero exit code"
         ):
             tracker.stitch_nodes()
+
+    @pytest.fixture
+    def mock_gfdl_file(self, tmp_path):
+        """Fixture to create a mock GFDL file with two tracks."""
+        file_path = tmp_path / "tracks_out_gfdl.txt"
+        file_path.write_text(
+            "start\t45\t1950\t1\t1\t3\n"
+            "\t164\t332\t57.832031\t-12.070312\t1.005377e+05\t0.000000e+00\t1950\t1\t1\t3\n"
+            "\t163\t332\t57.480469\t-12.070312\t1.005820e+05\t0.000000e+00\t1950\t1\t1\t6\n"
+            "start\t12\t1950\t1\t2\t0\n"
+            "\t843\t275\t296.542969\t-25.429688\t9.970388e+04\t2.633214e+02\t1950\t1\t2\t0\n"
+            "\t850\t266\t299.003906\t-27.539062\t9.989988e+04\t6.951086e+01\t1950\t1\t2\t6\n"
+        )
+        return str(file_path)
+
+    @pytest.fixture
+    def mock_csv_file(self, tmp_path):
+        """Fixture to create a mock CSV file with two tracks."""
+        file_path = tmp_path / "tracks_out_csv.txt"
+        file_path.write_text(
+            "track_id,year,month,day,hour,i,j,lon,lat,psl,orog\n"
+            "0,1950,1,1,3,164,332,57.832031,-12.070312,1.005377e+05,0.000000e+00\n"
+            "0,1950,1,1,6,163,332,57.480469,-12.070312,1.005820e+05,0.000000e+00\n"
+            "1,1950,1,2,0,843,275,296.542969,-25.429688,9.970388e+04,2.633214e+02\n"
+            "1,1950,1,2,6,850,266,299.003906,-27.539062,9.989988e+04,6.951086e+01\n"
+        )
+        return str(file_path)
+
+    @pytest.fixture
+    def mock_csvnohead_file(self, tmp_path):
+        """Fixture to create a mock CSV file without a header and with two tracks."""
+        file_path = tmp_path / "tracks_out_csvnohead.txt"
+        file_path.write_text(
+            "0,1950,1,1,3,164,332,57.832031,-12.070312,1.005377e+05,0.000000e+00\n"
+            "0,1950,1,1,6,163,332,57.480469,-12.070312,1.005820e+05,0.000000e+00\n"
+            "1,1950,1,2,0,843,275,296.542969,-25.429688,9.970388e+04,2.633214e+02\n"
+            "1,1950,1,2,6,850,266,299.003906,-27.539062,9.989988e+04,6.951086e+01\n"
+        )
+        return str(file_path)
+
+    @pytest.mark.parametrize(
+        "file_format, mock_file_fixture, expected_tracks",
+        [
+            (
+                "gfdl",
+                "mock_gfdl_file",
+                [
+                    {
+                        "track_id": 1,
+                        "num_points": 2,
+                        "data": [
+                            {
+                                "grid_i": 164,
+                                "grid_j": 332,
+                                "variables": {
+                                    "var_1": 57.832031,
+                                    "var_2": -12.070312,
+                                    "var_3": 1.005377e05,
+                                    "var_4": 0.0,
+                                },
+                            },
+                            {
+                                "grid_i": 163,
+                                "grid_j": 332,
+                                "variables": {
+                                    "var_1": 57.480469,
+                                    "var_2": -12.070312,
+                                    "var_3": 1.005820e05,
+                                    "var_4": 0.0,
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        "track_id": 2,
+                        "num_points": 2,
+                        "data": [
+                            {
+                                "grid_i": 843,
+                                "grid_j": 275,
+                                "variables": {
+                                    "var_1": 296.542969,
+                                    "var_2": -25.429688,
+                                    "var_3": 9.970388e04,
+                                    "var_4": 2.633214e02,
+                                },
+                            },
+                            {
+                                "grid_i": 850,
+                                "grid_j": 266,
+                                "variables": {
+                                    "var_1": 299.003906,
+                                    "var_2": -27.539062,
+                                    "var_3": 9.989988e04,
+                                    "var_4": 6.951086e01,
+                                },
+                            },
+                        ],
+                    },
+                ],
+            ),
+            (
+                "csv",
+                "mock_csv_file",
+                [
+                    {
+                        "track_id": 0,
+                        "num_points": 2,
+                        "data": [
+                            {
+                                "grid_i": 164,
+                                "grid_j": 332,
+                                "variables": {
+                                    "lon": 57.832031,
+                                    "lat": -12.070312,
+                                    "psl": 1.005377e05,
+                                    "orog": 0.0,
+                                },
+                            },
+                            {
+                                "grid_i": 163,
+                                "grid_j": 332,
+                                "variables": {
+                                    "lon": 57.480469,
+                                    "lat": -12.070312,
+                                    "psl": 1.005820e05,
+                                    "orog": 0.0,
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        "track_id": 1,
+                        "num_points": 2,
+                        "data": [
+                            {
+                                "grid_i": 843,
+                                "grid_j": 275,
+                                "variables": {
+                                    "lon": 296.542969,
+                                    "lat": -25.429688,
+                                    "psl": 9.970388e04,
+                                    "orog": 2.633214e02,
+                                },
+                            },
+                            {
+                                "grid_i": 850,
+                                "grid_j": 266,
+                                "variables": {
+                                    "lon": 299.003906,
+                                    "lat": -27.539062,
+                                    "psl": 9.989988e04,
+                                    "orog": 6.951086e01,
+                                },
+                            },
+                        ],
+                    },
+                ],
+            ),
+            (
+                "csvnohead",
+                "mock_csvnohead_file",
+                [
+                    {
+                        "track_id": 0,
+                        "num_points": 2,
+                        "data": [
+                            {
+                                "grid_i": 164,
+                                "grid_j": 332,
+                                "variables": {
+                                    "var_1": 57.832031,
+                                    "var_2": -12.070312,
+                                    "var_3": 1.005377e05,
+                                    "var_4": 0.0,
+                                },
+                            },
+                            {
+                                "grid_i": 163,
+                                "grid_j": 332,
+                                "variables": {
+                                    "var_1": 57.480469,
+                                    "var_2": -12.070312,
+                                    "var_3": 1.005820e05,
+                                    "var_4": 0.0,
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        "track_id": 1,
+                        "num_points": 2,
+                        "data": [
+                            {
+                                "grid_i": 843,
+                                "grid_j": 275,
+                                "variables": {
+                                    "var_1": 296.542969,
+                                    "var_2": -25.429688,
+                                    "var_3": 9.970388e04,
+                                    "var_4": 2.633214e02,
+                                },
+                            },
+                            {
+                                "grid_i": 850,
+                                "grid_j": 266,
+                                "variables": {
+                                    "var_1": 299.003906,
+                                    "var_2": -27.539062,
+                                    "var_3": 9.989988e04,
+                                    "var_4": 6.951086e01,
+                                },
+                            },
+                        ],
+                    },
+                ],
+            ),
+        ],
+    )
+    def test_tracks(self, file_format, mock_file_fixture, expected_tracks, request):
+        """Test the tracks() method for different file formats with multiple tracks."""
+        mock_file = request.getfixturevalue(mock_file_fixture)
+        tracker = TETracker()
+        tracker.stitch_nodes_parameters.output_file = mock_file
+        tracker.stitch_nodes_parameters.out_file_format = file_format
+        tracks = tracker.tracks()
+
+        # Assertions
+        assert len(tracks) == len(expected_tracks)
+        for track, expected in zip(tracks, expected_tracks, strict=False):
+            assert track.track_id == expected["track_id"]
+            assert len(track.data) == expected["num_points"]
+            for point, expected_point in zip(
+                track.data, expected["data"], strict=False
+            ):
+                assert point["grid_i"] == expected_point["grid_i"]
+                assert point["grid_j"] == expected_point["grid_j"]
+                assert point["variables"].keys() == expected_point["variables"].keys()
+                for var_name, var_value in expected_point["variables"].items():
+                    assert point["variables"][var_name] == var_value
