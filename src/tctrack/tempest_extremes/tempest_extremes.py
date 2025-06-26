@@ -137,6 +137,21 @@ class Track:
                 The hour of the data point (0-23).
         """
         grid_i, grid_j, variables, year, month, day, hour = point
+
+        # Validate grid indices
+        if not isinstance(grid_i, int) or not isinstance(grid_j, int):
+            raise ValueError(
+                f"Invalid grid indices: {grid_i}, {grid_j}. Must be integers."
+            )
+
+        # Validate variables
+        if not isinstance(variables, dict) or not all(
+            isinstance(value, (int, float)) for value in variables.values()
+        ):
+            raise ValueError(
+                f"Invalid variable data: {variables}. Must be a dictionary with numeric values."
+            )
+
         timestamp = self._create_datetime(year, month, day, hour)
         self.data.append(
             {

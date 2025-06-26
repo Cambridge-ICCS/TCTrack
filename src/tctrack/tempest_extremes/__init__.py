@@ -7,6 +7,7 @@ from .tempest_extremes import (
     TEOutputCommand,
     TEThreshold,
     TETracker,
+    Track,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "TEOutputCommand",
     "TEThreshold",
     "TETracker",
+    "Track",
 ]
