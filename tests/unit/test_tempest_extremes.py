@@ -787,6 +787,7 @@ class TestTETrackerStitchNodes:
         tracker = TETracker()
         tracker.stitch_nodes_parameters.output_file = mock_file
         tracker.stitch_nodes_parameters.out_file_format = file_format
+        tracker.stitch_nodes_parameters.in_fmt = ["var_1", "var_2", "var_3", "var_4"]
         tracks = tracker.tracks()
 
         # Assertions
