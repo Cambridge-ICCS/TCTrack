@@ -23,22 +23,22 @@ class Track:
     ----------
     track_id : int
         The unique identifier for the track.
-    num_points : int
+    observations : int
         Number of points in the track.
     calendar : str
         The calendar type to use for datetime handling.
         Options are "gregorian", "360_day", or "noleap".
     start_time : Datetime360Day | DatetimeNoLeap | DatetimeGregorian
         Start time of the track as a datetime or cftime object.
-    data : list
-        List of data points, where each point is a dictionary containing:
-            grid_i, grid_j, variables, timestamp
+    data : dict
+        dict of data for various variables along the track.
+            timestamp nd other variables as supplied in file
     """
 
     def __init__(
         self,
         track_id: int,
-        num_points: int,
+        observations: int,
         year: int,
         month: int,
         day: int,
@@ -52,7 +52,7 @@ class Track:
         ----------
         track_id : int
             The unique identifier for the track.
-        num_points : int
+        observations : int
             The number of points in the track.
         year : int
             The starting year of the track.
@@ -67,10 +67,10 @@ class Track:
             "gregorian", "360_day", or "noleap".
         """
         self.track_id = track_id
-        self.num_points = num_points
+        self.observations = observations
         self.calendar = calendar
         self.start_time = self._create_datetime(year, month, day, hour)
-        self.data: list = []
+        self.data: dict = {}
 
     def _create_datetime(self, year: int, month: int, day: int, hour: int):
         """
@@ -107,60 +107,49 @@ class Track:
     def __str__(self) -> str:
         """Improve the representation of Track to users."""
         return (
-            f"Track(num_points={self.num_points}, "
+            f"Track(observations={self.observations}, "
             f"start_time={self.start_time}, "
             f"calendar={self.calendar}, "
             f"data_points={len(self.data)})"
         )
 
-    def add_point(self, point: tuple):
+    def add_point(self, year: int, month: int, day: int, hour: int, variables: dict):
         """
         Add a data point to the track.
 
         Parameters
         ----------
-        point : tuple
-            A tuple containing the following elements:
-            - grid_i : int
-                The grid index i.
-            - grid_j : int
-                The grid index j.
-            - variables : dict
-                A dictionary of variable names and their corresponding values.
-            - year : int
-                The year of the data point.
-            - month : int
-                The month of the data point (1-12).
-            - day : int
-                The day of the data point (1-31, depending on the calendar).
-            - hour : int
-                The hour of the data point (0-23).
+        year : int
+          The year of the data point.
+        month : int
+          The month of the data point (1-12).
+        day : int
+          The day of the data point (1-31, depending on the calendar).
+        hour : int
+          The hour of the data point (0-23).
+        variables : dict
+            A dict containing any variables for the point as key : value pairs
         """
-        grid_i, grid_j, variables, year, month, day, hour = point
-
-        # Validate grid indices
-        if not isinstance(grid_i, int) or not isinstance(grid_j, int):
-            raise ValueError(
-                f"Invalid grid indices: {grid_i}, {grid_j}. Must be integers."
-            )
-
-        # Validate variables
+        # Validate variables as int or float
         if not isinstance(variables, dict) or not all(
             isinstance(value, (int, float)) for value in variables.values()
         ):
-            raise ValueError(
-                f"Invalid variable data: {variables}. Must be a dictionary with numeric values."
-            )
+            msg = f"Invalid variable data: {variables}. Must be a dictionary with numeric values."
+            raise ValueError(msg)
 
         timestamp = self._create_datetime(year, month, day, hour)
-        self.data.append(
-            {
-                "grid_i": grid_i,
-                "grid_j": grid_j,
-                "variables": variables,
-                "timestamp": timestamp,
+
+        # Initialize data structure if empty
+        if not self.data:
+            self.data = {
+                "timestamp": [],
+                **{key: [] for key in variables},
             }
-        )
+
+        # Append data to the respective lists
+        self.data["timestamp"].append(timestamp)
+        for key, value in variables.items():
+            self.data[key].append(value)
 
 
 def lod_to_te(inputs: list[dict]) -> str:
@@ -926,7 +915,7 @@ class TETracker:
     @staticmethod
     def _parse_gfdl_line_to_point(
         line: list[str], variable_names: list[str] | None = None
-    ):
+    ) -> tuple[int, int, int, int, dict[str, int | float]]:
         """
         Parse a line from StitchNodes gfdl output into a :class:`Track` data point.
 
@@ -940,21 +929,26 @@ class TETracker:
         Returns
         -------
         tuple
-            A tuple containing (grid_i, grid_j, variables, year, month, day, hour).
+            A tuple of integer year, day, month, hour and dict of variables
         """
-        grid_i = int(line[0])
-        grid_j = int(line[1])
+        return_vars: dict[str, int | float] = {}
+        return_vars.update({"grid_i": int(line[0]), "grid_j": int(line[1])})
         if variable_names:
-            variables = {
-                name: float(value)
-                for name, value in zip(variable_names, line[2:-4], strict=False)
-            }
+            return_vars.update(
+                {
+                    name: float(value)
+                    for name, value in zip(variable_names, line[2:-4], strict=False)
+                }
+            )
         else:
-            variables = {
-                f"var_{i}": float(value) for i, value in enumerate(line[2:-4], start=1)
-            }
+            return_vars.update(
+                {
+                    f"var_{i}": float(value)
+                    for i, value in enumerate(line[2:-4], start=1)
+                }
+            )
         year, month, day, hour = map(int, line[-4:])
-        return grid_i, grid_j, variables, year, month, day, hour
+        return year, month, day, hour, return_vars
 
     def _parse_tracks_gfdl(self, file_path):
         """
@@ -979,12 +973,12 @@ class TETracker:
                 if items[0] == "start":
                     # Start of new track, extract metadata and add Track to dict
                     current_track_id += 1
-                    num_points = int(items[1])
+                    observations = int(items[1])
                     year, month, day, hour = map(int, items[2:6])
 
                     tracks[current_track_id] = Track(
                         current_track_id,
-                        num_points,
+                        observations,
                         year,
                         month,
                         day,
@@ -995,7 +989,7 @@ class TETracker:
                 # Continue processing ongoing track
                 else:
                     tracks[current_track_id].add_point(
-                        self._parse_gfdl_line_to_point(items)
+                        *self._parse_gfdl_line_to_point(items)
                     )
 
         return list(tracks.values())
@@ -1031,29 +1025,39 @@ class TETracker:
                     year, month, day, hour = map(
                         int, (row["year"], row["month"], row["day"], row["hour"])
                     )
-                    grid_i = int(row["i"])
-                    grid_j = int(row["j"])
-                    variables = {
-                        key: float(value)
-                        for key, value in row.items()
-                        if key
-                        not in {"track_id", "year", "month", "day", "hour", "i", "j"}
-                    }
+                    variables_dict = {"grid_i": int(row["i"]), "grid_j": int(row["j"])}
+                    variables_dict.update(
+                        {
+                            key: float(value)
+                            for key, value in row.items()
+                            if key
+                            not in {
+                                "track_id",
+                                "year",
+                                "month",
+                                "day",
+                                "hour",
+                                "i",
+                                "j",
+                            }
+                        }
+                    )
                 else:
                     # Read from csv assuming: id, y, m, d, h, i, j, var1, ..., varn
                     track_id = int(row[0])
                     year, month, day, hour = map(int, row[1:5])
-                    grid_i = int(row[5])
-                    grid_j = int(row[6])
-                    variables = {
-                        f"var_{i}": float(value)
-                        for i, value in enumerate(row[7:], start=1)
-                    }
+                    variables_dict = {"grid_i": int(row[5]), "grid_j": int(row[6])}
+                    variables_dict.update(
+                        {
+                            f"var_{i}": float(value)
+                            for i, value in enumerate(row[7:], start=1)
+                        }
+                    )
 
                 if track_id not in tracks:
                     tracks[track_id] = Track(
                         track_id=track_id,
-                        num_points=0,
+                        observations=0,
                         year=year,
                         month=month,
                         day=day,
@@ -1061,9 +1065,7 @@ class TETracker:
                         calendar=self.stitch_nodes_parameters.caltype,
                     )
 
-                tracks[track_id].add_point(
-                    (grid_i, grid_j, variables, year, month, day, hour)
-                )
-                tracks[track_id].num_points += 1
+                tracks[track_id].add_point(year, month, day, hour, variables_dict)
+                tracks[track_id].observations += 1
 
         return list(tracks.values())
