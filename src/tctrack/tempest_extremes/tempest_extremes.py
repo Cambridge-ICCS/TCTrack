@@ -1052,7 +1052,7 @@ class TETracker:
                     grid_i = int(row[5])
                     grid_j = int(row[6])
                     variables = {
-                        var_name: float(row[7+i])
+                        var_name: float(row[7 + i])
                         for i, var_name in enumerate(var_names)
                     }
 
