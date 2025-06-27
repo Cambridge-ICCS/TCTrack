@@ -436,10 +436,10 @@ class StitchNodesParameters:
     use at present as it is likely to be changed.
     """
 
-    in_fmt: str | None = None
+    in_fmt: list[str] | None = None
     """
-    Comma-separated list of the variables in the input file. If ``None``, it will be
-    ``"lon,lat"`` and any others defined in
+    List of the variables in the input file. If ``None``, it will be
+    ``["lon", "lat", ...]``, ending in any variables defined in
     :attr:`DetectNodesParameters.output_commands`.
     """
 
@@ -571,7 +571,7 @@ class TETracker:
             sn_params.in_file = dn_params.output_file
         if sn_params.in_fmt is None and dn_params.output_commands is not None:
             variables = [output["var"] for output in dn_params.output_commands]
-            sn_params.in_fmt = ",".join(["lon", "lat", *variables])
+            sn_params.in_fmt = ["lon", "lat", *variables]
 
     def _run_te_process(self, command_name: str, command_list: list[str]):
         """Run a TempestExtremes command (DetectNodes or StitchNodes).
@@ -808,7 +808,7 @@ class TETracker:
         if sn_params.in_list is not None:
             sn_argslist.extend(["--in_list", sn_params.in_list])
         if sn_params.in_fmt is not None:
-            sn_argslist.extend(["--in_fmt", sn_params.in_fmt])
+            sn_argslist.extend(["--in_fmt", ",".join(sn_params.in_fmt)])
         if sn_params.allow_repeated_times:
             sn_argslist.extend(["--allow_repeated_times"])
         sn_argslist.extend(["--caltype", str(sn_params.caltype)])
@@ -968,6 +968,9 @@ class TETracker:
         tracks = {}
         current_track_id = 0  # Initialize track ID
 
+        # Get variable names from in_fmt
+        var_names = self.stitch_nodes_parameters.in_fmt or []
+
         with open(file_path, "r") as file:
             for line in file:
                 items = line.split()
@@ -990,7 +993,7 @@ class TETracker:
                 # Continue processing ongoing track
                 else:
                     tracks[current_track_id].add_point(
-                        *self._parse_gfdl_line_to_point(items)
+                        *self._parse_gfdl_line_to_point(items, var_names)
                     )
 
         return list(tracks.values())
@@ -1012,6 +1015,9 @@ class TETracker:
             A list of :class:`Track` objects.
         """
         tracks = {}
+
+        # Get variable names from in_fmt
+        var_names = self.stitch_nodes_parameters.in_fmt or []
 
         with open(file_path, "r") as file:
             reader = (
@@ -1050,8 +1056,8 @@ class TETracker:
                     variables_dict = {"grid_i": int(row[5]), "grid_j": int(row[6])}
                     variables_dict.update(
                         {
-                            f"var_{i}": float(value)
-                            for i, value in enumerate(row[7:], start=1)
+                            var_name: float(row[7+i])
+                            for i, var_name in enumerate(var_names)
                         }
                     )
 
