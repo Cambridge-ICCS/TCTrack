@@ -71,6 +71,9 @@ class TestTETypes:
             {"out_file_format": "gfdl"},
             {"out_file_format": "csv"},
             {"out_file_format": "csvnohead"},
+            {"caltype": "standard"},
+            {"caltype": "noleap"},
+            {"caltype": "360_day"},
         ],
     )
     def test_stitch_nodes_parameters_valid(self, parameter) -> None:
@@ -81,6 +84,7 @@ class TestTETypes:
         "parameter",
         [
             {"out_file_format": "invalid"},
+            {"caltype": "invalid"},
         ],
     )
     def test_stitch_nodes_parameters_invalid(self, parameter) -> None:

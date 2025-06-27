@@ -379,6 +379,12 @@ class StitchNodesParameters:
                 "Allowed values are 'gfdl', 'csv', or 'csvnohead'"
             )
             raise ValueError(msg)
+        if self.caltype not in ("standard", "noleap", "360_day"):
+            msg = (
+                f"Invalid caltype ({self.caltype}). "
+                "Allowed values are 'standard', 'noleap', or '360_day'"
+            )
+            raise ValueError(msg)
 
     def __str__(self) -> str:
         """Improve the representation to users."""
