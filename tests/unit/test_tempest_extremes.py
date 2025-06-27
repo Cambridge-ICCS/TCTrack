@@ -5,6 +5,7 @@ Note that these do not require a Tempest Extremes installation to run and make u
 pytest-mock to mock the results of subprocess calls to the system.
 """
 
+import re
 import subprocess
 
 import pytest
@@ -26,9 +27,9 @@ class TestTrack:
 
     def test_track_init(self) -> None:
         """Test the Track class initialization."""
-        track = Track(track_id=1, num_points=0, year=1950, month=1, day=1, hour=3)
+        track = Track(track_id=1, observations=0, year=1950, month=1, day=1, hour=3)
         assert track.track_id == 1
-        assert track.num_points == 0
+        assert track.observations == 0
         assert track.start_time.year == 1950
         assert track.start_time.month == 1
         assert track.start_time.day == 1
@@ -47,7 +48,7 @@ class TestTrack:
         """Test the Track class initialization with different calendar types."""
         track = Track(
             track_id=1,
-            num_points=0,
+            observations=0,
             year=1950,
             month=1,
             day=1,
@@ -55,7 +56,7 @@ class TestTrack:
             calendar=calendar,
         )
         assert track.track_id == 1
-        assert track.num_points == 0
+        assert track.observations == 0
         assert track.start_time.year == 1950
         assert track.start_time.month == 1
         assert track.start_time.day == 1
@@ -70,7 +71,7 @@ class TestTrack:
         ):
             Track(
                 track_id=1,
-                num_points=0,
+                observations=0,
                 year=1950,
                 month=1,
                 day=1,
@@ -80,42 +81,51 @@ class TestTrack:
 
     def test_track_add_point(self) -> None:
         """Test the Track class add_point method."""
-        track = Track(track_id=1, num_points=0, year=1950, month=1, day=1, hour=3)
-        point = (164, 332, {"psl": 1.005377e05}, 1950, 1, 1, 3)
-        track.add_point(point)
-        assert len(track.data) == 1
-        assert track.data[0]["grid_i"] == 164
-        assert track.data[0]["grid_j"] == 332
-        assert track.data[0]["variables"]["psl"] == 1.005377e05
+        track = Track(track_id=1, observations=0, year=1950, month=1, day=1, hour=3)
+        variables_dict = {"grid_i": 164, "grid_j": 332, "psl": 1.005377e05}
+        track.add_point(1950, 1, 1, 3, variables_dict)
+        assert len(track.data) == 4
+        assert track.data["grid_i"] == [164]
+        assert track.data["grid_j"] == [332]
+        assert track.data["psl"] == [1.005377e05]
 
     @pytest.mark.parametrize(
-        "point, expected_error, match",
+        "inputs, expected_error, match",
         [
-            # Missing data in the point tuple
-            ((164, 332, {"psl": 1.005377e05}, 1950, 1, 1), ValueError, None),
-            # Invalid grid indices
+            # Missing data in the inputs
             (
-                ("invalid", 332, {"psl": 1.005377e05}, 1950, 1, 1, 3),
-                ValueError,
-                "Invalid grid indices: invalid, 332",
+                (1950, 1, 1, {"psl": 1.005377e05}),
+                TypeError,
+                re.escape(
+                    "Track.add_point() missing 1 required positional argument: "
+                    "'variables'"
+                ),
+            ),
+            # Missing data in the inputs
+            (
+                (1950, 1, 1, 3, "extra", {"psl": 1.005377e05}),
+                TypeError,
+                re.escape(
+                    "Track.add_point() takes 6 positional arguments but 7 were given"
+                ),
             ),
             # Invalid variable data
             (
-                (164, 332, {"psl": "invalid"}, 1950, 1, 1, 3),
+                (1950, 1, 1, 3, {"psl": "invalid"}),
                 ValueError,
                 "Invalid variable data: {'psl': 'invalid'}",
             ),
             # Invalid date/time values
-            ((164, 332, {"psl": 1.005377e05}, 1950, 13, 1, 3), ValueError, None),
-            ((164, 332, {"psl": 1.005377e05}, 1950, 1, 32, 3), ValueError, None),
-            ((164, 332, {"psl": 1.005377e05}, 1950, 1, 1, 25), ValueError, None),
+            ((1950, 13, 1, 3, {"psl": 1.005377e05}), ValueError, None),
+            ((1950, 1, 32, 3, {"psl": 1.005377e05}), ValueError, None),
+            ((1950, 1, 1, 25, {"psl": 1.005377e05}), ValueError, None),
         ],
     )
-    def test_add_point_edge_cases(self, point, expected_error, match):
+    def test_add_point_edge_cases(self, inputs, expected_error, match):
         """Test the Track class add_point edge cases."""
-        track = Track(track_id=1, num_points=0, year=1950, month=1, day=1, hour=3)
+        track = Track(track_id=1, observations=0, year=1950, month=1, day=1, hour=3)
         with pytest.raises(expected_error, match=match):
-            track.add_point(point)
+            track.add_point(*inputs)
 
 
 class TestTETypes:
@@ -642,10 +652,10 @@ class TestTETrackerStitchNodes:
         """Fixture to create a mock GFDL file with two tracks."""
         file_path = tmp_path / "tracks_out_gfdl.txt"
         file_path.write_text(
-            "start\t45\t1950\t1\t1\t3\n"
+            "start\t2\t1950\t1\t1\t3\n"
             "\t164\t332\t57.832031\t-12.070312\t1.005377e+05\t0.000000e+00\t1950\t1\t1\t3\n"
             "\t163\t332\t57.480469\t-12.070312\t1.005820e+05\t0.000000e+00\t1950\t1\t1\t6\n"
-            "start\t12\t1950\t1\t2\t0\n"
+            "start\t2\t1950\t1\t2\t0\n"
             "\t843\t275\t296.542969\t-25.429688\t9.970388e+04\t2.633214e+02\t1950\t1\t2\t0\n"
             "\t850\t266\t299.003906\t-27.539062\t9.989988e+04\t6.951086e+01\t1950\t1\t2\t6\n"
         )
@@ -685,55 +695,27 @@ class TestTETrackerStitchNodes:
                 [
                     {
                         "track_id": 1,
-                        "num_points": 2,
-                        "data": [
-                            {
-                                "grid_i": 164,
-                                "grid_j": 332,
-                                "variables": {
-                                    "var_1": 57.832031,
-                                    "var_2": -12.070312,
-                                    "var_3": 1.005377e05,
-                                    "var_4": 0.0,
-                                },
-                            },
-                            {
-                                "grid_i": 163,
-                                "grid_j": 332,
-                                "variables": {
-                                    "var_1": 57.480469,
-                                    "var_2": -12.070312,
-                                    "var_3": 1.005820e05,
-                                    "var_4": 0.0,
-                                },
-                            },
-                        ],
+                        "observations": 2,
+                        "data": {
+                            "grid_i": [164, 163],
+                            "grid_j": [332, 332],
+                            "var_1": [57.832031, 57.480469],
+                            "var_2": [-12.070312, -12.070312],
+                            "var_3": [1.005377e05, 1.005820e05],
+                            "var_4": [0.0, 0.0],
+                        },
                     },
                     {
                         "track_id": 2,
-                        "num_points": 2,
-                        "data": [
-                            {
-                                "grid_i": 843,
-                                "grid_j": 275,
-                                "variables": {
-                                    "var_1": 296.542969,
-                                    "var_2": -25.429688,
-                                    "var_3": 9.970388e04,
-                                    "var_4": 2.633214e02,
-                                },
-                            },
-                            {
-                                "grid_i": 850,
-                                "grid_j": 266,
-                                "variables": {
-                                    "var_1": 299.003906,
-                                    "var_2": -27.539062,
-                                    "var_3": 9.989988e04,
-                                    "var_4": 6.951086e01,
-                                },
-                            },
-                        ],
+                        "observations": 2,
+                        "data": {
+                            "grid_i": [843, 850],
+                            "grid_j": [275, 266],
+                            "var_1": [296.542969, 299.003906],
+                            "var_2": [-25.429688, -27.539062],
+                            "var_3": [9.970388e04, 9.989988e04],
+                            "var_4": [2.633214e02, 6.951086e01],
+                        },
                     },
                 ],
             ),
@@ -743,55 +725,27 @@ class TestTETrackerStitchNodes:
                 [
                     {
                         "track_id": 0,
-                        "num_points": 2,
-                        "data": [
-                            {
-                                "grid_i": 164,
-                                "grid_j": 332,
-                                "variables": {
-                                    "lon": 57.832031,
-                                    "lat": -12.070312,
-                                    "psl": 1.005377e05,
-                                    "orog": 0.0,
-                                },
-                            },
-                            {
-                                "grid_i": 163,
-                                "grid_j": 332,
-                                "variables": {
-                                    "lon": 57.480469,
-                                    "lat": -12.070312,
-                                    "psl": 1.005820e05,
-                                    "orog": 0.0,
-                                },
-                            },
-                        ],
+                        "observations": 2,
+                        "data": {
+                            "grid_i": [164, 163],
+                            "grid_j": [332, 332],
+                            "lon": [57.832031, 57.480469],
+                            "lat": [-12.070312, -12.070312],
+                            "psl": [1.005377e05, 1.005820e05],
+                            "orog": [0.0, 0.0],
+                        },
                     },
                     {
                         "track_id": 1,
-                        "num_points": 2,
-                        "data": [
-                            {
-                                "grid_i": 843,
-                                "grid_j": 275,
-                                "variables": {
-                                    "lon": 296.542969,
-                                    "lat": -25.429688,
-                                    "psl": 9.970388e04,
-                                    "orog": 2.633214e02,
-                                },
-                            },
-                            {
-                                "grid_i": 850,
-                                "grid_j": 266,
-                                "variables": {
-                                    "lon": 299.003906,
-                                    "lat": -27.539062,
-                                    "psl": 9.989988e04,
-                                    "orog": 6.951086e01,
-                                },
-                            },
-                        ],
+                        "observations": 2,
+                        "data": {
+                            "grid_i": [843, 850],
+                            "grid_j": [275, 266],
+                            "lon": [296.542969, 299.003906],
+                            "lat": [-25.429688, -27.539062],
+                            "psl": [9.970388e04, 9.989988e04],
+                            "orog": [2.633214e02, 6.951086e01],
+                        },
                     },
                 ],
             ),
@@ -801,55 +755,27 @@ class TestTETrackerStitchNodes:
                 [
                     {
                         "track_id": 0,
-                        "num_points": 2,
-                        "data": [
-                            {
-                                "grid_i": 164,
-                                "grid_j": 332,
-                                "variables": {
-                                    "var_1": 57.832031,
-                                    "var_2": -12.070312,
-                                    "var_3": 1.005377e05,
-                                    "var_4": 0.0,
-                                },
-                            },
-                            {
-                                "grid_i": 163,
-                                "grid_j": 332,
-                                "variables": {
-                                    "var_1": 57.480469,
-                                    "var_2": -12.070312,
-                                    "var_3": 1.005820e05,
-                                    "var_4": 0.0,
-                                },
-                            },
-                        ],
+                        "observations": 2,
+                        "data": {
+                            "grid_i": [164, 163],
+                            "grid_j": [332, 332],
+                            "var_1": [57.832031, 57.480469],
+                            "var_2": [-12.070312, -12.070312],
+                            "var_3": [1.005377e05, 1.005820e05],
+                            "var_4": [0.0, 0.0],
+                        },
                     },
                     {
                         "track_id": 1,
-                        "num_points": 2,
-                        "data": [
-                            {
-                                "grid_i": 843,
-                                "grid_j": 275,
-                                "variables": {
-                                    "var_1": 296.542969,
-                                    "var_2": -25.429688,
-                                    "var_3": 9.970388e04,
-                                    "var_4": 2.633214e02,
-                                },
-                            },
-                            {
-                                "grid_i": 850,
-                                "grid_j": 266,
-                                "variables": {
-                                    "var_1": 299.003906,
-                                    "var_2": -27.539062,
-                                    "var_3": 9.989988e04,
-                                    "var_4": 6.951086e01,
-                                },
-                            },
-                        ],
+                        "observations": 2,
+                        "data": {
+                            "grid_i": [843, 850],
+                            "grid_j": [275, 266],
+                            "var_1": [296.542969, 299.003906],
+                            "var_2": [-25.429688, -27.539062],
+                            "var_3": [9.970388e04, 9.989988e04],
+                            "var_4": [2.633214e02, 6.951086e01],
+                        },
                     },
                 ],
             ),
@@ -867,12 +793,6 @@ class TestTETrackerStitchNodes:
         assert len(tracks) == len(expected_tracks)
         for track, expected in zip(tracks, expected_tracks, strict=False):
             assert track.track_id == expected["track_id"]
-            assert len(track.data) == expected["num_points"]
-            for point, expected_point in zip(
-                track.data, expected["data"], strict=False
-            ):
-                assert point["grid_i"] == expected_point["grid_i"]
-                assert point["grid_j"] == expected_point["grid_j"]
-                assert point["variables"].keys() == expected_point["variables"].keys()
-                for var_name, var_value in expected_point["variables"].items():
-                    assert point["variables"][var_name] == var_value
+            assert track.observations == expected["observations"]
+            for key, values in expected["data"].items():
+                assert track.data[key] == values
