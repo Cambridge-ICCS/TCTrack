@@ -17,16 +17,20 @@ Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 TCTrack is a Python package (Python 3.10+).
-It can be installed by cloning the repository from GitHub and using pip::
+It can be obtained by cloning the repository from GitHub::
 
     git clone https://github.com/Cambridge-ICCS/TCTrack
     cd TCTrack
-    pip install .
 
+Installation is performed using pip, run from within the cloned source directory.
 It is recommended that this is done from within a virtual environment::
 
     python3 -m venv .venv
     source .venv/bin/activate
+
+pip can then be run to install the code from the source into the environment::
+
+    pip install .
 
 If you are developing TCTrack you should install as an editable package with the
 additional developer dependencies::
