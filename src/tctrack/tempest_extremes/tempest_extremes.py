@@ -1068,12 +1068,17 @@ class TETracker:
 
         return list(tracks.values())
 
-    def run_tracker(self):
+    def run_tracker(self, output_file: str):
         """Run the TempestExtremes tracker to obtain the tropical cyclone tracks.
 
         This first runs :meth:`detect_nodes` to get TC candidates at each time. Then
         these are combined into tracks using :meth:`stitch_nodes`. The track output
-        file format is described in :meth:`stitch_nodes`
+        is then saved as a CF-compliant trajectory netCDF file.
+
+        Arguments
+        ---------
+        output_file : str
+            Filename to which the tropical cyclone tracks are saved.
 
         Raises
         ------
@@ -1094,4 +1099,4 @@ class TETracker:
         """
         self.detect_nodes()
         self.stitch_nodes()
-        # TODO: convert output to IBTrACS format
+        # TODO: Save output as a netCDF file
