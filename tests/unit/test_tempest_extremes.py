@@ -81,15 +81,23 @@ class TestTETypes:
         StitchNodesParameters(**parameter)
 
     @pytest.mark.parametrize(
-        "parameter",
+        "parameter,msg",
         [
-            {"out_file_format": "invalid"},
-            {"caltype": "invalid"},
+            (
+                {"out_file_format": "invalid"},
+                r"Invalid out_file_format \(invalid\). "
+                + "Allowed values are 'gfdl', 'csv', or 'csvnohead'",
+            ),
+            (
+                {"caltype": "invalid"},
+                r"Invalid caltype \(invalid\). "
+                + "Allowed values are 'standard', 'noleap', or '360_day'",
+            ),
         ],
     )
-    def test_stitch_nodes_parameters_invalid(self, parameter) -> None:
+    def test_stitch_nodes_parameters_invalid(self, parameter, msg) -> None:
         """Check invalid StitchNodesParameters inputs correctly raise errors."""
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=msg):
             StitchNodesParameters(**parameter)
 
     def test_te_contour(self) -> None:
