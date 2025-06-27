@@ -7,9 +7,149 @@ References
 - GMD paper on Tempest Extremes v2.1: https://doi.org/10.5194/gmd-14-5023-2021
 """
 
+import csv
 import subprocess
 from dataclasses import asdict, dataclass
 from typing import TypedDict
+
+from cftime import Datetime360Day, DatetimeGregorian, DatetimeNoLeap
+
+
+class Track:
+    """
+    Represents a single Lagrangian cyclone track with metadata and data points.
+
+    Attributes
+    ----------
+    track_id : int
+        The unique identifier for the track.
+    observations : int
+        Number of points in the track.
+    calendar : str
+        The calendar type to use for datetime handling.
+        Options are "gregorian", "360_day", or "noleap".
+    start_time : Datetime360Day | DatetimeNoLeap | DatetimeGregorian
+        Start time of the track as a datetime or cftime object.
+    data : dict
+        dict of data for various variables along the track.
+            timestamp nd other variables as supplied in file
+    """
+
+    def __init__(
+        self,
+        track_id: int,
+        observations: int,
+        year: int,
+        month: int,
+        day: int,
+        hour: int,
+        calendar: str = "gregorian",
+    ):
+        """
+        Initialize a Track object.
+
+        Parameters
+        ----------
+        track_id : int
+            The unique identifier for the track.
+        observations : int
+            The number of points in the track.
+        year : int
+            The starting year of the track.
+        month : int
+            The starting month of the track (1-12).
+        day : int
+            The starting day of the track (1-31, depending on the calendar).
+        hour : int
+            The starting hour of the track (0-23).
+        calendar : str, optional
+            The calendar type to use for datetime handling. Options are
+            "gregorian", "360_day", or "noleap".
+        """
+        self.track_id = track_id
+        self.observations = observations
+        self.calendar = calendar
+        self.start_time = self._create_datetime(year, month, day, hour)
+        self.data: dict = {}
+
+    def _create_datetime(self, year: int, month: int, day: int, hour: int):
+        """
+        Create a cftime object based on the specified calendar attribute.
+
+        Parameters
+        ----------
+        year : int
+            year as an integer
+        month : int
+            month as an integer
+        day : int
+            day as an integer
+        hour : int
+            hour as an integer
+
+        Returns
+        -------
+        datetime : Datetime360Day | DatetimeNoLeap | DatetimeGregorian
+        """
+        if self.calendar == "360_day":
+            return Datetime360Day(year, month, day, hour)
+        elif self.calendar == "noleap":
+            return DatetimeNoLeap(year, month, day, hour)
+        elif self.calendar in {"gregorian", "standard"}:
+            return DatetimeGregorian(year, month, day, hour)
+        else:
+            msg = (
+                f"Unsupported calendar type: {self.calendar}. "
+                "Supported types are '360_day', 'noleap', or 'gregorian'/'standard'."
+            )
+            raise ValueError(msg)
+
+    def __str__(self) -> str:
+        """Improve the representation of Track to users."""
+        return (
+            f"Track(observations={self.observations}, "
+            f"start_time={self.start_time}, "
+            f"calendar={self.calendar}, "
+            f"data_points={len(self.data)})"
+        )
+
+    def add_point(self, year: int, month: int, day: int, hour: int, variables: dict):
+        """
+        Add a data point to the track.
+
+        Parameters
+        ----------
+        year : int
+          The year of the data point.
+        month : int
+          The month of the data point (1-12).
+        day : int
+          The day of the data point (1-31, depending on the calendar).
+        hour : int
+          The hour of the data point (0-23).
+        variables : dict
+            A dict containing any variables for the point as key : value pairs
+        """
+        # Validate variables as int or float
+        if not isinstance(variables, dict) or not all(
+            isinstance(value, (int, float)) for value in variables.values()
+        ):
+            msg = f"Invalid variable data: {variables}. Must be a dictionary with numeric values."
+            raise ValueError(msg)
+
+        timestamp = self._create_datetime(year, month, day, hour)
+
+        # Initialize data structure if empty
+        if not self.data:
+            self.data = {
+                "timestamp": [],
+                **{key: [] for key in variables},
+            }
+
+        # Append data to the respective lists
+        self.data["timestamp"].append(timestamp)
+        for key, value in variables.items():
+            self.data[key].append(value)
 
 
 def lod_to_te(inputs: list[dict]) -> str:
@@ -762,3 +902,185 @@ class TETracker:
         """
         sn_call_list = self._make_stitch_nodes_call()
         return self._run_te_process("StitchNodes", sn_call_list)
+
+    def tracks(self) -> list[Track]:
+        """
+        Parse the tracks generated by Tempest Extremes into a list of :class:`Track`.
+
+        The file to be read and its properties are based on the values in the
+        :attr:`stitch_nodes_parameters` attribute.
+
+        Returns
+        -------
+        list[Track]
+            A list of :class:`Track` objects.
+        """
+        if self.stitch_nodes_parameters.out_file_format == "gfdl":
+            tracks = self._parse_tracks_gfdl(self.stitch_nodes_parameters.output_file)
+        elif self.stitch_nodes_parameters.out_file_format == "csv":
+            tracks = self._parse_tracks_csv(
+                self.stitch_nodes_parameters.output_file, has_header=True
+            )
+        elif self.stitch_nodes_parameters.out_file_format == "csvnohead":
+            tracks = self._parse_tracks_csv(
+                self.stitch_nodes_parameters.output_file, has_header=False
+            )
+        return tracks
+
+    @staticmethod
+    def _parse_gfdl_line_to_point(
+        line: list[str], variable_names: list[str] | None = None
+    ) -> tuple[int, int, int, int, dict[str, int | float]]:
+        """
+        Parse a line from StitchNodes gfdl output into a :class:`Track` data point.
+
+        Parameters
+        ----------
+        line : list[str]
+            A list of strings representing the line split into parts.
+        variable_names : list[str] | None
+            List of variable names for the data columns. Defaults to None.
+
+        Returns
+        -------
+        tuple
+            A tuple of integer year, day, month, hour and dict of variables
+        """
+        return_vars: dict[str, int | float] = {}
+        return_vars.update({"grid_i": int(line[0]), "grid_j": int(line[1])})
+        if variable_names:
+            return_vars.update(
+                {
+                    name: float(value)
+                    for name, value in zip(variable_names, line[2:-4], strict=False)
+                }
+            )
+        else:
+            return_vars.update(
+                {
+                    f"var_{i}": float(value)
+                    for i, value in enumerate(line[2:-4], start=1)
+                }
+            )
+        year, month, day, hour = map(int, line[-4:])
+        return year, month, day, hour, return_vars
+
+    def _parse_tracks_gfdl(self, file_path):
+        """
+        Parse tracks from a gfdl file.
+
+        Parameters
+        ----------
+        file_path : str
+            Path to the input file.
+
+        Returns
+        -------
+        list[Track]
+            A list of :class:`Track` objects.
+        """
+        tracks = {}
+        current_track_id = 0  # Initialize track ID
+
+        with open(file_path, "r") as file:
+            for line in file:
+                items = line.split()
+                if items[0] == "start":
+                    # Start of new track, extract metadata and add Track to dict
+                    current_track_id += 1
+                    observations = int(items[1])
+                    year, month, day, hour = map(int, items[2:6])
+
+                    tracks[current_track_id] = Track(
+                        current_track_id,
+                        observations,
+                        year,
+                        month,
+                        day,
+                        hour,
+                        calendar=self.stitch_nodes_parameters.caltype,
+                    )
+
+                # Continue processing ongoing track
+                else:
+                    tracks[current_track_id].add_point(
+                        *self._parse_gfdl_line_to_point(items)
+                    )
+
+        return list(tracks.values())
+
+    def _parse_tracks_csv(self, file_path, has_header=False):
+        """
+        Generalized function to parse tracks from a csv file with or without header.
+
+        Parameters
+        ----------
+        file_path : str
+            Path to the input file.
+        has_header : bool, optional
+            Whether the file has a header. Defaults to False.
+
+        Returns
+        -------
+        list[Track]
+            A list of :class:`Track` objects.
+        """
+        tracks = {}
+
+        with open(file_path, "r") as file:
+            reader = (
+                csv.DictReader(file, skipinitialspace=True)
+                if has_header
+                else csv.reader(file)
+            )
+            for row in reader:
+                if has_header:
+                    # Read from dict extracting variable names from keys/header
+                    track_id = int(row["track_id"])
+                    year, month, day, hour = map(
+                        int, (row["year"], row["month"], row["day"], row["hour"])
+                    )
+                    variables_dict = {"grid_i": int(row["i"]), "grid_j": int(row["j"])}
+                    variables_dict.update(
+                        {
+                            key: float(value)
+                            for key, value in row.items()
+                            if key
+                            not in {
+                                "track_id",
+                                "year",
+                                "month",
+                                "day",
+                                "hour",
+                                "i",
+                                "j",
+                            }
+                        }
+                    )
+                else:
+                    # Read from csv assuming: id, y, m, d, h, i, j, var1, ..., varn
+                    track_id = int(row[0])
+                    year, month, day, hour = map(int, row[1:5])
+                    variables_dict = {"grid_i": int(row[5]), "grid_j": int(row[6])}
+                    variables_dict.update(
+                        {
+                            f"var_{i}": float(value)
+                            for i, value in enumerate(row[7:], start=1)
+                        }
+                    )
+
+                if track_id not in tracks:
+                    tracks[track_id] = Track(
+                        track_id=track_id,
+                        observations=0,
+                        year=year,
+                        month=month,
+                        day=day,
+                        hour=hour,
+                        calendar=self.stitch_nodes_parameters.caltype,
+                    )
+
+                tracks[track_id].add_point(year, month, day, hour, variables_dict)
+                tracks[track_id].observations += 1
+
+        return list(tracks.values())
