@@ -65,6 +65,41 @@ class TestTETypes:
         assert params.out_file_format == "gfdl"
         assert params.out_seconds is False
 
+    @pytest.mark.parametrize(
+        "parameter",
+        [
+            {"out_file_format": "gfdl"},
+            {"out_file_format": "csv"},
+            {"out_file_format": "csvnohead"},
+            {"caltype": "standard"},
+            {"caltype": "noleap"},
+            {"caltype": "360_day"},
+        ],
+    )
+    def test_stitch_nodes_parameters_valid(self, parameter) -> None:
+        """Check valid StitchNodesParameters inputs do not raise errors."""
+        StitchNodesParameters(**parameter)
+
+    @pytest.mark.parametrize(
+        "parameter,msg",
+        [
+            (
+                {"out_file_format": "invalid"},
+                r"Invalid out_file_format \(invalid\). "
+                + "Allowed values are 'gfdl', 'csv', or 'csvnohead'",
+            ),
+            (
+                {"caltype": "invalid"},
+                r"Invalid caltype \(invalid\). "
+                + "Allowed values are 'standard', 'noleap', or '360_day'",
+            ),
+        ],
+    )
+    def test_stitch_nodes_parameters_invalid(self, parameter, msg) -> None:
+        """Check invalid StitchNodesParameters inputs correctly raise errors."""
+        with pytest.raises(ValueError, match=msg):
+            StitchNodesParameters(**parameter)
+
     def test_te_contour(self) -> None:
         """Test that TEContour creates the appropriate typed dict."""
         contour = TEContour(var="psl", delta=200.0, dist=5.5, minmaxdist=0.0)

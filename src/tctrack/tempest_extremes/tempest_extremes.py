@@ -361,7 +361,7 @@ class StitchNodesParameters:
 
     out_file_format: str = "gfdl"
     """
-    Format of the output file. ``"gfdl"``, ``"csv"``, or ``"csvnoheader"``.
+    Format of the output file. ``"gfdl"``, ``"csv"``, or ``"csvnohead"``.
     See :meth:`TETracker.stitch_nodes` for details.
     """
 
@@ -370,6 +370,21 @@ class StitchNodesParameters:
     For GFDL output file types, determines whether to report the sub-daily time in
     seconds (``True``) or hours (``False``).
     """
+
+    def __post_init__(self):
+        """Validate parameters."""
+        if self.out_file_format not in ("gfdl", "csv", "csvnohead"):
+            msg = (
+                f"Invalid out_file_format ({self.out_file_format}). "
+                "Allowed values are 'gfdl', 'csv', or 'csvnohead'"
+            )
+            raise ValueError(msg)
+        if self.caltype not in ("standard", "noleap", "360_day"):
+            msg = (
+                f"Invalid caltype ({self.caltype}). "
+                "Allowed values are 'standard', 'noleap', or '360_day'"
+            )
+            raise ValueError(msg)
 
     def __str__(self) -> str:
         """Improve the representation to users."""
