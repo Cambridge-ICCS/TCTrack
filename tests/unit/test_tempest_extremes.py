@@ -613,13 +613,15 @@ class TestTETrackerStitchNodes:
         assert result["returncode"] == 0
 
     def test_stitch_nodes_values_from_dn(self) -> None:
-        """Check the values are being assigned properly from DetectNodesParameters"""
+        """Check the values are being assigned properly from DetectNodesParameters."""
         # Define the DetectNodes parameters to test against
         output_commands = [
             TEOutputCommand(var="v1", operator="min", dist=0.0),
             TEOutputCommand(var="v2", operator="max", dist=3.0),
         ]
-        dn_params = DetectNodesParameters(output_file="file.txt", output_commands=output_commands)
+        dn_params = DetectNodesParameters(
+            output_file="file.txt", output_commands=output_commands
+        )
 
         # Check defaults
         tracker = TETracker()
@@ -724,10 +726,10 @@ class TestTETrackerStitchNodes:
                         "data": {
                             "grid_i": [164, 163],
                             "grid_j": [332, 332],
-                            "lon": [57.832031, 57.480469],
-                            "lat": [-12.070312, -12.070312],
-                            "psl": [1.005377e05, 1.005820e05],
-                            "orog": [0.0, 0.0],
+                            "var_1": [57.832031, 57.480469],
+                            "var_2": [-12.070312, -12.070312],
+                            "var_3": [1.005377e05, 1.005820e05],
+                            "var_4": [0.0, 0.0],
                         },
                     },
                     {
@@ -736,10 +738,10 @@ class TestTETrackerStitchNodes:
                         "data": {
                             "grid_i": [843, 850],
                             "grid_j": [275, 266],
-                            "lon": [296.542969, 299.003906],
-                            "lat": [-25.429688, -27.539062],
-                            "psl": [9.970388e04, 9.989988e04],
-                            "orog": [2.633214e02, 6.951086e01],
+                            "var_1": [296.542969, 299.003906],
+                            "var_2": [-25.429688, -27.539062],
+                            "var_3": [9.970388e04, 9.989988e04],
+                            "var_4": [2.633214e02, 6.951086e01],
                         },
                     },
                 ],
@@ -784,10 +786,10 @@ class TestTETrackerStitchNodes:
                         "data": {
                             "grid_i": [164, 163],
                             "grid_j": [332, 332],
-                            "lon": [57.832031, 57.480469],
-                            "lat": [-12.070312, -12.070312],
-                            "psl": [1.005377e05, 1.005820e05],
-                            "orog": [0.0, 0.0],
+                            "var_1": [57.832031, 57.480469],
+                            "var_2": [-12.070312, -12.070312],
+                            "var_3": [1.005377e05, 1.005820e05],
+                            "var_4": [0.0, 0.0],
                         },
                     },
                     {
@@ -796,10 +798,10 @@ class TestTETrackerStitchNodes:
                         "data": {
                             "grid_i": [843, 850],
                             "grid_j": [275, 266],
-                            "lon": [296.542969, 299.003906],
-                            "lat": [-25.429688, -27.539062],
-                            "psl": [9.970388e04, 9.989988e04],
-                            "orog": [2.633214e02, 6.951086e01],
+                            "var_1": [296.542969, 299.003906],
+                            "var_2": [-25.429688, -27.539062],
+                            "var_3": [9.970388e04, 9.989988e04],
+                            "var_4": [2.633214e02, 6.951086e01],
                         },
                     },
                 ],
@@ -812,7 +814,6 @@ class TestTETrackerStitchNodes:
         tracker = TETracker()
         tracker.stitch_nodes_parameters.output_file = mock_file
         tracker.stitch_nodes_parameters.out_file_format = file_format
-        tracker.stitch_nodes_parameters.in_fmt = ["lon", "lat", "psl", "orog"]
         tracks = tracker.tracks()
 
         # Assertions

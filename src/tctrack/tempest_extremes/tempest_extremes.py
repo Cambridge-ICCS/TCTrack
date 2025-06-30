@@ -1031,9 +1031,6 @@ class TETracker:
         """
         tracks = {}
 
-        # Get variable names from in_fmt
-        var_names = self.stitch_nodes_parameters.in_fmt or []
-
         with open(file_path, "r") as file:
             reader = (
                 csv.DictReader(file, skipinitialspace=True)
@@ -1069,6 +1066,10 @@ class TETracker:
                     track_id = int(row[0])
                     year, month, day, hour = map(int, row[1:5])
                     variables_dict = {"grid_i": int(row[5]), "grid_j": int(row[6])}
+                    # Get variable names from in_fmt
+                    var_names = self.stitch_nodes_parameters.in_fmt or [
+                        f"var_{i + 1}" for i in range(len(row[7:]))
+                    ]
                     variables_dict.update(
                         {
                             var_name: float(row[7 + i])
