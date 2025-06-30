@@ -37,6 +37,18 @@ jobs:
           python-version: "3.13"
 
     steps:
+    - name: Install system dependencies (Ubuntu)
+      if: runner.os == 'Linux'
+      run: sudo apt-get update && sudo apt-get install -y libudunits2-dev
+
+    - name: Install system dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install udunits
+            echo "LD_LIBRARY_PATH=/opt/homebrew/lib" >> $GITHUB_ENV
+            echo "DYLD_LIBRARY_PATH=/opt/homebrew/lib" >> $GITHUB_ENV
+            echo "UDUNITS2_XML_PATH=/opt/homebrew/share/udunits/udunits2.xml" >> $GITHUB_ENV
+
     # Checks-out repository under $GITHUB_WORKSPACE, so job can access it
     - name: Checkout code
       with:
