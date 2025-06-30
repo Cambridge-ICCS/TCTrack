@@ -1123,7 +1123,7 @@ class TETracker:
 
         # Create auxiliary coordinates for time, latitude, longitude
         # Convert time from cftime to num format to write out via cf
-        time_fill = float("NaN")
+        time_fill = -1e10
         time_data = cf.Data(
             [
                 date2num(
