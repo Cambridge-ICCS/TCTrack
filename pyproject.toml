@@ -31,6 +31,7 @@ classifiers = [
     "Intended Audience :: Science/Research",
 ]
 dependencies = [
+    "cf-python",
     "cftime",
 ]
 
@@ -95,5 +96,5 @@ convention = "numpy"
 "**/tests/*" = ["S101", "PLR2004"]
 
 [[tool.mypy.overrides]]
-module = ["cftime.*"]
+module = ["cftime.*", "cf.*"]
 follow_untyped_imports = true
