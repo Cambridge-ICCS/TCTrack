@@ -1129,11 +1129,19 @@ class TETracker:
 
         dim_traj = cf.DimensionCoordinate(
             data=cf.Data(range(num_trajectories)),
-            properties={"cf_role": "trajectory_id", "long_name": "trajectory name"},
+            properties={
+                "standard_name": "trajectory",
+                "cf_role": "trajectory_id",
+                "long_name": "trajectory index",
+            },
         )
 
         dim_obs = cf.DimensionCoordinate(
-            data=cf.Data(range(max_obs)), properties={"long_name": "observation index"}
+            data=cf.Data(range(max_obs)),
+            properties={
+                "standard_name": "observation",
+                "long_name": "observation index",
+            },
         )
 
         # Create auxiliary coordinates for time, latitude, longitude
@@ -1158,8 +1166,7 @@ class TETracker:
             properties={
                 "standard_name": "time",
                 "long_name": "time",
-                "units": "days since 1970-01-01",
-                "calendar": tracks[0].calendar,
+                "units": cf.Units("days since 1970-01-01", calendar=tracks[0].calendar),
             },
         )
 
