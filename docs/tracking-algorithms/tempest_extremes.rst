@@ -144,11 +144,23 @@ is then filtered based upon the lattitude and surface altitude. The format of th
 The above examples demonstrate running :meth:`~TETracker.detect_nodes` and
 :meth:`~TETracker.stitch_nodes` separately.
 However, it is likely that users will want to run both in succession which can be done
-with a single :class:`~tctrack.tempest_extremes.TETracker` object defined using the
-appropriate :class:`DetectNodesParameters` and :class:`StitchNodesParameters`:
+using the :meth:`~TETracker.run_tracker` method after defining a :class:`TETracker`
+object with appropriate :class:`DetectNodesParameters` and
+:class:`StitchNodesParameters`:
 
 .. code-block:: python
 
     te_tracker = te.TETracker(dn_params, sn_params)
-    te_tracker.detect_nodes()
-    te_tracker.stitch_nodes()
+    te_tracker.run_tracker("tracks_out.nc")
+
+The resulting ``"tracks_out.nc"`` output file will contain the tracks data converted
+into a `CF trajectory
+<https://cfconventions.org/Data/cf-conventions/cf-conventions-1.7/build/aphs04.html>`_
+netCDF file.
+
+When running in this way there are certain parameters that most likely *should not* be
+set. In :class:`StitchNodesParameters`, :attr:`~StitchNodesParameters.in_fmt`
+and :attr:`~StitchNodesParameters.in_file` will be determined from
+:class:`DetectNodesParameters`. Also,
+:attr:`~StitchNodesParameters.out_seconds` should be left ``False`` to enable
+proper conversion to the netCDF output file.
