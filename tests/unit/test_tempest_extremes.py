@@ -577,6 +577,33 @@ class TestTETrackerStitchNodes:
         assert result["stderr"] == "Mocked stderr output"
         assert result["returncode"] == 0
 
+    def test_stitch_nodes_values_from_dn(self) -> None:
+        """Check the values are being assigned properly from DetectNodesParameters."""
+        # Define the DetectNodes parameters to test against
+        output_commands = [
+            TEOutputCommand(var="v1", operator="min", dist=0.0),
+            TEOutputCommand(var="v2", operator="max", dist=3.0),
+        ]
+        dn_params = DetectNodesParameters(
+            output_file="file.txt", output_commands=output_commands
+        )
+
+        # Check defaults
+        tracker = TETracker()
+        assert tracker.stitch_nodes_parameters.in_file is None
+        assert tracker.stitch_nodes_parameters.in_fmt is None
+
+        # Check the auto-assignment works
+        tracker = TETracker(dn_params)
+        assert tracker.stitch_nodes_parameters.in_file == "file.txt"
+        assert tracker.stitch_nodes_parameters.in_fmt == ["lon", "lat", "v1", "v2"]
+
+        # Ensure defined values don't get overriden
+        sn_params = StitchNodesParameters(in_file="file2.txt", in_fmt=["a", "b"])
+        tracker = TETracker(dn_params, sn_params)
+        assert tracker.stitch_nodes_parameters.in_file == "file2.txt"
+        assert tracker.stitch_nodes_parameters.in_fmt == ["a", "b"]
+
     def test_stitch_nodes_file_not_found(self, mocker) -> None:
         """Check stitch_nodes raises FileNotFoundError when executable is missing."""
         # Mock subprocess.run to simulate a FileNotFoundError
@@ -761,3 +788,31 @@ class TestTETrackerStitchNodes:
             assert track.observations == expected["observations"]
             for key, values in expected["data"].items():
                 assert track.data[key] == values
+
+    @pytest.mark.parametrize(
+        "file_format, mock_file_fixture",
+        [
+            ("gfdl", "mock_gfdl_file"),
+            ("csvnohead", "mock_csvnohead_file"),
+        ],
+    )
+    def test_tracks_header_names(self, file_format, mock_file_fixture, request) -> None:
+        """Test the track header names are assigned correctly by tracks()."""
+        # Use DetectNodesParameters to set the variable names
+        output_commands = [
+            TEOutputCommand(var="v1", operator="min", dist=0.0),
+            TEOutputCommand(var="v2", operator="min", dist=0.0),
+        ]
+        dn_params = DetectNodesParameters(output_commands=output_commands)
+        tracker = TETracker(dn_params)
+
+        # Read in the tracks
+        mock_file = request.getfixturevalue(mock_file_fixture)
+        tracker.stitch_nodes_parameters.output_file = mock_file
+        tracker.stitch_nodes_parameters.out_file_format = file_format
+        tracks = tracker.tracks()
+
+        # Check the track header names are correct
+        cols = ["timestamp", "grid_i", "grid_j", "lon", "lat", "v1", "v2"]
+        for track in tracks:
+            assert [*track.data.keys()] == cols
