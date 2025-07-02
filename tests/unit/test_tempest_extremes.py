@@ -816,3 +816,50 @@ class TestTETrackerStitchNodes:
         cols = ["timestamp", "grid_i", "grid_j", "lon", "lat", "v1", "v2"]
         for track in tracks:
             assert [*track.data.keys()] == cols
+
+    def test_run_tracker_success(self, mocker, tmp_path, mock_gfdl_file) -> None:
+        """Check run_tracker runs successfully."""
+        # Mock subprocess.run to simulate successful execution
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.side_effect = mocker.MagicMock(returncode=0, stdout="Success")
+
+        # Use the mock_gfdl_file to simulate the output of StitchNodes
+        sn_in_fmt = ["lon", "lat", "psl", "orog"]
+        sn_params = StitchNodesParameters(output_file=mock_gfdl_file, in_fmt=sn_in_fmt)
+        tracker = TETracker(stitch_nodes_parameters=sn_params)
+
+        # Check run_tracker runs without error and produces an output file
+        output_file = tmp_path / "tracks.nc"
+        tracker.run_tracker(output_file)
+        assert output_file.exists()
+
+    def test_run_tracker_failure(self, mocker) -> None:
+        """Check run_tracker correctly raises RuntimeError from detect/stitch_nodes."""
+        from functools import partial
+
+        # Create tracker object
+        tracker = TETracker()
+
+        # Mock subprocess.run and define a function to mock fail for a specific command
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        def subprocess_fail_for(cmd, args, **kwargs):
+            if (args[0] == cmd):
+                raise subprocess.CalledProcessError(
+                    returncode=1, cmd=cmd, stderr="Error occurred"
+                )
+            mock_output = mocker.Mock(returncode=0, stdout="Success")
+            return mock_output
+
+        # Check a RuntimeError is correctly raised for detect_nodes
+        mock_subprocess_run.side_effect = partial(subprocess_fail_for, "DetectNodes")
+        with pytest.raises(
+            RuntimeError, match="DetectNodes failed with a non-zero exit code"
+        ):
+            tracker.run_tracker("tracks.nc")
+
+        # Check a RuntimeError is correctly raised for stitch_nodes
+        mock_subprocess_run.side_effect = partial(subprocess_fail_for, "StitchNodes")
+        with pytest.raises(
+            RuntimeError, match="StitchNodes failed with a non-zero exit code"
+        ):
+            tracker.run_tracker("tracks.nc")

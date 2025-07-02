@@ -1251,7 +1251,8 @@ class TETracker:
         Raises
         ------
         FileNotFoundError
-            If the TempestExtremes executables cannot be found.
+            - If the TempestExtremes executables cannot be found.
+            - If the stitch_nodes output file does not exist.
         RuntimeError
             If the TempestExtremes commands return a non-zero exit code.
 
@@ -1267,4 +1268,4 @@ class TETracker:
         """
         self.detect_nodes()
         self.stitch_nodes()
-        # TODO: Save output as a netCDF file
+        self.to_netcdf(output_file)
