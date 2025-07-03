@@ -574,11 +574,11 @@ class TETracker:
         # These will be cleaned up when the class instance is deleted
         dn_params = self.detect_nodes_parameters
         sn_params = self.stitch_nodes_parameters
-        self._tempdir = tempfile.TemporaryDirectory() # Store as attribute to persist
-        if (dn_params.output_file is None):
-            dn_params.output_file = self._tempdir.name + '/nodes.txt'
-        if (sn_params.output_file is None):
-            sn_params.output_file = self._tempdir.name + '/tracks.txt'
+        self._tempdir = tempfile.TemporaryDirectory()  # Store so directory persists
+        if dn_params.output_file is None:
+            dn_params.output_file = self._tempdir.name + "/nodes.txt"
+        if sn_params.output_file is None:
+            sn_params.output_file = self._tempdir.name + "/tracks.txt"
 
         # Set StitchNodes input arguments according to DetectNodes parameters,
         # if not provided
