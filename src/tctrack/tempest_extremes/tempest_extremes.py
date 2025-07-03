@@ -9,6 +9,7 @@ References
 
 import csv
 import subprocess
+import tempfile
 from dataclasses import asdict, dataclass
 from typing import TypedDict
 
@@ -341,7 +342,10 @@ class DetectNodesParameters:
     """Include header at the top of the output file?"""
 
     output_file: str | None = None
-    """Output nodefile to write to."""
+    """
+    Output nodefile to write to. If ``None``, a temporary file will be created for the
+    lifetime of the :class:`TETracker` instance.
+    """
 
     search_by_min: str | None = None
     """
@@ -420,8 +424,12 @@ class StitchNodesParameters:
     and the `StitchNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/StitchNodes.cpp>`_
     """
 
-    output_file: str = "tracks.txt"
-    """The output filename to save the tracks to. Called "out" in TempestExtremes."""
+    output_file: str | None = None
+    """
+    The output filename to save the tracks to. If ``None``, a temporary file will be
+    created for the lifetime of the :class:`TETracker` instance. Called "out" in
+    TempestExtremes.
+    """
 
     in_file: str | None = None
     """
@@ -560,12 +568,20 @@ class TETracker:
                 stitch_nodes_parameters
             )
         else:
-            self.stitch_nodes_parameters = StitchNodesParameters("tracks.txt")
+            self.stitch_nodes_parameters = StitchNodesParameters()
+
+        # Use temporary output files if none provided
+        # These will be cleaned up when the class instance is deleted
+        dn_params = self.detect_nodes_parameters
+        sn_params = self.stitch_nodes_parameters
+        self._tempdir = tempfile.TemporaryDirectory() # Store as attribute to persist
+        if (dn_params.output_file is None):
+            dn_params.output_file = self._tempdir.name + '/nodes.txt'
+        if (sn_params.output_file is None):
+            sn_params.output_file = self._tempdir.name + '/tracks.txt'
 
         # Set StitchNodes input arguments according to DetectNodes parameters,
         # if not provided
-        sn_params = self.stitch_nodes_parameters
-        dn_params = self.detect_nodes_parameters
         sn_input_none = sn_params.in_file is None and sn_params.in_list is None
         if sn_input_none and dn_params.output_file is not None:
             sn_params.in_file = dn_params.output_file
@@ -744,9 +760,11 @@ class TETracker:
         that were set when the :class:`TETracker` instance was created.
 
         The output file is a plain text file containing each of the TC candidates at
-        each time from the input files. If :attr:`~DetectNodesParameters.out_header` is
-        ``True`` the first two lines will be a header describing the structure of the
-        data. After this each time is listed in the format:
+        each time from the input files. If :attr:`~DetectNodesParameters.output_file` is
+        ``None`` this will be a temporary file lasting the lifetime of the
+        :class:`TETracker` instance. If :attr:`~DetectNodesParameters.out_header` is
+        ``True`` the first two lines of the file will be a header describing the
+        structure of the data. After this each time is listed in the format:
 
         .. code-block:: text
 
@@ -841,10 +859,12 @@ class TETracker:
         run according to the parameters in the :attr:`stitch_nodes_parameters` attribute
         that were set when the :class:`TETracker` instance was created.
 
-        The format of the output file containing the tracks depends on the
-        :attr:`~StitchNodesParameters.out_file_format` parameter. The default ``"gfdl"``
-        output is a plain-text "nodefile" format which contains a number of tracks, each
-        of which in the form.
+        The output is a file containing the data for each node of each track. If
+        :attr:`~StitchNodesParameters.output_file` is ``None`` this will be a temporary
+        file lasting the lifetime of the :class:`TETracker` instance. The format of the
+        file depends on the :attr:`~StitchNodesParameters.out_file_format` parameter.
+        The default ``"gfdl"`` output is a plain-text "nodefile" format which contains a
+        number of tracks, each of which in the form.
 
         .. code-block:: text
 

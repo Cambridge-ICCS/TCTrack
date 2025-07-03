@@ -155,7 +155,7 @@ class TestTETypes:
         """Check the default values for StitchNodesParameters."""
         params = StitchNodesParameters()
         # Check values of all defaults
-        assert params.output_file == "tracks.txt"
+        assert params.output_file is None
         assert params.in_file is None
         assert params.in_list is None
         assert params.in_fmt is None
@@ -217,6 +217,20 @@ class TestTETracker:
         tracker = TETracker(detect_nodes_parameters=params)
         assert tracker.detect_nodes_parameters.output_file == "output.txt"
 
+    def test_te_tracker_tempfiles(self) -> None:
+        """Test the definition of temporary files when not manually defined."""
+        from pathlib import Path
+        tracker = TETracker()
+        tempdir = tracker._tempdir.name
+        assert Path(tempdir).exists()
+        assert tracker.detect_nodes_parameters.output_file == tempdir + "/nodes.txt"
+        assert tracker.stitch_nodes_parameters.in_file == tempdir + "/nodes.txt"
+        assert tracker.stitch_nodes_parameters.output_file == tempdir + "/tracks.txt"
+
+        # Check the temporary directory is correctly cleaned up
+        del tracker
+        assert not Path(tempdir).exists()
+
     def test_te_tracker_detect_nodes_defaults(self, mocker) -> None:
         """Checks the correct detect_nodes call is made for defaults."""
         # Mock subprocess.run to simulate successful execution
@@ -228,11 +242,14 @@ class TestTETracker:
         # create a TETracker with default parameters and call detect_nodes method
         tracker = TETracker()
         result = tracker.detect_nodes()
+        outfile = tracker._tempdir.name + "/nodes.txt"
 
         # Check subprocess call made as expected and returned outputs are passed back up
         mock_subprocess_run.assert_called_once_with(
             [
                 "DetectNodes",
+                "--out",
+                outfile,
                 "--mergedist",
                 "0.0",
                 "--latname",
@@ -266,6 +283,7 @@ class TestTETracker:
 
         # Create a TETracker with non-default parameters and call detect_nodes method
         params = DetectNodesParameters(
+            output_file="custom_nodes.txt",
             merge_dist=10.0,
             lat_name="latitude",
             lon_name="longitude",
@@ -281,6 +299,8 @@ class TestTETracker:
         mock_subprocess_run.assert_called_once_with(
             [
                 "DetectNodes",
+                "--out",
+                "custom_nodes.txt",
                 "--mergedist",
                 "10.0",
                 "--latname",
@@ -423,13 +443,17 @@ class TestTETrackerStitchNodes:
         # Create a TETracker instance with default StitchNodes parameters
         tracker = TETracker()
         result = tracker.stitch_nodes()
+        infile = tracker._tempdir.name + "/nodes.txt"
+        outfile = tracker._tempdir.name + "/tracks.txt"
 
         # Check subprocess call made as expected and returned outputs are passed back up
         mock_subprocess_run.assert_called_once_with(
             [
                 "StitchNodes",
                 "--out",
-                "tracks.txt",
+                outfile,
+                "--in",
+                infile,
                 "--caltype",
                 "standard",
                 "--range",
@@ -542,6 +566,7 @@ class TestTETrackerStitchNodes:
         # Create a TETracker instance with threshold filters
         params = StitchNodesParameters(
             output_file="custom_tracks.txt",
+            in_file="nodes.txt",
             threshold_filters=threshold_filters,
         )
         tracker = TETracker(stitch_nodes_parameters=params)
@@ -553,6 +578,8 @@ class TestTETrackerStitchNodes:
                 "StitchNodes",
                 "--out",
                 "custom_tracks.txt",
+                "--in",
+                "nodes.txt",
                 "--caltype",
                 "standard",
                 "--range",
@@ -588,11 +615,6 @@ class TestTETrackerStitchNodes:
             output_file="file.txt", output_commands=output_commands
         )
 
-        # Check defaults
-        tracker = TETracker()
-        assert tracker.stitch_nodes_parameters.in_file is None
-        assert tracker.stitch_nodes_parameters.in_fmt is None
-
         # Check the auto-assignment works
         tracker = TETracker(dn_params)
         assert tracker.stitch_nodes_parameters.in_file == "file.txt"
@@ -603,6 +625,12 @@ class TestTETrackerStitchNodes:
         tracker = TETracker(dn_params, sn_params)
         assert tracker.stitch_nodes_parameters.in_file == "file2.txt"
         assert tracker.stitch_nodes_parameters.in_fmt == ["a", "b"]
+
+        # Check defaults
+        tracker = TETracker()
+        tempdir = tracker._tempdir.name
+        assert tracker.stitch_nodes_parameters.in_file == tempdir + "/nodes.txt"
+        assert tracker.stitch_nodes_parameters.in_fmt is None
 
     def test_stitch_nodes_file_not_found(self, mocker) -> None:
         """Check stitch_nodes raises FileNotFoundError when executable is missing."""
