@@ -31,6 +31,8 @@ classifiers = [
     "Intended Audience :: Science/Research",
 ]
 dependencies = [
+    "cf-python",
+    "cftime",
 ]
 
 [project.optional-dependencies]
@@ -92,3 +94,7 @@ convention = "numpy"
 # Ignore S101 (use of assert) in tests
 # Ignore PLR2004 (magic values) in tests as we regularly compare to a numerical value
 "**/tests/*" = ["S101", "PLR2004"]
+
+[[tool.mypy.overrides]]
+module = ["cftime.*", "cf.*"]
+follow_untyped_imports = true
