@@ -163,4 +163,8 @@ set. In :class:`StitchNodesParameters`, :attr:`~StitchNodesParameters.in_fmt`
 and :attr:`~StitchNodesParameters.in_file` will be determined from
 :class:`DetectNodesParameters`. Also,
 :attr:`~StitchNodesParameters.out_seconds` should be left ``False`` to enable
-proper conversion to the netCDF output file.
+proper conversion to the netCDF output file. The values of
+:attr:`DetectNodesParameters.output_file` and :attr:`StitchNodesParameters.output_file`
+can also be left as ``None`` to avoid saving the intermediate files that are output by
+TempestExtremes. They will instead be stored in a temporary directory that lasts for the
+lifetime of the :class:`TETracker` instance.

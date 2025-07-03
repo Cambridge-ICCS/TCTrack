@@ -255,8 +255,9 @@ class TestTETracker:
     def test_te_tracker_tempfiles(self) -> None:
         """Test the definition of temporary files when not manually defined."""
         from pathlib import Path
+
         tracker = TETracker()
-        tempdir = tracker._tempdir.name
+        tempdir = tracker._tempdir.name  # noqa: SLF001
         assert Path(tempdir).exists()
         assert tracker.detect_nodes_parameters.output_file == tempdir + "/nodes.txt"
         assert tracker.stitch_nodes_parameters.in_file == tempdir + "/nodes.txt"
@@ -277,7 +278,7 @@ class TestTETracker:
         # create a TETracker with default parameters and call detect_nodes method
         tracker = TETracker()
         result = tracker.detect_nodes()
-        outfile = tracker._tempdir.name + "/nodes.txt"
+        outfile = tracker._tempdir.name + "/nodes.txt"  # noqa: SLF001
 
         # Check subprocess call made as expected and returned outputs are passed back up
         mock_subprocess_run.assert_called_once_with(
@@ -478,8 +479,9 @@ class TestTETrackerStitchNodes:
         # Create a TETracker instance with default StitchNodes parameters
         tracker = TETracker()
         result = tracker.stitch_nodes()
-        infile = tracker._tempdir.name + "/nodes.txt"
-        outfile = tracker._tempdir.name + "/tracks.txt"
+        tempdir = tracker._tempdir.name  # noqa: SLF001
+        infile = tempdir + "/nodes.txt"
+        outfile = tempdir + "/tracks.txt"
 
         # Check subprocess call made as expected and returned outputs are passed back up
         mock_subprocess_run.assert_called_once_with(
@@ -663,7 +665,7 @@ class TestTETrackerStitchNodes:
 
         # Check defaults
         tracker = TETracker()
-        tempdir = tracker._tempdir.name
+        tempdir = tracker._tempdir.name  # noqa: SLF001
         assert tracker.stitch_nodes_parameters.in_file == tempdir + "/nodes.txt"
         assert tracker.stitch_nodes_parameters.in_fmt is None
 
@@ -884,7 +886,9 @@ class TestTETrackerStitchNodes:
         """Check run_tracker runs successfully."""
         # Mock subprocess.run to simulate successful execution
         mock_subprocess_run = mocker.patch("subprocess.run")
-        mock_subprocess_run.side_effect = mocker.MagicMock(returncode=0, stdout="Success")
+        mock_subprocess_run.side_effect = mocker.MagicMock(
+            returncode=0, stdout="Success"
+        )
 
         # Use the mock_gfdl_file to simulate the output of StitchNodes
         sn_in_fmt = ["lon", "lat", "psl", "orog"]
@@ -905,8 +909,9 @@ class TestTETrackerStitchNodes:
 
         # Mock subprocess.run and define a function to mock fail for a specific command
         mock_subprocess_run = mocker.patch("subprocess.run")
-        def subprocess_fail_for(cmd, args, **kwargs):
-            if (args[0] == cmd):
+
+        def subprocess_fail_for(cmd, args, **_kwargs):
+            if args[0] == cmd:
                 raise subprocess.CalledProcessError(
                     returncode=1, cmd=cmd, stderr="Error occurred"
                 )
