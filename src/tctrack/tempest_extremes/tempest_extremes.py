@@ -1230,12 +1230,16 @@ class TETracker:
 
             # Define the variable metadata
             properties = self._variable_metadata.get(variable, {})
+            cell_method = properties.pop("cell_method", None)  # Added separately
             properties.setdefault("standard_name", variable)
             properties.setdefault("long_name", variable)
             properties.setdefault("units", "unknown")
             properties["featureType"] = "trajectory"
 
             field = cf.Field(properties=properties)
+
+            if cell_method is not None:
+                field.set_construct(cell_method)
 
             axis_traj = field.set_construct(domain_axis_traj)
             axis_obs = field.set_construct(domain_axis_obs)
@@ -1266,11 +1270,10 @@ class TETracker:
         """Read in the metadata from the input files for each variable.
 
         Reads metadata for each variable listed in
-        :attr:`stitch_nodes_parameters.in_fmt` from the input NetCDF files
-        defined in :attr:`detect_nodes_parameters.in_data` (matching the NetCDF
-        variable name). These will be stored in the :attr:`_variable_metadata`
-        attribute as a dictionary of dictionaries. This is used when outputting
-        the NetCDF tracks file.
+        :attr:`detect_nodes_parameters.output_commands` from the input NetCDF files
+        defined in :attr:`detect_nodes_parameters.in_data` (matching the NetCDF variable
+        name). These will be stored in the :attr:`_variable_metadata` attribute as a
+        dictionary of dictionaries. This is used when outputting the NetCDF tracks file.
 
         Raises
         ------
@@ -1280,8 +1283,10 @@ class TETracker:
         Examples
         --------
         To read in the metadata for ``psl`` from ``inputs.nc``
-        >>> dn_params = DetectNodesParameters(in_data=["inputs.nc"])
-        >>> sn_params = StitchNodesParameters(in_fmt=["psl"])
+        >>> dn_params = DetectNodesParameters(
+        >>>     in_data=["inputs.nc"],
+        >>>     output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
+        >>> )
         >>> tracker = TETracker(dn_params, sn_params)
         >>> tracker.read_variable_metadata()
         >>> tracker._variable_metadata
@@ -1290,19 +1295,19 @@ class TETracker:
                 "standard_name": "air_pressure_at_sea_level",
                 "long_name": "Sea Level Pressure",
                 "units": "Pa",
+                "cell_method": <CF CellMethod: area: minimum>,
             },
         }
         """
         self._variable_metadata = {}
 
         input_files = self.detect_nodes_parameters.in_data
-        var_names = self.stitch_nodes_parameters.in_fmt
-        if var_names is None or input_files is None:
+        var_outputs = self.detect_nodes_parameters.output_commands
+        if var_outputs is None or input_files is None:
             return
 
-        for var_name in var_names:
-            if var_name in ["lon", "lat"]:
-                continue
+        for var_output in var_outputs:
+            var_name = var_output["var"]
 
             # Get the variable field from the netcdf file
             fields = cf.read(input_files, select=f"ncvar%{var_name}")  # type: ignore[operator]
@@ -1317,6 +1322,17 @@ class TETracker:
                 "long_name": field.get_property("long_name", var_name),
                 "units": field.get_property("units", "unknown"),
             }
+
+            # Add information about how the value is determined using `output_commands`
+            methods = {
+                "max": "maximum",
+                "min": "minimum",
+                "avg": "mean",
+            }
+            method = methods.get(var_output["operator"], None)
+            if method is not None:
+                cell_method = cf.CellMethod(axes="area", method=method)
+                self._variable_metadata[var_name]["cell_method"] = cell_method
 
     def run_tracker(self, output_file: str):
         """Run the TempestExtremes tracker to obtain the tropical cyclone tracks.
