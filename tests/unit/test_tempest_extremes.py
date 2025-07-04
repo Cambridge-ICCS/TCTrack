@@ -281,7 +281,7 @@ class TestTETracker:
         field = cf.Field(properties=properties)
         field.nc_set_variable("psl")
         field.set_data_axes([])
-        cf.write(field, file_name)
+        cf.write(field, file_name)  # type: ignore[operator]
 
         # Read and check the metadata
         dn_params = DetectNodesParameters(in_data=[file_name])
