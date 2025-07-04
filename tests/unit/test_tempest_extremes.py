@@ -284,16 +284,23 @@ class TestTETracker:
         cf.write(field, file_name)  # type: ignore[operator]
 
         # Read and check the metadata
-        dn_params = DetectNodesParameters(in_data=[file_name])
-        sn_params = StitchNodesParameters(in_fmt=["psl"])
-        tracker = TETracker(dn_params, sn_params)
+        dn_params = DetectNodesParameters(
+            in_data=[file_name],
+            output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
+        )
+        tracker = TETracker(dn_params)
         tracker.read_variable_metadata()
-        assert "psl" in tracker._variable_metadata  # noqa: SLF001
-        assert tracker._variable_metadata["psl"] == properties  # noqa: SLF001
+        metadata = tracker._variable_metadata  # noqa: SLF001
+        assert "psl" in metadata
+        for key, value in properties.items():
+            assert metadata["psl"][key] == value
+        assert metadata["psl"]["cell_method"] == cf.CellMethod("area", "minimum")
 
         # Check for correct failure
-        sn_params = StitchNodesParameters(in_fmt=["invalid"])
-        tracker = TETracker(dn_params, sn_params)
+        dn_params.output_commands = [
+            TEOutputCommand(var="invalid", operator="min", dist=1),
+        ]
+        tracker = TETracker(dn_params)
         with pytest.raises(
             ValueError,
             match="Variable 'invalid' not found in input files.",
