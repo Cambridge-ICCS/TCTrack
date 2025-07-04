@@ -267,6 +267,39 @@ class TestTETracker:
         del tracker
         assert not Path(tempdir).exists()
 
+    def test_te_tracker_variable_metadata(self, tmp_path) -> None:
+        """Test the reading in of variable metadata from input NetCDF files."""
+        import cf
+
+        # Define the file to read metadata from
+        file_name = str(tmp_path / "inputs.nc")
+        properties = {
+            "standard_name": "air_pressure_at_sea_level",
+            "long_name": "Sea Level Pressure",
+            "units": "Pa",
+        }
+        field = cf.Field(properties=properties)
+        field.nc_set_variable("psl")
+        field.set_data_axes([])
+        cf.write(field, file_name)
+
+        # Read and check the metadata
+        dn_params = DetectNodesParameters(in_data=[file_name])
+        sn_params = StitchNodesParameters(in_fmt=["psl"])
+        tracker = TETracker(dn_params, sn_params)
+        tracker.read_variable_metadata()
+        assert "psl" in tracker._variable_metadata  # noqa: SLF001
+        assert tracker._variable_metadata["psl"] == properties  # noqa: SLF001
+
+        # Check for correct failure
+        sn_params = StitchNodesParameters(in_fmt=["invalid"])
+        tracker = TETracker(dn_params, sn_params)
+        with pytest.raises(
+            ValueError,
+            match="Variable 'invalid' not found in input files.",
+        ):
+            tracker.read_variable_metadata()
+
     def test_te_tracker_detect_nodes_defaults(self, mocker) -> None:
         """Checks the correct detect_nodes call is made for defaults."""
         # Mock subprocess.run to simulate successful execution
