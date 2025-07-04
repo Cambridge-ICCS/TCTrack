@@ -539,6 +539,10 @@ class TETracker:
         Class containing the parameters for the StitchNodes algorithm
     """
 
+    # Private attributes
+    _variable_metadata: dict
+    _tempdir: tempfile.TemporaryDirectory
+
     def __init__(
         self,
         detect_nodes_parameters: DetectNodesParameters | None = None,
@@ -588,6 +592,8 @@ class TETracker:
         if sn_params.in_fmt is None and dn_params.output_commands is not None:
             variables = [output["var"] for output in dn_params.output_commands]
             sn_params.in_fmt = ["lon", "lat", *variables]
+
+        self._variable_metadata = {}
 
     def _run_te_process(self, command_name: str, command_list: list[str]):
         """Run a TempestExtremes command (DetectNodes or StitchNodes).
@@ -1222,14 +1228,14 @@ class TETracker:
             if variable in {"timestamp", "lat", "lon"}:
                 continue
 
-            field = cf.Field(
-                properties={
-                    "featureType": "trajectory",
-                    "standard_name": variable,
-                    "long_name": variable,
-                    "units": "unknown",
-                }
-            )
+            # Define the variable metadata
+            properties = self._variable_metadata.get(variable, {})
+            properties.setdefault("standard_name", variable)
+            properties.setdefault("long_name", variable)
+            properties.setdefault("units", "unknown")
+            properties["featureType"] = "trajectory"
+
+            field = cf.Field(properties=properties)
 
             axis_traj = field.set_construct(domain_axis_traj)
             axis_obs = field.set_construct(domain_axis_obs)
@@ -1255,6 +1261,62 @@ class TETracker:
 
         # Write to file
         cf.write(fields, output_file)  # type: ignore[operator]
+
+    def read_variable_metadata(self) -> None:
+        """Read in the metadata from the input files for each variable.
+
+        Reads metadata for each variable listed in
+        :attr:`stitch_nodes_parameters.in_fmt` from the input NetCDF files
+        defined in :attr:`detect_nodes_parameters.in_data` (matching the NetCDF
+        variable name). These will be stored in the :attr:`_variable_metadata`
+        attribute as a dictionary of dictionaries. This is used when outputting
+        the NetCDF tracks file.
+
+        Raises
+        ------
+        ValueError
+            If a variable is not found in the input files.
+
+        Examples
+        --------
+        To read in the metadata for ``psl`` from ``inputs.nc``
+        >>> dn_params = DetectNodesParameters(in_data=["inputs.nc"])
+        >>> sn_params = StitchNodesParameters(in_fmt=["psl"])
+        >>> tracker = TETracker(dn_params, sn_params)
+        >>> tracker.read_variable_metadata()
+        >>> tracker._variable_metadata
+        {
+            "psl": {
+                "standard_name": "air_pressure_at_sea_level",
+                "long_name": "Sea Level Pressure",
+                "units": "Pa",
+            },
+        }
+        """
+        self._variable_metadata = {}
+
+        input_files = self.detect_nodes_parameters.in_data
+        var_names = self.stitch_nodes_parameters.in_fmt
+        if var_names is None or input_files is None:
+            return
+
+        for var_name in var_names:
+            if var_name in ["lon", "lat"]:
+                continue
+
+            # Get the variable field from the netcdf file
+            fields = cf.read(input_files, select=f"ncvar%{var_name}")  # type: ignore[operator]
+            if not fields:
+                msg = f"Variable '{var_name}' not found in input files."
+                raise ValueError(msg)
+            field = fields[0]
+
+            # Read and store the relevant metadata
+            self._variable_metadata[var_name] = {
+                "standard_name": field.get_property("standard_name", var_name),
+                "long_name": field.get_property("long_name", var_name),
+                "units": field.get_property("units", "unknown"),
+            }
 
     def run_tracker(self, output_file: str):
         """Run the TempestExtremes tracker to obtain the tropical cyclone tracks.
@@ -1286,6 +1348,7 @@ class TETracker:
         >>> my_tracker = TETracker(dn_params, sn_params)
         >>> TETracker.run_tracker()
         """
+        self.read_variable_metadata()
         self.detect_nodes()
         self.stitch_nodes()
         self.to_netcdf(output_file)
