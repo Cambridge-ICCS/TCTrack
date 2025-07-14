@@ -969,7 +969,7 @@ class TETracker:
         current_track_id = 0  # Initialize track ID
 
         # Get variable names from in_fmt
-        var_names = self.stitch_nodes_parameters.in_fmt or []
+        var_names = self.stitch_nodes_parameters.in_fmt
 
         with open(file_path, "r") as file:
             for line in file:
