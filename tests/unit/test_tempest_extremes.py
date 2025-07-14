@@ -8,8 +8,8 @@ pytest-mock to mock the results of subprocess calls to the system.
 import re
 import subprocess
 
-import pytest
 import cf
+import pytest
 from cftime import Datetime360Day, DatetimeGregorian, DatetimeNoLeap
 
 from tctrack.tempest_extremes import (
@@ -270,6 +270,8 @@ class TestTETracker:
 
     @pytest.fixture
     def netcdf_psl_file(self, tmp_path):
+        """Create a netcdf file with metadata given by the 'properties' argument."""
+
         def _create_file(properties):
             file_name = str(tmp_path / "inputs.nc")
             field = cf.Field(properties=properties)
@@ -277,6 +279,7 @@ class TestTETracker:
             field.set_data_axes([])
             cf.write(field, file_name)  # type: ignore[operator]
             return file_name
+
         return _create_file
 
     def test_te_tracker_variable_metadata(self, netcdf_psl_file) -> None:
