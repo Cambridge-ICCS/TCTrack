@@ -9,6 +9,7 @@ import re
 import subprocess
 
 import pytest
+import cf
 from cftime import Datetime360Day, DatetimeGregorian, DatetimeNoLeap
 
 from tctrack.tempest_extremes import (
@@ -232,23 +233,25 @@ class TestTETracker:
         del tracker
         assert not Path(tempdir).exists()
 
-    def test_te_tracker_variable_metadata(self, tmp_path) -> None:
-        """Test the reading in of variable metadata from input NetCDF files."""
-        import cf
+    @pytest.fixture
+    def netcdf_psl_file(self, tmp_path):
+        def _create_file(properties):
+            file_name = str(tmp_path / "inputs.nc")
+            field = cf.Field(properties=properties)
+            field.nc_set_variable("psl")
+            field.set_data_axes([])
+            cf.write(field, file_name)  # type: ignore[operator]
+            return file_name
+        return _create_file
 
-        # Define the file to read metadata from
-        file_name = str(tmp_path / "inputs.nc")
+    def test_te_tracker_variable_metadata(self, netcdf_psl_file) -> None:
+        """Test the reading in of variable metadata from input NetCDF files."""
         properties = {
             "standard_name": "air_pressure_at_sea_level",
             "long_name": "Sea Level Pressure",
             "units": "Pa",
         }
-        field = cf.Field(properties=properties)
-        field.nc_set_variable("psl")
-        field.set_data_axes([])
-        cf.write(field, file_name)  # type: ignore[operator]
-
-        # Read and check the metadata
+        file_name = netcdf_psl_file(properties)
         dn_params = DetectNodesParameters(
             in_data=[file_name],
             output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
@@ -261,16 +264,35 @@ class TestTETracker:
             assert metadata["psl"][key] == value
         assert metadata["psl"]["cell_method"] == cf.CellMethod("area", "minimum")
 
-        # Check for correct failure
-        dn_params.output_commands = [
-            TEOutputCommand(var="invalid", operator="min", dist=1),
-        ]
+    def test_te_tracker_variable_metadata_failure(self, netcdf_psl_file) -> None:
+        """Check read_variable_metadata raises ValueError for invalid inputs."""
+        file_name = netcdf_psl_file({})
+        dn_params = DetectNodesParameters(
+            in_data=[file_name],
+            output_commands=[TEOutputCommand(var="invalid", operator="min", dist=1)],
+        )
         tracker = TETracker(dn_params)
         with pytest.raises(
             ValueError,
             match="Variable 'invalid' not found in input files.",
         ):
             tracker.read_variable_metadata()
+
+    def test_te_tracker_variable_metadata_unknown(self, netcdf_psl_file) -> None:
+        """Check read_variable_metadata for missing metadata."""
+        file_name = netcdf_psl_file({})
+        dn_params = DetectNodesParameters(
+            in_data=[file_name],
+            output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
+        )
+        tracker = TETracker(dn_params)
+        tracker.read_variable_metadata()
+        metadata = tracker._variable_metadata  # noqa: SLF001
+        assert "psl" in metadata
+        assert metadata["psl"]["standard_name"] == "psl"
+        assert metadata["psl"]["long_name"] == "psl"
+        assert metadata["psl"]["units"] == "unknown"
+        assert metadata["psl"]["cell_method"] == cf.CellMethod("area", "minimum")
 
     def test_te_tracker_detect_nodes_defaults(self, mocker) -> None:
         """Checks the correct detect_nodes call is made for defaults."""
