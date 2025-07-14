@@ -577,7 +577,7 @@ class TestTETrackerStitchNodes:
         assert result["stderr"] == "Mocked stderr output"
         assert result["returncode"] == 0
 
-    def test_stitch_nodes_values_from_dn(self) -> None:
+    def test_stitch_nodes_values_from_detect_nodes(self) -> None:
         """Check the values are being assigned properly from DetectNodesParameters."""
         # Define the DetectNodes parameters to test against
         output_commands = [
