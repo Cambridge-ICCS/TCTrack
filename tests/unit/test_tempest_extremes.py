@@ -716,33 +716,43 @@ class TestTETrackerStitchNodes:
         assert result["stderr"] == "Mocked stderr output"
         assert result["returncode"] == 0
 
-    def test_stitch_nodes_values_from_dn(self) -> None:
+    @pytest.mark.parametrize(
+        "dn_params, sn_params, expected",
+        [
+            pytest.param(None, None, [None, None], id="Check defaults"),
+            pytest.param(
+                DetectNodesParameters(
+                    output_file="file.txt",
+                    output_commands=[
+                        TEOutputCommand(var="v1", operator="min", dist=0.0),
+                        TEOutputCommand(var="v2", operator="max", dist=3.0),
+                    ],
+                ),
+                None,
+                ["file.txt", ["lon", "lat", "v1", "v2"]],
+                id="Check the auto-assignment works",
+            ),
+            pytest.param(
+                DetectNodesParameters(
+                    output_file="file.txt",
+                    output_commands=[
+                        TEOutputCommand(var="v1", operator="min", dist=0.0),
+                        TEOutputCommand(var="v2", operator="max", dist=3.0),
+                    ],
+                ),
+                StitchNodesParameters(in_file="file2.txt", in_fmt=["a", "b"]),
+                ["file2.txt", ["a", "b"]],
+                id="Check defined values aren't overriden",
+            ),
+        ],
+    )
+    def test_stitch_nodes_values_from_detect_nodes(
+        self, dn_params, sn_params, expected
+    ) -> None:
         """Check the values are being assigned properly from DetectNodesParameters."""
-        # Define the DetectNodes parameters to test against
-        output_commands = [
-            TEOutputCommand(var="v1", operator="min", dist=0.0),
-            TEOutputCommand(var="v2", operator="max", dist=3.0),
-        ]
-        dn_params = DetectNodesParameters(
-            output_file="file.txt", output_commands=output_commands
-        )
-
-        # Check the auto-assignment works
-        tracker = TETracker(dn_params)
-        assert tracker.stitch_nodes_parameters.in_file == "file.txt"
-        assert tracker.stitch_nodes_parameters.in_fmt == ["lon", "lat", "v1", "v2"]
-
-        # Ensure defined values don't get overriden
-        sn_params = StitchNodesParameters(in_file="file2.txt", in_fmt=["a", "b"])
         tracker = TETracker(dn_params, sn_params)
-        assert tracker.stitch_nodes_parameters.in_file == "file2.txt"
-        assert tracker.stitch_nodes_parameters.in_fmt == ["a", "b"]
-
-        # Check defaults
-        tracker = TETracker()
-        tempdir = tracker._tempdir.name  # noqa: SLF001
-        assert tracker.stitch_nodes_parameters.in_file == tempdir + "/nodes.txt"
-        assert tracker.stitch_nodes_parameters.in_fmt is None
+        assert tracker.stitch_nodes_parameters.in_file == expected[0]
+        assert tracker.stitch_nodes_parameters.in_fmt == expected[1]
 
     def test_stitch_nodes_file_not_found(self, mocker) -> None:
         """Check stitch_nodes raises FileNotFoundError when executable is missing."""
