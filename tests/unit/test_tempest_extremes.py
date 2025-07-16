@@ -260,7 +260,7 @@ class TestTETracker:
             output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
         )
         tracker = TETracker(dn_params)
-        tracker.read_variable_metadata()
+        tracker._read_variable_metadata()
         metadata = tracker._variable_metadata  # noqa: SLF001
         assert "psl" in metadata
         for key, value in properties.items():
@@ -268,7 +268,7 @@ class TestTETracker:
         assert metadata["psl"]["cell_method"] == cf.CellMethod("area", "minimum")
 
     def test_te_tracker_variable_metadata_failure(self, netcdf_psl_file) -> None:
-        """Check read_variable_metadata raises ValueError for invalid inputs."""
+        """Check _read_variable_metadata raises ValueError for invalid inputs."""
         file_name = netcdf_psl_file({})
         dn_params = DetectNodesParameters(
             in_data=[file_name],
@@ -279,17 +279,17 @@ class TestTETracker:
             ValueError,
             match="Variable 'invalid' not found in input files.",
         ):
-            tracker.read_variable_metadata()
+            tracker._read_variable_metadata()
 
     def test_te_tracker_variable_metadata_unknown(self, netcdf_psl_file) -> None:
-        """Check read_variable_metadata for missing metadata."""
+        """Check _read_variable_metadata for missing metadata."""
         file_name = netcdf_psl_file({})
         dn_params = DetectNodesParameters(
             in_data=[file_name],
             output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
         )
         tracker = TETracker(dn_params)
-        tracker.read_variable_metadata()
+        tracker._read_variable_metadata()
         metadata = tracker._variable_metadata  # noqa: SLF001
         assert "psl" in metadata
         assert metadata["psl"]["standard_name"] == "psl"
