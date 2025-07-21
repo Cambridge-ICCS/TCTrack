@@ -1047,6 +1047,49 @@ class TestTETrackerStitchNodes:
         for track in tracks:
             assert [*track.data.keys()] == cols
 
+    @pytest.mark.parametrize(
+        "file_format, mock_file_fixture",
+        [
+            ("gfdl", "mock_gfdl_file"),
+            ("csv", "mock_csv_file"),
+            ("csvnohead", "mock_csvnohead_file"),
+        ],
+    )
+    def test_to_netcdf_with_cf_read(
+        self, file_format, mock_file_fixture, request, tmp_path
+    ):
+        """Test the to_netcdf method by writing out and validating with cf.read."""
+        # Get the mock file and set up the TETracker
+        mock_file = request.getfixturevalue(mock_file_fixture)
+        tracker = TETracker()
+        tracker.stitch_nodes_parameters.output_file = mock_file
+        tracker.stitch_nodes_parameters.out_file_format = file_format
+
+        # Generate the NetCDF file
+        output_file_path = tmp_path / "output.nc"
+        output_file_name = str(output_file_path)
+        tracker.to_netcdf(output_file_name)
+
+        # Read the generated NetCDF file using cf-python
+        fields = cf.read(output_file_name)
+
+        # Validate the structure and content of the NetCDF file
+        assert len(fields) == 4  # Ensure 4 fields (lat, lon become coordinates)
+        trajectory_ids = fields[0].dimension_coordinate("trajectory").size
+        observation_count = fields[0].dimension_coordinate("observation").size
+
+        # Validate trajectory and observation dimensions
+        assert trajectory_ids == 2
+        assert observation_count == 2
+
+        # Validate key variables like time, latitude, and longitude
+        time_coord = fields[0].construct("time")
+        lat_coord = fields[0].construct("lat")
+        lon_coord = fields[0].construct("lon")
+
+        assert time_coord.shape == (trajectory_ids, observation_count)
+        assert lat_coord.shape == lon_coord.shape == (trajectory_ids, observation_count)
+
     def test_run_tracker_success(self, mocker, tmp_path, mock_gfdl_file) -> None:
         """Check run_tracker runs successfully."""
         # Mock subprocess.run to simulate successful execution
