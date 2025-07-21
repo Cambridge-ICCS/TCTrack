@@ -789,43 +789,118 @@ class TestTETrackerStitchNodes:
         ):
             tracker.stitch_nodes()
 
+    def _mock_tracks_data(self):
+        """Generate expected track data for a given track index and variable names."""
+        return {
+            "varnames": ["i", "j", "lon", "lat", "psl", "orog"],
+            "datenames": ["year", "month", "day", "hour"],
+            "tracks": [
+                [
+                    {
+                        "date": ["1950", "1", "1", "3"],
+                        "line": [
+                            "164",
+                            "332",
+                            "57.832031",
+                            "-12.070312",
+                            "1.005377e+05",
+                            "0.000000e+00",
+                        ],
+                    },
+                    {
+                        "date": ["1950", "1", "1", "6"],
+                        "line": [
+                            "163",
+                            "332",
+                            "57.480469",
+                            "-12.070312",
+                            "1.005820e+05",
+                            "0.000000e+00",
+                        ],
+                    },
+                ],
+                [
+                    {
+                        "date": ["1950", "1", "2", "0"],
+                        "line": [
+                            "843",
+                            "275",
+                            "296.542969",
+                            "-25.429688",
+                            "9.970388e+04",
+                            "2.633214e+02",
+                        ],
+                    },
+                    {
+                        "date": ["1950", "1", "2", "6"],
+                        "line": [
+                            "850",
+                            "266",
+                            "299.003906",
+                            "-27.539062",
+                            "9.989988e+04",
+                            "6.951086e+01",
+                        ],
+                    },
+                ],
+            ],
+        }
+
     @pytest.fixture
     def mock_gfdl_file(self, tmp_path):
         """Fixture to create a mock GFDL file with two tracks."""
         file_path = tmp_path / "tracks_out_gfdl.txt"
-        file_path.write_text(
-            "start\t2\t1950\t1\t1\t3\n"
-            "\t164\t332\t57.832031\t-12.070312\t1.005377e+05\t0.000000e+00\t1950\t1\t1\t3\n"
-            "\t163\t332\t57.480469\t-12.070312\t1.005820e+05\t0.000000e+00\t1950\t1\t1\t6\n"
-            "start\t2\t1950\t1\t2\t0\n"
-            "\t843\t275\t296.542969\t-25.429688\t9.970388e+04\t2.633214e+02\t1950\t1\t2\t0\n"
-            "\t850\t266\t299.003906\t-27.539062\t9.989988e+04\t6.951086e+01\t1950\t1\t2\t6\n"
-        )
+        mock_data = self._mock_tracks_data()
+
+        content = ""
+        for track in mock_data["tracks"]:
+            # Add the start line for each track
+            content += "start\t{}\t{}\n".format(len(track), "\t".join(track[0]["date"]))
+            # Add the data lines for each observation in the track
+            content += "\n".join(
+                "\t{}\t{}".format("\t".join(obs["line"]), "\t".join(obs["date"]))
+                for obs in track
+            )
+            content += "\n"
+
+        file_path.write_text(content)
         return str(file_path)
 
     @pytest.fixture
     def mock_csv_file(self, tmp_path):
         """Fixture to create a mock CSV file with two tracks."""
         file_path = tmp_path / "tracks_out_csv.txt"
-        file_path.write_text(
-            "track_id,year,month,day,hour,i,j,lon,lat,psl,orog\n"
-            "0,1950,1,1,3,164,332,57.832031,-12.070312,1.005377e+05,0.000000e+00\n"
-            "0,1950,1,1,6,163,332,57.480469,-12.070312,1.005820e+05,0.000000e+00\n"
-            "1,1950,1,2,0,843,275,296.542969,-25.429688,9.970388e+04,2.633214e+02\n"
-            "1,1950,1,2,6,850,266,299.003906,-27.539062,9.989988e+04,6.951086e+01\n"
+        mock_data = self._mock_tracks_data()
+
+        content = (
+            ",".join(["track_id"] + mock_data["datenames"] + mock_data["varnames"])
+            + "\n"
         )
+        for i, track in enumerate(mock_data["tracks"]):
+            # Add the data lines for each observation in the track
+            content += "\n".join(
+                ",".join([str(i)] + obs["date"] + obs["line"]) for obs in track
+            )
+            content += "\n"
+
+        file_path.write_text(content)
         return str(file_path)
 
     @pytest.fixture
     def mock_csvnohead_file(self, tmp_path):
         """Fixture to create a mock CSV file without a header and with two tracks."""
         file_path = tmp_path / "tracks_out_csvnohead.txt"
-        file_path.write_text(
-            "0,1950,1,1,3,164,332,57.832031,-12.070312,1.005377e+05,0.000000e+00\n"
-            "0,1950,1,1,6,163,332,57.480469,-12.070312,1.005820e+05,0.000000e+00\n"
-            "1,1950,1,2,0,843,275,296.542969,-25.429688,9.970388e+04,2.633214e+02\n"
-            "1,1950,1,2,6,850,266,299.003906,-27.539062,9.989988e+04,6.951086e+01\n"
-        )
+        mock_data = self._mock_tracks_data()
+
+        content = ""
+        for i, track in enumerate(mock_data["tracks"]):
+            # Add the data lines for each observation in the track
+            content += "\n".join(
+                ",".join([str(i)] + obs["date"] + obs["line"]) for obs in track
+            )
+            content += "\n"
+
+        file_path.write_text(content)
         return str(file_path)
 
     @pytest.mark.parametrize(
