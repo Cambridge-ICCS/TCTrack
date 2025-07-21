@@ -21,6 +21,7 @@ For full details of the Tempest Extremes API in TCTrack see the
 
 .. Import the tempest_extremes module to use references throughout this page.
 .. py:module:: tctrack.tempest_extremes
+   :no-index:
 
 Installation
 ------------
