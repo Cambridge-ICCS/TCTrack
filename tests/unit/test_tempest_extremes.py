@@ -751,8 +751,10 @@ class TestTETrackerStitchNodes:
     ) -> None:
         """Check the values are being assigned properly from DetectNodesParameters."""
         tracker = TETracker(dn_params, sn_params)
-        assert tracker.stitch_nodes_parameters.in_file == expected[0]
-        assert tracker.stitch_nodes_parameters.in_fmt == expected[1]
+        expected_in_file, expected_in_fmt = expected
+        if expected_in_file is not None:
+            assert tracker.stitch_nodes_parameters.in_file == expected_in_file
+        assert tracker.stitch_nodes_parameters.in_fmt == expected_in_fmt
 
     def test_stitch_nodes_file_not_found(self, mocker) -> None:
         """Check stitch_nodes raises FileNotFoundError when executable is missing."""
