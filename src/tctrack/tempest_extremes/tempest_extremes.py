@@ -373,6 +373,12 @@ class DetectNodesParameters:
     search_by_min field or highest value of the search_by_max field are retained.
     """
 
+    time_filter: str | None = None
+    """
+    Filter for the input data frequency. Options are: `"3hr"`, `"6hr"`, `"daily"`.
+    Alternatively, can be a regex for the datetime in the format `YYYY-MM-DD HH:MM:SS`.
+    """
+
     lat_name: str = "lat"
     """String for the latitude dimension in the NetCDF files."""
 
@@ -475,8 +481,11 @@ class StitchNodesParameters:
     TempestExtremes.
     """
 
-    max_gap: int = 0
-    """The number of missing points allowed between candidates."""
+    max_gap: int | str = 0
+    """
+    The number of missing points allowed between candidates. Either as an integer or a
+    string, e.g. ``"24hr"``.
+    """
 
     min_time: int | str = 1
     """
@@ -717,6 +726,13 @@ class TETracker:
                 str(self.detect_nodes_parameters.merge_dist),
             ]
         )
+        if self.detect_nodes_parameters.time_filter is not None:
+            dn_argslist.extend(
+                [
+                    "--timefilter",
+                    self.detect_nodes_parameters.time_filter,
+                ]
+            )
         if self.detect_nodes_parameters.lat_name is not None:
             dn_argslist.extend(
                 [
