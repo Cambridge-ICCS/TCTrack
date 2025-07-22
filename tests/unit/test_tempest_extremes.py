@@ -1061,7 +1061,8 @@ class TestTETrackerStitchNodes:
         """Test the to_netcdf method by writing out and validating with cf.read."""
         # Get the mock file and set up the TETracker
         mock_file = request.getfixturevalue(mock_file_fixture)
-        tracker = TETracker()
+        sn_params = StitchNodesParameters(in_fmt=["lon", "lat", "v1", "v2"])
+        tracker = TETracker(stitch_nodes_parameters=sn_params)
         tracker.stitch_nodes_parameters.output_file = mock_file
         tracker.stitch_nodes_parameters.out_file_format = file_format
 
