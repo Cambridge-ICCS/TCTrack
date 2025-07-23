@@ -295,7 +295,7 @@ class TestTETracker:
             output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
         )
         tracker = TETracker(dn_params)
-        tracker._read_variable_metadata()
+        tracker._read_variable_metadata()  # noqa: SLF001
         metadata = tracker._variable_metadata  # noqa: SLF001
         assert "psl" in metadata
         for key, value in properties.items():
@@ -319,7 +319,7 @@ class TestTETracker:
             ValueError,
             match="Variable 'invalid' not found in input files.",
         ):
-            tracker._read_variable_metadata()
+            tracker._read_variable_metadata()  # noqa: SLF001
 
     def test_te_tracker_variable_metadata_unknown(self, netcdf_psl_file) -> None:
         """Check _read_variable_metadata for missing metadata."""
@@ -329,7 +329,7 @@ class TestTETracker:
             output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
         )
         tracker = TETracker(dn_params)
-        tracker._read_variable_metadata()
+        tracker._read_variable_metadata()  # noqa: SLF001
         metadata = tracker._variable_metadata  # noqa: SLF001
         assert "psl" in metadata
         assert metadata["psl"]["standard_name"] == "psl"
@@ -939,7 +939,7 @@ class TestTETrackerStitchNodes:
     def test_tracks_header_names(self, file_format, mock_file_fixture, request) -> None:
         """
         Test the track header names are assigned correctly when not in file.
-        
+
         Checks that tracks() pulls correct variable names from DetectNodesParameters
         when there is no header information in the file (gfdl, csvnohead).
         """
@@ -981,7 +981,7 @@ class TestTETrackerStitchNodes:
         assert output_file.exists()
 
     def test_run_tracker_failure(self, mocker) -> None:
-        """Check run_tracker correctly propagates RuntimeError from detect/stitch_nodes."""
+        """Check run_tracker propagates RuntimeError from detect/stitch_nodes."""
         from functools import partial
 
         # Create tracker object
