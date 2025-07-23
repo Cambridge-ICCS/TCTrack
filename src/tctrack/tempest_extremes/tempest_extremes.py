@@ -1174,7 +1174,7 @@ class TETracker:
                 if dist == 0:
                     cell_method = cf.CellMethod("area", "point")
                 else:
-                    qualifier={"comment": f"great circle of radius {dist} degrees"}
+                    qualifier = {"comment": f"great circle of radius {dist} degrees"}
                     cell_method = cf.CellMethod("area", method, qualifiers=qualifier)
                 self._variable_metadata[var_name]["cell_method"] = cell_method
 
