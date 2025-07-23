@@ -1124,7 +1124,7 @@ class TETracker:
         To read in the metadata for ``psl`` from ``inputs.nc``
         >>> dn_params = DetectNodesParameters(
         >>>     in_data=["inputs.nc"],
-        >>>     output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
+        >>>     output_commands=[TEOutputCommand(var="psl", operator="min", dist=0)],
         >>> )
         >>> tracker = TETracker(dn_params, sn_params)
         >>> tracker._read_variable_metadata()
@@ -1134,7 +1134,7 @@ class TETracker:
                 "standard_name": "air_pressure_at_sea_level",
                 "long_name": "Sea Level Pressure",
                 "units": "Pa",
-                "cell_method": <CF CellMethod: area: minimum>,
+                "cell_method": <CF CellMethod: area: point>,
             },
         }
         """
@@ -1170,7 +1170,12 @@ class TETracker:
             }
             method = methods.get(var_output["operator"], None)
             if method is not None:
-                cell_method = cf.CellMethod(axes="area", method=method)
+                dist = var_output["dist"]
+                if dist == 0:
+                    cell_method = cf.CellMethod("area", "point")
+                else:
+                    qualifier={"comment": f"great circle of radius {dist} degrees"}
+                    cell_method = cf.CellMethod("area", method, qualifiers=qualifier)
                 self._variable_metadata[var_name]["cell_method"] = cell_method
 
     def to_netcdf(self, output_file: str) -> None:
