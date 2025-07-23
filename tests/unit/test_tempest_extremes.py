@@ -927,7 +927,12 @@ class TestTETrackerStitchNodes:
         ],
     )
     def test_tracks_header_names(self, file_format, mock_file_fixture, request) -> None:
-        """Test the track header names are assigned correctly by tracks()."""
+        """
+        Test the track header names are assigned correctly when not in file.
+        
+        Checks that tracks() pulls correct variable names from DetectNodesParameters
+        when there is no header information in the file (gfdl, csvnohead).
+        """
         # Use DetectNodesParameters to set the variable names
         output_commands = [
             TEOutputCommand(var="v1", operator="min", dist=0.0),
@@ -966,7 +971,7 @@ class TestTETrackerStitchNodes:
         assert output_file.exists()
 
     def test_run_tracker_failure(self, mocker) -> None:
-        """Check run_tracker correctly raises RuntimeError from detect/stitch_nodes."""
+        """Check run_tracker correctly propagates RuntimeError from detect/stitch_nodes."""
         from functools import partial
 
         # Create tracker object
