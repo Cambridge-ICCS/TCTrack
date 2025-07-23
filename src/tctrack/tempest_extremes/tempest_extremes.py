@@ -446,8 +446,8 @@ class StitchNodesParameters:
 
     in_fmt: list[str] | None = None
     """
-    List of the variables in the input file. If ``None``, it will be
-    ``["lon", "lat", ...]``, ending in any variables defined in
+    List of the variables in the order they appear in the input file.
+    If ``None``, it will be ``["lon", "lat", ...]``, ending in variables defined in
     :attr:`DetectNodesParameters.output_commands`.
     """
 
@@ -1132,7 +1132,7 @@ class TETracker:
         >>> TETracker.stitch_nodes()
         >>> TETracker.to_netcdf("my_netcdf_file.nc")
         """
-        # Read in the variable metadata if not done already
+        # Read in the variable metadata from input files if not done already
         if not self._variable_metadata:
             self._read_variable_metadata()
 
