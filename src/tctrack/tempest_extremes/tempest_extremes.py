@@ -33,8 +33,8 @@ class Track:
     start_time : Datetime360Day | DatetimeNoLeap | DatetimeGregorian
         Start time of the track as a datetime or cftime object.
     data : dict
-        dict of data for various variables along the track.
-            timestamp nd other variables as supplied in file
+        Dict of data for various variables along the track.
+        Timestamp and other variables as supplied in file.
     """
 
     def __init__(
