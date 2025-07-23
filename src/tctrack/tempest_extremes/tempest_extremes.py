@@ -1104,6 +1104,75 @@ class TETracker:
 
         return list(tracks.values())
 
+    def _read_variable_metadata(self) -> None:
+        """Read in the metadata from the input files for each variable.
+
+        Reads metadata for each variable listed in
+        :attr:`detect_nodes_parameters.output_commands` from the input NetCDF files
+        defined in :attr:`detect_nodes_parameters.in_data` (matching the NetCDF variable
+        name). These will be stored in the :attr:`_variable_metadata` attribute as a
+        dictionary of dictionaries. This will be called from the :meth:`to_netcdf`
+        method.
+
+        Raises
+        ------
+        ValueError
+            If a variable is not found in the input files.
+
+        Examples
+        --------
+        To read in the metadata for ``psl`` from ``inputs.nc``
+        >>> dn_params = DetectNodesParameters(
+        >>>     in_data=["inputs.nc"],
+        >>>     output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
+        >>> )
+        >>> tracker = TETracker(dn_params, sn_params)
+        >>> tracker._read_variable_metadata()
+        >>> tracker._variable_metadata
+        {
+            "psl": {
+                "standard_name": "air_pressure_at_sea_level",
+                "long_name": "Sea Level Pressure",
+                "units": "Pa",
+                "cell_method": <CF CellMethod: area: minimum>,
+            },
+        }
+        """
+        self._variable_metadata = {}
+
+        input_files = self.detect_nodes_parameters.in_data
+        var_outputs = self.detect_nodes_parameters.output_commands
+        if var_outputs is None or input_files is None:
+            return
+
+        for var_output in var_outputs:
+            var_name = var_output["var"]
+
+            # Get the variable field from the netcdf file
+            fields = cf.read(input_files, select=f"ncvar%{var_name}")  # type: ignore[operator]
+            if not fields:
+                msg = f"Variable '{var_name}' not found in input files."
+                raise ValueError(msg)
+            field = fields[0]
+
+            # Read and store the relevant metadata
+            self._variable_metadata[var_name] = {
+                "standard_name": field.get_property("standard_name", var_name),
+                "long_name": field.get_property("long_name", var_name),
+                "units": field.get_property("units", "unknown"),
+            }
+
+            # Add information about how the value is determined using `output_commands`
+            methods = {
+                "max": "maximum",
+                "min": "minimum",
+                "avg": "mean",
+            }
+            method = methods.get(var_output["operator"], None)
+            if method is not None:
+                cell_method = cf.CellMethod(axes="area", method=method)
+                self._variable_metadata[var_name]["cell_method"] = cell_method
+
     def to_netcdf(self, output_file: str) -> None:
         """
         Write tracks from StitchNodes output to CF-compliant netCDF trajectory file.
@@ -1234,11 +1303,9 @@ class TETracker:
 
             # Define the variable metadata
             properties = self._variable_metadata.get(variable, {})
-            cell_method = properties.pop("cell_method", None)  # Added separately
-            properties.setdefault("standard_name", variable)
-            properties.setdefault("long_name", variable)
-            properties.setdefault("units", "unknown")
             properties["featureType"] = "trajectory"
+            # Remove the cell method (if there is one) to add separately
+            cell_method = properties.pop("cell_method", None)
 
             field = cf.Field(properties=properties)
 
@@ -1269,75 +1336,6 @@ class TETracker:
 
         # Write to file
         cf.write(fields, output_file)  # type: ignore[operator]
-
-    def _read_variable_metadata(self) -> None:
-        """Read in the metadata from the input files for each variable.
-
-        Reads metadata for each variable listed in
-        :attr:`detect_nodes_parameters.output_commands` from the input NetCDF files
-        defined in :attr:`detect_nodes_parameters.in_data` (matching the NetCDF variable
-        name). These will be stored in the :attr:`_variable_metadata` attribute as a
-        dictionary of dictionaries. This will be called from the :meth:`to_netcdf`
-        method.
-
-        Raises
-        ------
-        ValueError
-            If a variable is not found in the input files.
-
-        Examples
-        --------
-        To read in the metadata for ``psl`` from ``inputs.nc``
-        >>> dn_params = DetectNodesParameters(
-        >>>     in_data=["inputs.nc"],
-        >>>     output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
-        >>> )
-        >>> tracker = TETracker(dn_params, sn_params)
-        >>> tracker._read_variable_metadata()
-        >>> tracker._variable_metadata
-        {
-            "psl": {
-                "standard_name": "air_pressure_at_sea_level",
-                "long_name": "Sea Level Pressure",
-                "units": "Pa",
-                "cell_method": <CF CellMethod: area: minimum>,
-            },
-        }
-        """
-        self._variable_metadata = {}
-
-        input_files = self.detect_nodes_parameters.in_data
-        var_outputs = self.detect_nodes_parameters.output_commands
-        if var_outputs is None or input_files is None:
-            return
-
-        for var_output in var_outputs:
-            var_name = var_output["var"]
-
-            # Get the variable field from the netcdf file
-            fields = cf.read(input_files, select=f"ncvar%{var_name}")  # type: ignore[operator]
-            if not fields:
-                msg = f"Variable '{var_name}' not found in input files."
-                raise ValueError(msg)
-            field = fields[0]
-
-            # Read and store the relevant metadata
-            self._variable_metadata[var_name] = {
-                "standard_name": field.get_property("standard_name", var_name),
-                "long_name": field.get_property("long_name", var_name),
-                "units": field.get_property("units", "unknown"),
-            }
-
-            # Add information about how the value is determined using `output_commands`
-            methods = {
-                "max": "maximum",
-                "min": "minimum",
-                "avg": "mean",
-            }
-            method = methods.get(var_output["operator"], None)
-            if method is not None:
-                cell_method = cf.CellMethod(axes="area", method=method)
-                self._variable_metadata[var_name]["cell_method"] = cell_method
 
     def run_tracker(self, output_file: str):
         """Run the TempestExtremes tracker to obtain the tropical cyclone tracks.
