@@ -21,6 +21,7 @@ For full details of the Tempest Extremes API in TCTrack see the
 
 .. Import the tempest_extremes module to use references throughout this page.
 .. py:module:: tctrack.tempest_extremes
+   :no-index:
 
 Installation
 ------------
@@ -141,22 +142,29 @@ is then filtered based upon the lattitude and surface altitude. The format of th
     run_info = te_tracker.stitch_nodes()
 
 
-The above examples demonstrate running :meth:`~TETracker.detect_nodes` and
-:meth:`~TETracker.stitch_nodes` separately.
-However, it is likely that users will want to run both in succession which can be done
-using the :meth:`~TETracker.run_tracker` method after defining a :class:`TETracker`
-object with appropriate :class:`DetectNodesParameters` and
-:class:`StitchNodesParameters`:
+Finally, after running stitch nodes to generate tracks, one can write the tracks to
+a NetCDF file fully compliant with the `CF-Conventions <https://cfconventions.org/>`_
+(specifically the `trajectory data format <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.11/cf-conventions.html#trajectory-data>`_)
+using :meth:`~TETracker.to_netcdf`:
+
+.. code-block:: python
+
+    te_tracker.to_netcdf("my_cf_tracks.nc")
+
+This can be read using any NetCDF reading utility, though
+`cf-python <https://ncas-cms.github.io/cf-python/>`_ will load it following the
+`CF data model <https://ncas-cms.github.io/cf-python/#cf-data-model>`_.
+
+The above examples demonstrate running :meth:`~TETracker.detect_nodes`,
+:meth:`~TETracker.stitch_nodes`, and :meth:`~TETracker.to_netcdf` separately. However,
+it is likely that users will want to these in succession which can be done using the
+:meth:`~TETracker.run_tracker` method after defining a :class:`TETracker` object with
+appropriate :class:`DetectNodesParameters` and :class:`StitchNodesParameters`:
 
 .. code-block:: python
 
     te_tracker = te.TETracker(dn_params, sn_params)
-    te_tracker.run_tracker("tracks_out.nc")
-
-The resulting ``"tracks_out.nc"`` output file will contain the tracks data converted
-into a `CF trajectory
-<https://cfconventions.org/Data/cf-conventions/cf-conventions-1.7/build/aphs04.html>`_
-netCDF file.
+    te_tracker.run_tracker("my_cf_tracks.nc")
 
 When running in this way there are certain parameters that *should not* be
 set. In :class:`StitchNodesParameters`, :attr:`~StitchNodesParameters.in_fmt`

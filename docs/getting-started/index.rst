@@ -16,6 +16,9 @@ Installation
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Before using TCTrack ensure that any external :ref:`getting-started/index:dependencies` as required are
+installed as :ref:`described below <getting-started/index:dependencies>`.
+
 TCTrack is a Python package (Python 3.10+).
 It can be obtained by cloning the repository from GitHub::
 
@@ -42,6 +45,30 @@ The `dev` optional dependencies include the `test`, `lint`, and `doc` subgroups.
 
 Dependencies
 ------------
+
+UDUNITS
+~~~~~~~
+
+TCTrack makes use of the `cf-python <https://ncas-cms.github.io/cf-python/>`_ package to
+generate CF-compliant NetCDF files.
+This brings with it the dependency of `UDUNITS <https://docs.unidata.ucar.edu/udunits/current/>`_
+which needs to be installed by the user.
+
+Binaries are available on most systems, for example on Ubuntu::
+
+    apt-get install -y libudunits2-dev
+
+or on mac one can use homebrew::
+
+    brew install udunits
+
+noting that we may need to add the library to the dynamic path e.g.::
+
+    export DYLD_LIBRARY_PATH=/opt/homebrew/Cellar/udunits/2.2.28/lib
+
+
+Tracking algorithms
+~~~~~~~~~~~~~~~~~~~
 
 To use some tracking algorithms requires additional dependencies to be installed, namely
 the libraries that they are wrapping.
