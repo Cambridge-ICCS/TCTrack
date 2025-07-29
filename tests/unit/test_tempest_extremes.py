@@ -342,6 +342,10 @@ class TestTETracker:
         )
         assert metadata["psl"]["cell_method"] == expected_cell_method
 
+
+class TestTETrackerDetectNodes:
+    """Tests for the detect_nodes functionality of TETracker."""
+
     def test_te_tracker_detect_nodes_defaults(self, mocker) -> None:
         """Checks the correct detect_nodes call is made for defaults."""
         # Mock subprocess.run to simulate successful execution
@@ -436,8 +440,7 @@ class TestTETracker:
         assert result["returncode"] == 0
 
     def test_te_tracker_detect_nodes_optional_parameters(self, mocker) -> None:
-        """
-        Checks the correct detect_nodes call is made for optional parameters.
+        """Checks the correct detect_nodes call is made for optional parameters.
 
         This will implicitly check the lod_to_te utility function.
         """
@@ -456,6 +459,7 @@ class TestTETracker:
             closed_contours=[
                 TEContour(var="psl", delta=200.0, dist=5.5, minmaxdist=0.0)
             ],
+            time_filter="3hr",
             output_commands=[
                 TEOutputCommand(var="psl", operator="min", dist=0.0),
                 TEOutputCommand(var="orog", operator="max", dist=3.0),
@@ -480,6 +484,8 @@ class TestTETracker:
                 "psl,200.0,5.5,0.0",
                 "--mergedist",
                 "0.0",
+                "--timefilter",
+                "3hr",
                 "--latname",
                 "lat",
                 "--lonname",
