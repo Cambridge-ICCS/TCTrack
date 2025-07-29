@@ -342,6 +342,358 @@ class TestTETracker:
         )
         assert metadata["psl"]["cell_method"] == expected_cell_method
 
+    def _mock_tracks_data(self):
+        """Generate expected track data for a given track index and variable names."""
+        return {
+            "varnames": ["i", "j", "lon", "lat", "psl", "orog"],
+            "datenames": ["year", "month", "day", "hour"],
+            "tracks": [
+                [
+                    {
+                        "date": ["1950", "1", "1", "3"],
+                        "line": [
+                            "164",
+                            "332",
+                            "57.832031",
+                            "-12.070312",
+                            "1.005377e+05",
+                            "0.000000e+00",
+                        ],
+                    },
+                    {
+                        "date": ["1950", "1", "1", "6"],
+                        "line": [
+                            "163",
+                            "332",
+                            "57.480469",
+                            "-12.070312",
+                            "1.005820e+05",
+                            "0.000000e+00",
+                        ],
+                    },
+                ],
+                [
+                    {
+                        "date": ["1950", "1", "2", "0"],
+                        "line": [
+                            "843",
+                            "275",
+                            "296.542969",
+                            "-25.429688",
+                            "9.970388e+04",
+                            "2.633214e+02",
+                        ],
+                    },
+                    {
+                        "date": ["1950", "1", "2", "6"],
+                        "line": [
+                            "850",
+                            "266",
+                            "299.003906",
+                            "-27.539062",
+                            "9.989988e+04",
+                            "6.951086e+01",
+                        ],
+                    },
+                ],
+            ],
+        }
+
+    @pytest.fixture
+    def mock_gfdl_file(self, tmp_path):
+        """Fixture to create a mock GFDL file with two tracks."""
+        file_path = tmp_path / "tracks_out_gfdl.txt"
+        mock_data = self._mock_tracks_data()
+
+        content = ""
+        for track in mock_data["tracks"]:
+            # Add the start line for each track
+            content += "start\t{}\t{}\n".format(len(track), "\t".join(track[0]["date"]))
+            # Add the data lines for each observation in the track
+            content += "\n".join(
+                "\t{}\t{}".format("\t".join(obs["line"]), "\t".join(obs["date"]))
+                for obs in track
+            )
+            content += "\n"
+
+        file_path.write_text(content)
+        return str(file_path)
+
+    @pytest.fixture
+    def mock_csv_file(self, tmp_path):
+        """Fixture to create a mock CSV file with two tracks."""
+        file_path = tmp_path / "tracks_out_csv.txt"
+        mock_data = self._mock_tracks_data()
+
+        content = (
+            ",".join(["track_id"] + mock_data["datenames"] + mock_data["varnames"])
+            + "\n"
+        )
+        for i, track in enumerate(mock_data["tracks"]):
+            # Add the data lines for each observation in the track
+            content += "\n".join(
+                ",".join([str(i)] + obs["date"] + obs["line"]) for obs in track
+            )
+            content += "\n"
+
+        file_path.write_text(content)
+        return str(file_path)
+
+    @pytest.fixture
+    def mock_csvnohead_file(self, tmp_path):
+        """Fixture to create a mock CSV file without a header and with two tracks."""
+        file_path = tmp_path / "tracks_out_csvnohead.txt"
+        mock_data = self._mock_tracks_data()
+
+        content = ""
+        for i, track in enumerate(mock_data["tracks"]):
+            # Add the data lines for each observation in the track
+            content += "\n".join(
+                ",".join([str(i)] + obs["date"] + obs["line"]) for obs in track
+            )
+            content += "\n"
+
+        file_path.write_text(content)
+        return str(file_path)
+
+    @pytest.mark.parametrize(
+        "file_format, mock_file_fixture, expected_tracks",
+        [
+            (
+                "gfdl",
+                "mock_gfdl_file",
+                [
+                    {
+                        "track_id": 1,
+                        "observations": 2,
+                        "data": {
+                            "grid_i": [164, 163],
+                            "grid_j": [332, 332],
+                            "var_1": [57.832031, 57.480469],
+                            "var_2": [-12.070312, -12.070312],
+                            "var_3": [1.005377e05, 1.005820e05],
+                            "var_4": [0.0, 0.0],
+                        },
+                    },
+                    {
+                        "track_id": 2,
+                        "observations": 2,
+                        "data": {
+                            "grid_i": [843, 850],
+                            "grid_j": [275, 266],
+                            "var_1": [296.542969, 299.003906],
+                            "var_2": [-25.429688, -27.539062],
+                            "var_3": [9.970388e04, 9.989988e04],
+                            "var_4": [2.633214e02, 6.951086e01],
+                        },
+                    },
+                ],
+            ),
+            (
+                "csv",
+                "mock_csv_file",
+                [
+                    {
+                        "track_id": 0,
+                        "observations": 2,
+                        "data": {
+                            "grid_i": [164, 163],
+                            "grid_j": [332, 332],
+                            "lon": [57.832031, 57.480469],
+                            "lat": [-12.070312, -12.070312],
+                            "psl": [1.005377e05, 1.005820e05],
+                            "orog": [0.0, 0.0],
+                        },
+                    },
+                    {
+                        "track_id": 1,
+                        "observations": 2,
+                        "data": {
+                            "grid_i": [843, 850],
+                            "grid_j": [275, 266],
+                            "lon": [296.542969, 299.003906],
+                            "lat": [-25.429688, -27.539062],
+                            "psl": [9.970388e04, 9.989988e04],
+                            "orog": [2.633214e02, 6.951086e01],
+                        },
+                    },
+                ],
+            ),
+            (
+                "csvnohead",
+                "mock_csvnohead_file",
+                [
+                    {
+                        "track_id": 0,
+                        "observations": 2,
+                        "data": {
+                            "grid_i": [164, 163],
+                            "grid_j": [332, 332],
+                            "var_1": [57.832031, 57.480469],
+                            "var_2": [-12.070312, -12.070312],
+                            "var_3": [1.005377e05, 1.005820e05],
+                            "var_4": [0.0, 0.0],
+                        },
+                    },
+                    {
+                        "track_id": 1,
+                        "observations": 2,
+                        "data": {
+                            "grid_i": [843, 850],
+                            "grid_j": [275, 266],
+                            "var_1": [296.542969, 299.003906],
+                            "var_2": [-25.429688, -27.539062],
+                            "var_3": [9.970388e04, 9.989988e04],
+                            "var_4": [2.633214e02, 6.951086e01],
+                        },
+                    },
+                ],
+            ),
+        ],
+    )
+    def test_tracks(self, file_format, mock_file_fixture, expected_tracks, request):
+        """Test the tracks() method for different file formats with multiple tracks."""
+        mock_file = request.getfixturevalue(mock_file_fixture)
+        tracker = TETracker()
+        tracker.stitch_nodes_parameters.output_file = mock_file
+        tracker.stitch_nodes_parameters.out_file_format = file_format
+        tracks = tracker.tracks()
+
+        # Assertions
+        assert len(tracks) == len(expected_tracks)
+        for track, expected in zip(tracks, expected_tracks, strict=False):
+            assert track.track_id == expected["track_id"]
+            assert track.observations == expected["observations"]
+            for key, values in expected["data"].items():
+                assert track.data[key] == values
+
+    @pytest.mark.parametrize(
+        "file_format, mock_file_fixture",
+        [
+            ("gfdl", "mock_gfdl_file"),
+            ("csvnohead", "mock_csvnohead_file"),
+        ],
+    )
+    def test_tracks_header_names(self, file_format, mock_file_fixture, request) -> None:
+        """
+        Test the track header names are assigned correctly when not in file.
+
+        Checks that tracks() pulls correct variable names from DetectNodesParameters
+        when there is no header information in the file (gfdl, csvnohead).
+        """
+        # Use DetectNodesParameters to set the variable names
+        output_commands = [
+            TEOutputCommand(var="v1", operator="min", dist=0.0),
+            TEOutputCommand(var="v2", operator="min", dist=0.0),
+        ]
+        dn_params = DetectNodesParameters(output_commands=output_commands)
+        tracker = TETracker(dn_params)
+
+        # Read in the tracks
+        mock_file = request.getfixturevalue(mock_file_fixture)
+        tracker.stitch_nodes_parameters.output_file = mock_file
+        tracker.stitch_nodes_parameters.out_file_format = file_format
+        tracks = tracker.tracks()
+
+        # Check the track header names are correct
+        cols = ["timestamp", "grid_i", "grid_j", "lon", "lat", "v1", "v2"]
+        for track in tracks:
+            assert [*track.data.keys()] == cols
+
+    @pytest.mark.parametrize(
+        "file_format, mock_file_fixture",
+        [
+            ("gfdl", "mock_gfdl_file"),
+            ("csv", "mock_csv_file"),
+            ("csvnohead", "mock_csvnohead_file"),
+        ],
+    )
+    def test_to_netcdf_with_cf_read(
+        self, file_format, mock_file_fixture, request, tmp_path
+    ):
+        """Test the to_netcdf method by writing out and validating with cf.read."""
+        # Get the mock file and set up the TETracker
+        mock_file = request.getfixturevalue(mock_file_fixture)
+        sn_params = StitchNodesParameters(in_fmt=["lon", "lat", "v1", "v2"])
+        tracker = TETracker(stitch_nodes_parameters=sn_params)
+        tracker.stitch_nodes_parameters.output_file = mock_file
+        tracker.stitch_nodes_parameters.out_file_format = file_format
+
+        # Generate the NetCDF file
+        output_file_path = tmp_path / "output.nc"
+        output_file_name = str(output_file_path)
+        tracker.to_netcdf(output_file_name)
+
+        # Read the generated NetCDF file using cf-python
+        fields = cf.read(output_file_name)
+
+        # Validate the structure and content of the NetCDF file
+        assert len(fields) == 4  # Ensure 4 fields (lat, lon become coordinates)
+        trajectory_ids = fields[0].dimension_coordinate("trajectory").size
+        observation_count = fields[0].dimension_coordinate("observation").size
+
+        # Validate trajectory and observation dimensions
+        assert trajectory_ids == 2
+        assert observation_count == 2
+
+        # Validate key variables like time, latitude, and longitude
+        time_coord = fields[0].construct("time")
+        lat_coord = fields[0].construct("lat")
+        lon_coord = fields[0].construct("lon")
+
+        assert time_coord.shape == (trajectory_ids, observation_count)
+        assert lat_coord.shape == lon_coord.shape == (trajectory_ids, observation_count)
+
+    def test_run_tracker_success(self, mocker, tmp_path, mock_gfdl_file) -> None:
+        """Check run_tracker runs successfully."""
+        # Mock subprocess.run to simulate successful execution
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.side_effect = mocker.MagicMock(
+            returncode=0, stdout="Success"
+        )
+
+        # Use the mock_gfdl_file to simulate the output of StitchNodes
+        sn_in_fmt = ["lon", "lat", "psl", "orog"]
+        sn_params = StitchNodesParameters(output_file=mock_gfdl_file, in_fmt=sn_in_fmt)
+        tracker = TETracker(stitch_nodes_parameters=sn_params)
+
+        # Check run_tracker runs without error and produces an output file
+        output_file = tmp_path / "tracks.nc"
+        tracker.run_tracker(output_file)
+        assert output_file.exists()
+
+    def test_run_tracker_failure(self, mocker) -> None:
+        """Check run_tracker propagates RuntimeError from detect/stitch_nodes."""
+        from functools import partial
+
+        # Create tracker object
+        tracker = TETracker()
+
+        # Mock subprocess.run and define a function to mock fail for a specific command
+        mock_subprocess_run = mocker.patch("subprocess.run")
+
+        def subprocess_fail_for(cmd, args, **_kwargs):
+            if args[0] == cmd:
+                raise subprocess.CalledProcessError(
+                    returncode=1, cmd=cmd, stderr="Error occurred"
+                )
+            mock_output = mocker.Mock(returncode=0, stdout="Success")
+            return mock_output
+
+        # Check a RuntimeError is correctly raised for detect_nodes
+        mock_subprocess_run.side_effect = partial(subprocess_fail_for, "DetectNodes")
+        with pytest.raises(
+            RuntimeError, match="DetectNodes failed with a non-zero exit code"
+        ):
+            tracker.run_tracker("tracks.nc")
+
+        # Check a RuntimeError is correctly raised for stitch_nodes
+        mock_subprocess_run.side_effect = partial(subprocess_fail_for, "StitchNodes")
+        with pytest.raises(
+            RuntimeError, match="StitchNodes failed with a non-zero exit code"
+        ):
+            tracker.run_tracker("tracks.nc")
+
 
 class TestTETrackerDetectNodes:
     """Tests for the detect_nodes functionality of TETracker."""
@@ -796,355 +1148,3 @@ class TestTETrackerStitchNodes:
             RuntimeError, match="StitchNodes failed with a non-zero exit code"
         ):
             tracker.stitch_nodes()
-
-    def _mock_tracks_data(self):
-        """Generate expected track data for a given track index and variable names."""
-        return {
-            "varnames": ["i", "j", "lon", "lat", "psl", "orog"],
-            "datenames": ["year", "month", "day", "hour"],
-            "tracks": [
-                [
-                    {
-                        "date": ["1950", "1", "1", "3"],
-                        "line": [
-                            "164",
-                            "332",
-                            "57.832031",
-                            "-12.070312",
-                            "1.005377e+05",
-                            "0.000000e+00",
-                        ],
-                    },
-                    {
-                        "date": ["1950", "1", "1", "6"],
-                        "line": [
-                            "163",
-                            "332",
-                            "57.480469",
-                            "-12.070312",
-                            "1.005820e+05",
-                            "0.000000e+00",
-                        ],
-                    },
-                ],
-                [
-                    {
-                        "date": ["1950", "1", "2", "0"],
-                        "line": [
-                            "843",
-                            "275",
-                            "296.542969",
-                            "-25.429688",
-                            "9.970388e+04",
-                            "2.633214e+02",
-                        ],
-                    },
-                    {
-                        "date": ["1950", "1", "2", "6"],
-                        "line": [
-                            "850",
-                            "266",
-                            "299.003906",
-                            "-27.539062",
-                            "9.989988e+04",
-                            "6.951086e+01",
-                        ],
-                    },
-                ],
-            ],
-        }
-
-    @pytest.fixture
-    def mock_gfdl_file(self, tmp_path):
-        """Fixture to create a mock GFDL file with two tracks."""
-        file_path = tmp_path / "tracks_out_gfdl.txt"
-        mock_data = self._mock_tracks_data()
-
-        content = ""
-        for track in mock_data["tracks"]:
-            # Add the start line for each track
-            content += "start\t{}\t{}\n".format(len(track), "\t".join(track[0]["date"]))
-            # Add the data lines for each observation in the track
-            content += "\n".join(
-                "\t{}\t{}".format("\t".join(obs["line"]), "\t".join(obs["date"]))
-                for obs in track
-            )
-            content += "\n"
-
-        file_path.write_text(content)
-        return str(file_path)
-
-    @pytest.fixture
-    def mock_csv_file(self, tmp_path):
-        """Fixture to create a mock CSV file with two tracks."""
-        file_path = tmp_path / "tracks_out_csv.txt"
-        mock_data = self._mock_tracks_data()
-
-        content = (
-            ",".join(["track_id"] + mock_data["datenames"] + mock_data["varnames"])
-            + "\n"
-        )
-        for i, track in enumerate(mock_data["tracks"]):
-            # Add the data lines for each observation in the track
-            content += "\n".join(
-                ",".join([str(i)] + obs["date"] + obs["line"]) for obs in track
-            )
-            content += "\n"
-
-        file_path.write_text(content)
-        return str(file_path)
-
-    @pytest.fixture
-    def mock_csvnohead_file(self, tmp_path):
-        """Fixture to create a mock CSV file without a header and with two tracks."""
-        file_path = tmp_path / "tracks_out_csvnohead.txt"
-        mock_data = self._mock_tracks_data()
-
-        content = ""
-        for i, track in enumerate(mock_data["tracks"]):
-            # Add the data lines for each observation in the track
-            content += "\n".join(
-                ",".join([str(i)] + obs["date"] + obs["line"]) for obs in track
-            )
-            content += "\n"
-
-        file_path.write_text(content)
-        return str(file_path)
-
-    @pytest.mark.parametrize(
-        "file_format, mock_file_fixture, expected_tracks",
-        [
-            (
-                "gfdl",
-                "mock_gfdl_file",
-                [
-                    {
-                        "track_id": 1,
-                        "observations": 2,
-                        "data": {
-                            "grid_i": [164, 163],
-                            "grid_j": [332, 332],
-                            "var_1": [57.832031, 57.480469],
-                            "var_2": [-12.070312, -12.070312],
-                            "var_3": [1.005377e05, 1.005820e05],
-                            "var_4": [0.0, 0.0],
-                        },
-                    },
-                    {
-                        "track_id": 2,
-                        "observations": 2,
-                        "data": {
-                            "grid_i": [843, 850],
-                            "grid_j": [275, 266],
-                            "var_1": [296.542969, 299.003906],
-                            "var_2": [-25.429688, -27.539062],
-                            "var_3": [9.970388e04, 9.989988e04],
-                            "var_4": [2.633214e02, 6.951086e01],
-                        },
-                    },
-                ],
-            ),
-            (
-                "csv",
-                "mock_csv_file",
-                [
-                    {
-                        "track_id": 0,
-                        "observations": 2,
-                        "data": {
-                            "grid_i": [164, 163],
-                            "grid_j": [332, 332],
-                            "lon": [57.832031, 57.480469],
-                            "lat": [-12.070312, -12.070312],
-                            "psl": [1.005377e05, 1.005820e05],
-                            "orog": [0.0, 0.0],
-                        },
-                    },
-                    {
-                        "track_id": 1,
-                        "observations": 2,
-                        "data": {
-                            "grid_i": [843, 850],
-                            "grid_j": [275, 266],
-                            "lon": [296.542969, 299.003906],
-                            "lat": [-25.429688, -27.539062],
-                            "psl": [9.970388e04, 9.989988e04],
-                            "orog": [2.633214e02, 6.951086e01],
-                        },
-                    },
-                ],
-            ),
-            (
-                "csvnohead",
-                "mock_csvnohead_file",
-                [
-                    {
-                        "track_id": 0,
-                        "observations": 2,
-                        "data": {
-                            "grid_i": [164, 163],
-                            "grid_j": [332, 332],
-                            "var_1": [57.832031, 57.480469],
-                            "var_2": [-12.070312, -12.070312],
-                            "var_3": [1.005377e05, 1.005820e05],
-                            "var_4": [0.0, 0.0],
-                        },
-                    },
-                    {
-                        "track_id": 1,
-                        "observations": 2,
-                        "data": {
-                            "grid_i": [843, 850],
-                            "grid_j": [275, 266],
-                            "var_1": [296.542969, 299.003906],
-                            "var_2": [-25.429688, -27.539062],
-                            "var_3": [9.970388e04, 9.989988e04],
-                            "var_4": [2.633214e02, 6.951086e01],
-                        },
-                    },
-                ],
-            ),
-        ],
-    )
-    def test_tracks(self, file_format, mock_file_fixture, expected_tracks, request):
-        """Test the tracks() method for different file formats with multiple tracks."""
-        mock_file = request.getfixturevalue(mock_file_fixture)
-        tracker = TETracker()
-        tracker.stitch_nodes_parameters.output_file = mock_file
-        tracker.stitch_nodes_parameters.out_file_format = file_format
-        tracks = tracker.tracks()
-
-        # Assertions
-        assert len(tracks) == len(expected_tracks)
-        for track, expected in zip(tracks, expected_tracks, strict=False):
-            assert track.track_id == expected["track_id"]
-            assert track.observations == expected["observations"]
-            for key, values in expected["data"].items():
-                assert track.data[key] == values
-
-    @pytest.mark.parametrize(
-        "file_format, mock_file_fixture",
-        [
-            ("gfdl", "mock_gfdl_file"),
-            ("csvnohead", "mock_csvnohead_file"),
-        ],
-    )
-    def test_tracks_header_names(self, file_format, mock_file_fixture, request) -> None:
-        """
-        Test the track header names are assigned correctly when not in file.
-
-        Checks that tracks() pulls correct variable names from DetectNodesParameters
-        when there is no header information in the file (gfdl, csvnohead).
-        """
-        # Use DetectNodesParameters to set the variable names
-        output_commands = [
-            TEOutputCommand(var="v1", operator="min", dist=0.0),
-            TEOutputCommand(var="v2", operator="min", dist=0.0),
-        ]
-        dn_params = DetectNodesParameters(output_commands=output_commands)
-        tracker = TETracker(dn_params)
-
-        # Read in the tracks
-        mock_file = request.getfixturevalue(mock_file_fixture)
-        tracker.stitch_nodes_parameters.output_file = mock_file
-        tracker.stitch_nodes_parameters.out_file_format = file_format
-        tracks = tracker.tracks()
-
-        # Check the track header names are correct
-        cols = ["timestamp", "grid_i", "grid_j", "lon", "lat", "v1", "v2"]
-        for track in tracks:
-            assert [*track.data.keys()] == cols
-
-    @pytest.mark.parametrize(
-        "file_format, mock_file_fixture",
-        [
-            ("gfdl", "mock_gfdl_file"),
-            ("csv", "mock_csv_file"),
-            ("csvnohead", "mock_csvnohead_file"),
-        ],
-    )
-    def test_to_netcdf_with_cf_read(
-        self, file_format, mock_file_fixture, request, tmp_path
-    ):
-        """Test the to_netcdf method by writing out and validating with cf.read."""
-        # Get the mock file and set up the TETracker
-        mock_file = request.getfixturevalue(mock_file_fixture)
-        sn_params = StitchNodesParameters(in_fmt=["lon", "lat", "v1", "v2"])
-        tracker = TETracker(stitch_nodes_parameters=sn_params)
-        tracker.stitch_nodes_parameters.output_file = mock_file
-        tracker.stitch_nodes_parameters.out_file_format = file_format
-
-        # Generate the NetCDF file
-        output_file_path = tmp_path / "output.nc"
-        output_file_name = str(output_file_path)
-        tracker.to_netcdf(output_file_name)
-
-        # Read the generated NetCDF file using cf-python
-        fields = cf.read(output_file_name)
-
-        # Validate the structure and content of the NetCDF file
-        assert len(fields) == 4  # Ensure 4 fields (lat, lon become coordinates)
-        trajectory_ids = fields[0].dimension_coordinate("trajectory").size
-        observation_count = fields[0].dimension_coordinate("observation").size
-
-        # Validate trajectory and observation dimensions
-        assert trajectory_ids == 2
-        assert observation_count == 2
-
-        # Validate key variables like time, latitude, and longitude
-        time_coord = fields[0].construct("time")
-        lat_coord = fields[0].construct("lat")
-        lon_coord = fields[0].construct("lon")
-
-        assert time_coord.shape == (trajectory_ids, observation_count)
-        assert lat_coord.shape == lon_coord.shape == (trajectory_ids, observation_count)
-
-    def test_run_tracker_success(self, mocker, tmp_path, mock_gfdl_file) -> None:
-        """Check run_tracker runs successfully."""
-        # Mock subprocess.run to simulate successful execution
-        mock_subprocess_run = mocker.patch("subprocess.run")
-        mock_subprocess_run.side_effect = mocker.MagicMock(
-            returncode=0, stdout="Success"
-        )
-
-        # Use the mock_gfdl_file to simulate the output of StitchNodes
-        sn_in_fmt = ["lon", "lat", "psl", "orog"]
-        sn_params = StitchNodesParameters(output_file=mock_gfdl_file, in_fmt=sn_in_fmt)
-        tracker = TETracker(stitch_nodes_parameters=sn_params)
-
-        # Check run_tracker runs without error and produces an output file
-        output_file = tmp_path / "tracks.nc"
-        tracker.run_tracker(output_file)
-        assert output_file.exists()
-
-    def test_run_tracker_failure(self, mocker) -> None:
-        """Check run_tracker propagates RuntimeError from detect/stitch_nodes."""
-        from functools import partial
-
-        # Create tracker object
-        tracker = TETracker()
-
-        # Mock subprocess.run and define a function to mock fail for a specific command
-        mock_subprocess_run = mocker.patch("subprocess.run")
-
-        def subprocess_fail_for(cmd, args, **_kwargs):
-            if args[0] == cmd:
-                raise subprocess.CalledProcessError(
-                    returncode=1, cmd=cmd, stderr="Error occurred"
-                )
-            mock_output = mocker.Mock(returncode=0, stdout="Success")
-            return mock_output
-
-        # Check a RuntimeError is correctly raised for detect_nodes
-        mock_subprocess_run.side_effect = partial(subprocess_fail_for, "DetectNodes")
-        with pytest.raises(
-            RuntimeError, match="DetectNodes failed with a non-zero exit code"
-        ):
-            tracker.run_tracker("tracks.nc")
-
-        # Check a RuntimeError is correctly raised for stitch_nodes
-        mock_subprocess_run.side_effect = partial(subprocess_fail_for, "StitchNodes")
-        with pytest.raises(
-            RuntimeError, match="StitchNodes failed with a non-zero exit code"
-        ):
-            tracker.run_tracker("tracks.nc")
