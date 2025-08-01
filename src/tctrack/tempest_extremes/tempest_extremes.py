@@ -483,8 +483,8 @@ class StitchNodesParameters:
 
     max_gap: int | str = 0
     """
-    The number of missing points allowed between candidates. Either as an integer or a
-    string, e.g. ``"24hr"``.
+    The number of missing points allowed between candidates, as an integer. Or as a
+    string for the maximum time (inclusive) between points, e.g. ``"24hr"``.
     """
 
     min_time: int | str = 1
