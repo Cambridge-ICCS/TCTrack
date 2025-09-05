@@ -13,3 +13,4 @@ For details of how to get involved with any of these see below.
    :caption: Developer information
 
    Guidelines for developers and contributors <guidelines>
+   Adding a New Tracking Algorithm <adding_algorithms>
