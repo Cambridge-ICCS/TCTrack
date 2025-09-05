@@ -87,4 +87,4 @@ people with respect and, more generally, to follow the guidelines articulated in
 
 Copyright &copy; ICCS
 
-*TCTrack* is distributed under the [MIT Licence](https://github.com/Cambridge-ICCS/TCTrack/blob/main/LICENSE).
+*TCTrack* is distributed under the [GPL 3](https://github.com/Cambridge-ICCS/TCTrack/blob/main/LICENSE).
