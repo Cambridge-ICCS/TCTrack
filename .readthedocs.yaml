@@ -15,6 +15,8 @@ python:
 # Set the OS, Python version and other tools you might need
 build:
   os: ubuntu-22.04
+  apt_packages:
+    - libudunits2-dev
   tools:
     python: "3.13"
 
