@@ -42,6 +42,7 @@ test = [
 ]
 lint = [
     "ruff",
+    "black<=25.1.0",  # Pin version due to blackdoc incompatibility. Remove once resolved
     "blackdoc",
     "mypy",
     "pytest",
@@ -50,6 +51,7 @@ doc = [
     "sphinx<8.2.0",  # Pin version due to autodoc type hints incompatibilities
     "sphinx_rtd_theme",
     "sphinx_autodoc_typehints",
+    "black<=25.1.0",  # Pin version due to blackdoc incompatibility. Remove once resolved
     "blackdoc",
 ]
 dev = [
