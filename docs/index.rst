@@ -22,3 +22,15 @@ Indices
 
 * :ref:`genindex`
 * :ref:`modindex`
+
+Acknowledgments
+===============
+
+This work was funded by a philantropic donation to the
+`University of Cambridge <https://www.cam.ac.uk/>`_ from
+`INIGO Insurance <https://inigoinsurance.com/>`_ as part of the InSPIRe project.
+
+.. image:: images/inigo_inspire.png
+   :width: 500px
+   :alt: The logo for the INIGO InSPIRe (INIGO Storm Prediction and Impact Research) project
+   :align: left
