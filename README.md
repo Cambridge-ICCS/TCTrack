@@ -88,3 +88,12 @@ people with respect and, more generally, to follow the guidelines articulated in
 Copyright &copy; ICCS
 
 *TCTrack* is distributed under the [GPL 3](https://github.com/Cambridge-ICCS/TCTrack/blob/main/LICENSE).
+
+
+## Acknowledgments
+
+This work was funded by a philantropic donation to the
+[University of Cambridge](https://www.cam.ac.uk/) from
+[INIGO Insurance](https://inigoinsurance.com/) as part of the InSPIRe project.
+
+<img src="docs/images/inigo_inspire.png"  width="355" align="left">
