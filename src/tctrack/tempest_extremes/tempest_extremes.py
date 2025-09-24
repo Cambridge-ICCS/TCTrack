@@ -14,144 +14,9 @@ from dataclasses import asdict, dataclass
 from typing import TypedDict
 
 import cf
-from cftime import Datetime360Day, DatetimeGregorian, DatetimeNoLeap, date2num
+from cftime import date2num
 
-
-class Track:
-    """
-    Represents a single Lagrangian cyclone track with metadata and data points.
-
-    Attributes
-    ----------
-    track_id : int
-        The unique identifier for the track.
-    observations : int
-        Number of points in the track.
-    calendar : str
-        The calendar type to use for datetime handling.
-        Options are "gregorian", "360_day", or "noleap".
-    start_time : Datetime360Day | DatetimeNoLeap | DatetimeGregorian
-        Start time of the track as a datetime or cftime object.
-    data : dict
-        Dict of data for various variables along the track.
-        Timestamp and other variables as supplied in file.
-    """
-
-    def __init__(
-        self,
-        track_id: int,
-        observations: int,
-        year: int,
-        month: int,
-        day: int,
-        hour: int,
-        calendar: str = "gregorian",
-    ):
-        """
-        Initialize a Track object.
-
-        Parameters
-        ----------
-        track_id : int
-            The unique identifier for the track.
-        observations : int
-            The number of points in the track.
-        year : int
-            The starting year of the track.
-        month : int
-            The starting month of the track (1-12).
-        day : int
-            The starting day of the track (1-31, depending on the calendar).
-        hour : int
-            The starting hour of the track (0-23).
-        calendar : str, optional
-            The calendar type to use for datetime handling. Options are
-            "gregorian", "360_day", or "noleap".
-        """
-        self.track_id = track_id
-        self.observations = observations
-        self.calendar = calendar
-        self.start_time = self._create_datetime(year, month, day, hour)
-        self.data: dict = {}
-
-    def _create_datetime(self, year: int, month: int, day: int, hour: int):
-        """
-        Create a cftime object based on the specified calendar attribute.
-
-        Parameters
-        ----------
-        year : int
-            year as an integer
-        month : int
-            month as an integer
-        day : int
-            day as an integer
-        hour : int
-            hour as an integer
-
-        Returns
-        -------
-        datetime : Datetime360Day | DatetimeNoLeap | DatetimeGregorian
-        """
-        if self.calendar == "360_day":
-            return Datetime360Day(year, month, day, hour)
-        elif self.calendar == "noleap":
-            return DatetimeNoLeap(year, month, day, hour)
-        elif self.calendar in {"gregorian", "standard"}:
-            return DatetimeGregorian(year, month, day, hour)
-        else:
-            msg = (
-                f"Unsupported calendar type: {self.calendar}. "
-                "Supported types are '360_day', 'noleap', or 'gregorian'/'standard'."
-            )
-            raise ValueError(msg)
-
-    def __str__(self) -> str:
-        """Improve the representation of Track to users."""
-        return (
-            f"Track(observations={self.observations}, "
-            f"start_time={self.start_time}, "
-            f"calendar={self.calendar}, "
-            f"data_points={len(self.data)})"
-        )
-
-    def add_point(self, year: int, month: int, day: int, hour: int, variables: dict):
-        """
-        Add a data point to the track.
-
-        Parameters
-        ----------
-        year : int
-          The year of the data point.
-        month : int
-          The month of the data point (1-12).
-        day : int
-          The day of the data point (1-31, depending on the calendar).
-        hour : int
-          The hour of the data point (0-23).
-        variables : dict
-            A dict containing any variables for the point as key : value pairs
-        """
-        # Validate variables as int or float
-        if not isinstance(variables, dict) or not all(
-            isinstance(value, (int, float)) for value in variables.values()
-        ):
-            msg = f"Invalid variable data: {variables}. Must be a dictionary with numeric values."
-            raise ValueError(msg)
-
-        timestamp = self._create_datetime(year, month, day, hour)
-
-        # Initialize data structure if empty
-        if not self.data:
-            self.data = {
-                "timestamp": [],
-                **{key: [] for key in variables},
-            }
-
-        # Append data to the respective lists
-        self.data["timestamp"].append(timestamp)
-        for key, value in variables.items():
-            self.data[key].append(value)
+from tctrack.core import Trajectory
 
 
 def lod_to_te(inputs: list[dict]) -> str:
@@ -276,11 +141,12 @@ class TEOutputCommand(TypedDict):
 
 
 class TEThreshold(TypedDict):
-    """Data required for a threshold filter for a track in StitchNodes.
+    """Data required for a threshold filter for a track trajectory in StitchNodes.
 
-    Any tracks that do not satisfy the threshold value for a given number of points will
-    be filtered out. Each condition is of the form "var,op,value,count" and conditions
-    are separated by ";".
+    Any storm track trajectories that do not satisfy the threshold value for a given
+    number of points will be filtered out.
+    Each condition is of the form "var,op,value,count" and multiple conditions are
+    separated by ";".
 
     See Also
     --------
@@ -295,7 +161,7 @@ class TEThreshold(TypedDict):
     Examples
     --------
     To add a filter requiring latitude ``"lat"`` to be less than 40 degrees for
-    10 or more points in each track:
+    10 or more points in each track trajectory:
 
     >>> TEThreshold(var="lat", op="<=", value=40, count=10)
     {"var": "lat", "op": "<=", "value": 40, "count": 10},
@@ -432,9 +298,9 @@ class StitchNodesParameters:
 
     output_file: str | None = None
     """
-    The output filename to save the tracks to. If ``None``, a temporary file will be
-    created for the lifetime of the :class:`TETracker` instance. Called "out" in
-    TempestExtremes.
+    The output filename to save the track trajectories to. If ``None``, a temporary file
+    will be created for the lifetime of the :class:`TETracker` instance.
+    Called "out" in TempestExtremes.
     """
 
     in_file: str | None = None
@@ -470,10 +336,10 @@ class StitchNodesParameters:
     """
 
     time_begin: str | None = None
-    """Starting date / time for stitching tracks. Earlier times will be ignored."""
+    """Starting date/time for stitching trajectories. Earlier times will be ignored."""
 
     time_end: str | None = None
-    """Ending date / time for stitching tracks. Later times will be ignored."""
+    """Ending date/time for stitching trajectories. Later times will be ignored."""
 
     max_sep: float = 5
     """
@@ -606,7 +472,7 @@ class TETracker:
         if dn_params.output_file is None:
             dn_params.output_file = self._tempdir.name + "/nodes.txt"
         if sn_params.output_file is None:
-            sn_params.output_file = self._tempdir.name + "/tracks.txt"
+            sn_params.output_file = self._tempdir.name + "/trajectories.txt"
 
         # Set StitchNodes input arguments according to DetectNodes parameters,
         # if not provided
@@ -896,12 +762,12 @@ class TETracker:
         run according to the parameters in the :attr:`stitch_nodes_parameters` attribute
         that were set when the :class:`TETracker` instance was created.
 
-        The output is a file containing the data for each node of each track. If
+        The output is a file containing the data for each node of each trajectory. If
         :attr:`~StitchNodesParameters.output_file` is ``None`` this will be a temporary
         file lasting the lifetime of the :class:`TETracker` instance. The format of the
         file depends on the :attr:`~StitchNodesParameters.out_file_format` parameter.
         The default ``"gfdl"`` output is a plain-text "nodefile" format which contains a
-        number of tracks, each of which in the form.
+        number of track trajectories, each of which in the form.
 
         .. code-block:: text
 
@@ -910,7 +776,7 @@ class TETracker:
                  ...
                  <i> <j> <var1> <var2> ... <year> <month> <day> <hour>
 
-        - ``N`` is the number of nodes in the track (and number of lines below header).
+        - ``N`` is number of nodes in the trajectory (and number of lines below header).
         - ``i``, ``j`` are grid indices.
         - ``var1``, ``var2``, etc., are scalar variables as defined by
           :attr:`~StitchNodesParameters.in_fmt` (typically, lon, lat, psl, orog).
@@ -946,36 +812,40 @@ class TETracker:
         sn_call_list = self._make_stitch_nodes_call()
         return self._run_te_process("StitchNodes", sn_call_list)
 
-    def tracks(self) -> list[Track]:
+    def trajectories(self) -> list[Trajectory]:
         """
-        Parse the tracks generated by Tempest Extremes into a list of :class:`Track`.
+        Parse outputs from Tempest Extremes to list of :class:`tctrack.core.Trajectory`.
 
         The file to be read and its properties are based on the values in the
         :attr:`stitch_nodes_parameters` attribute.
 
         Returns
         -------
-        list[Track]
-            A list of :class:`Track` objects.
+        list[Trajectory]
+            A list of :class:`tctrack.core.Trajectory` objects.
         """
         if self.stitch_nodes_parameters.out_file_format == "gfdl":
-            tracks = self._parse_tracks_gfdl(self.stitch_nodes_parameters.output_file)
+            trajectories = self._parse_trajectories_gfdl(
+                self.stitch_nodes_parameters.output_file
+            )
         elif self.stitch_nodes_parameters.out_file_format == "csv":
-            tracks = self._parse_tracks_csv(
+            trajectories = self._parse_trajectories_csv(
                 self.stitch_nodes_parameters.output_file, has_header=True
             )
         elif self.stitch_nodes_parameters.out_file_format == "csvnohead":
-            tracks = self._parse_tracks_csv(
+            trajectories = self._parse_trajectories_csv(
                 self.stitch_nodes_parameters.output_file, has_header=False
             )
-        return tracks
+        return trajectories
 
     @staticmethod
     def _parse_gfdl_line_to_point(
         line: list[str], variable_names: list[str] | None = None
     ) -> tuple[int, int, int, int, dict[str, int | float]]:
         """
-        Parse a line from StitchNodes gfdl output into a :class:`Track` data point.
+        Parse line from StitchNodes gfdl output into a trajectory data point.
+
+        Data point format is that expected by a :class:`tctrack.core.Trajectory`.
 
         Parameters
         ----------
@@ -1008,9 +878,9 @@ class TETracker:
         year, month, day, hour = map(int, line[-4:])
         return year, month, day, hour, return_vars
 
-    def _parse_tracks_gfdl(self, file_path):
+    def _parse_trajectories_gfdl(self, file_path):
         """
-        Parse tracks from a gfdl file.
+        Parse track trajectories from a gfdl file.
 
         Parameters
         ----------
@@ -1019,11 +889,11 @@ class TETracker:
 
         Returns
         -------
-        list[Track]
-            A list of :class:`Track` objects.
+        list[Trajectory]
+            A list of :class:`tctrack.core.Trajectory` objects.
         """
-        tracks = {}
-        current_track_id = 0  # Initialize track ID
+        trajectories = {}
+        current_trajectory_id = 0  # Initialize trajectory ID
 
         # Get variable names from in_fmt
         var_names = self.stitch_nodes_parameters.in_fmt or []
@@ -1032,13 +902,14 @@ class TETracker:
             for line in file:
                 items = line.split()
                 if items[0] == "start":
-                    # Start of new track, extract metadata and add Track to dict
-                    current_track_id += 1
+                    # Start of new trajectory.
+                    # Extract metadata and add Trajectory to dict
+                    current_trajectory_id += 1
                     observations = int(items[1])
                     year, month, day, hour = map(int, items[2:6])
 
-                    tracks[current_track_id] = Track(
-                        current_track_id,
+                    trajectories[current_trajectory_id] = Trajectory(
+                        current_trajectory_id,
                         observations,
                         year,
                         month,
@@ -1047,17 +918,17 @@ class TETracker:
                         calendar=self.stitch_nodes_parameters.caltype,
                     )
 
-                # Continue processing ongoing track
+                # Continue processing ongoing trajectory
                 else:
-                    tracks[current_track_id].add_point(
+                    trajectories[current_trajectory_id].add_point(
                         *self._parse_gfdl_line_to_point(items, var_names)
                     )
 
-        return list(tracks.values())
+        return list(trajectories.values())
 
-    def _parse_tracks_csv(self, file_path, has_header=False):
+    def _parse_trajectories_csv(self, file_path, has_header=False):
         """
-        Generalized function to parse tracks from a csv file with or without header.
+        Generalized function to parse trajectories from csv file with/without header.
 
         Parameters
         ----------
@@ -1068,10 +939,10 @@ class TETracker:
 
         Returns
         -------
-        list[Track]
-            A list of :class:`Track` objects.
+        list[Trajectory]
+            A list of :class:`tctrack.core.Trajectory` objects.
         """
-        tracks = {}
+        trajectories = {}
 
         with open(file_path, "r") as file:
             reader = (
@@ -1082,7 +953,7 @@ class TETracker:
             for row in reader:
                 if has_header:
                     # Read from dict extracting variable names from keys/header
-                    track_id = int(row["track_id"])
+                    trajectory_id = int(row["trajectory_id"])
                     year, month, day, hour = map(
                         int, (row["year"], row["month"], row["day"], row["hour"])
                     )
@@ -1093,7 +964,7 @@ class TETracker:
                             for key, value in row.items()
                             if key
                             not in {
-                                "track_id",
+                                "trajectory_id",
                                 "year",
                                 "month",
                                 "day",
@@ -1105,7 +976,7 @@ class TETracker:
                     )
                 else:
                     # Read from csv assuming: id, y, m, d, h, i, j, var1, ..., varn
-                    track_id = int(row[0])
+                    trajectory_id = int(row[0])
                     year, month, day, hour = map(int, row[1:5])
                     variables_dict = {"grid_i": int(row[5]), "grid_j": int(row[6])}
                     # Get variable names from in_fmt
@@ -1119,9 +990,9 @@ class TETracker:
                         }
                     )
 
-                if track_id not in tracks:
-                    tracks[track_id] = Track(
-                        track_id=track_id,
+                if trajectory_id not in trajectories:
+                    trajectories[trajectory_id] = Trajectory(
+                        trajectory_id=trajectory_id,
                         observations=0,
                         year=year,
                         month=month,
@@ -1130,10 +1001,12 @@ class TETracker:
                         calendar=self.stitch_nodes_parameters.caltype,
                     )
 
-                tracks[track_id].add_point(year, month, day, hour, variables_dict)
-                tracks[track_id].observations += 1
+                trajectories[trajectory_id].add_point(
+                    year, month, day, hour, variables_dict
+                )
+                trajectories[trajectory_id].observations += 1
 
-        return list(tracks.values())
+        return list(trajectories.values())
 
     def _read_variable_metadata(self) -> None:
         """Read in the metadata from the input files for each variable.
@@ -1211,9 +1084,9 @@ class TETracker:
 
     def to_netcdf(self, output_file: str) -> None:
         """
-        Write tracks from StitchNodes output to CF-compliant netCDF trajectory file.
+        Write StitchNodes output to CF-compliant NetCDF trajectory file.
 
-        Reads in tracks based on the parameters set in the
+        Reads in trajectories based on the parameters set in the
         :attr:`stitch_nodes_parameters` attribute and writes them to a CF-convention
         compliant NetCDF trajectory file using cf-python.
 
@@ -1241,12 +1114,12 @@ class TETracker:
         if not self._variable_metadata:
             self._read_variable_metadata()
 
-        # Read in the tracks from file generated by StitchNodes as list of Track
-        tracks = self.tracks()
+        # Read in the trajectories from StitchNodes output file as list[Trajectory]
+        trajectories = self.trajectories()
 
         # Determine dimensions
-        num_trajectories = len(tracks)
-        max_obs = max(track.observations for track in tracks)
+        num_trajectories = len(trajectories)
+        max_obs = max(trajectory.observations for trajectory in trajectories)
 
         # Define domain axes and coords based on number of trajectories and max lengths
         domain_axis_traj = cf.DomainAxis(size=num_trajectories)
@@ -1277,14 +1150,14 @@ class TETracker:
         time_data = cf.Data(
             [
                 date2num(
-                    track.data["timestamp"],
+                    trajectory.data["timestamp"],
                     units="days since 1970-01-01",
-                    calendar=tracks[
+                    calendar=trajectories[
                         0
-                    ].calendar,  # Assuming all tracks use the same calendar
+                    ].calendar,  # Assuming all trajectories use the same calendar
                 ).tolist()
-                + [time_fill] * (max_obs - track.observations)
-                for track in tracks
+                + [time_fill] * (max_obs - trajectory.observations)
+                for trajectory in trajectories
             ],
             fill_value=time_fill,
         )
@@ -1293,15 +1166,17 @@ class TETracker:
             properties={
                 "standard_name": "time",
                 "long_name": "time",
-                "units": cf.Units("days since 1970-01-01", calendar=tracks[0].calendar),
+                "units": cf.Units(
+                    "days since 1970-01-01", calendar=trajectories[0].calendar
+                ),
             },
         )
 
         lat_lon_fill = -999.9
         lat_data = cf.Data(
             [
-                track.data["lat"] + [None] * (max_obs - track.observations)
-                for track in tracks
+                trajectory.data["lat"] + [None] * (max_obs - trajectory.observations)
+                for trajectory in trajectories
             ],
             fill_value=lat_lon_fill,
         )
@@ -1316,8 +1191,8 @@ class TETracker:
 
         lon_data = cf.Data(
             [
-                track.data["lon"] + [None] * (max_obs - track.observations)
-                for track in tracks
+                trajectory.data["lon"] + [None] * (max_obs - trajectory.observations)
+                for trajectory in trajectories
             ],
             fill_value=lat_lon_fill,
         )
@@ -1330,10 +1205,10 @@ class TETracker:
             },
         )
 
-        # Create a cf.Field for each non-coordinate variable in Track.data
-        # Assumes all tracks contain the same variables
+        # Create a cf.Field for each non-coordinate variable in Trajectory.data
+        # Assumes all trajectories contain the same variables
         fields = []
-        for variable in tracks[0].data:
+        for variable in trajectories[0].data:
             if variable in {"timestamp", "lat", "lon"}:
                 continue
 
@@ -1359,8 +1234,9 @@ class TETracker:
             field_fill = -1e10
             variable_data = cf.Data(
                 [
-                    track.data[variable] + [None] * (max_obs - track.observations)
-                    for track in tracks
+                    trajectory.data[variable]
+                    + [None] * (max_obs - trajectory.observations)
+                    for trajectory in trajectories
                 ],
                 fill_value=field_fill,
             )
@@ -1374,16 +1250,16 @@ class TETracker:
         cf.write(fields, output_file)  # type: ignore[operator]
 
     def run_tracker(self, output_file: str):
-        """Run the TempestExtremes tracker to obtain the tropical cyclone tracks.
+        """Run TempestExtremes tracker to obtain tropical cyclone track trajectories.
 
         This first runs :meth:`detect_nodes` to get TC candidates at each time. Then
-        these are combined into tracks using :meth:`stitch_nodes`. The track output
-        is then saved as a CF-compliant trajectory netCDF file.
+        these are combined into trajectories using :meth:`stitch_nodes`.
+        The output is then saved as a CF-compliant NetCDF trajectory file.
 
         Arguments
         ---------
         output_file : str
-            Filename to which the tropical cyclone tracks are saved.
+            Filename to which the tropical cyclone trajectories are saved.
 
         Raises
         ------
