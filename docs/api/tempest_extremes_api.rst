@@ -10,11 +10,6 @@ For an overview of the functionalities, installation, and usage see the
 
 .. py:module:: tctrack.tempest_extremes
 
-.. autoclass:: Track
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 .. autoclass:: TETracker
    :members:
    :undoc-members:
