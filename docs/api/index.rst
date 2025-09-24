@@ -5,4 +5,5 @@ API Documentation
    :maxdepth: 2
    :caption: Components
 
+   Core Utilities <core_api>
    Tempest Extremes <tempest_extremes_api>
