@@ -10,3 +10,8 @@ They are generic, and not tied to any particular tracking code or algorithm.
    :members:
    :undoc-members:
    :show-inheritance:
+
+.. autoclass:: TCTrackerParameters
+   :members:
+   :undoc-members:
+   :show-inheritance:

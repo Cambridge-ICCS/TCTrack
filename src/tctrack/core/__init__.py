@@ -3,7 +3,11 @@
 from .core import (
     Trajectory,
 )
+from .tracker import (
+    TCTrackerParameters,
+)
 
 __all__ = [
+    "TCTrackerParameters",
     "Trajectory",
 ]

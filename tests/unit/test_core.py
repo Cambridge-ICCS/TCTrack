@@ -1,12 +1,40 @@
 """Unit tests for the TCTrack Core Python package."""
 
 import re
+from dataclasses import dataclass
 
 import numpy as np
 import pytest
 from cftime import Datetime360Day, DatetimeGregorian, DatetimeNoLeap
 
-from tctrack.core import Trajectory
+from tctrack.core import TCTrackerParameters, Trajectory
+
+
+class TestTCTrackerParameters:
+    """Tests for the TCTrackerParameters base class."""
+
+    @dataclass(repr=False)
+    class ExampleParameters(TCTrackerParameters):
+        """Concrete implementation of TCTrackerParameters for testing purposes."""
+
+        param_a: int
+        param_b: str
+
+    def test_str_representation(self):
+        """Test the string representation of TCTrackerParameters."""
+        params = self.ExampleParameters(param_a=42, param_b="test")
+        expected_output = (
+            "ExampleParameters(\n\tparam_a \t = 42\n\tparam_b \t = test\n)"
+        )
+        assert str(params) == expected_output
+
+    def test_repr_representation(self):
+        """Test the repr representation of TCTrackerParameters."""
+        params = self.ExampleParameters(param_a=42, param_b="test")
+        expected_output = (
+            "ExampleParameters(\n\tparam_a \t = 42\n\tparam_b \t = test\n)"
+        )
+        assert repr(params) == expected_output
 
 
 class TestTrajectory:

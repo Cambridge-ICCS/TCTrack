@@ -10,13 +10,13 @@ References
 import csv
 import subprocess
 import tempfile
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from typing import TypedDict
 
 import cf
 from cftime import date2num
 
-from tctrack.core import Trajectory
+from tctrack.core import TCTrackerParameters, Trajectory
 
 
 def lod_to_te(inputs: list[dict]) -> str:
@@ -185,8 +185,8 @@ class TEThreshold(TypedDict):
     """
 
 
-@dataclass
-class DetectNodesParameters:
+@dataclass(repr=False)
+class DetectNodesParameters(TCTrackerParameters):
     """
     Dataclass containing values used by the DetectNodes operation of TE.
 
@@ -278,16 +278,9 @@ class DetectNodesParameters:
     as a list of separate :class:`TEOutputCommand` criteria.
     """
 
-    def __str__(self) -> str:
-        """Improve the representation of DetectNodesParameters to users."""
-        attributes = "\n\t".join(
-            f"{key} \t = {value}" for key, value in asdict(self).items()
-        )
-        return f"DetectNodesParameters(\n\t{attributes}\n)"
 
-
-@dataclass
-class StitchNodesParameters:
+@dataclass(repr=False)
+class StitchNodesParameters(TCTrackerParameters):
     """Dataclass containing values used by the StitchNodes operation of TE.
 
     References
@@ -409,13 +402,6 @@ class StitchNodesParameters:
                 "Allowed values are 'standard', 'noleap', or '360_day'"
             )
             raise ValueError(msg)
-
-    def __str__(self) -> str:
-        """Improve the representation to users."""
-        attributes = "\n\t".join(
-            f"{key} \t = {value}" for key, value in asdict(self).items()
-        )
-        return f"StitchNodesParameters(\n\t{attributes}\n)"
 
 
 class TETracker:
