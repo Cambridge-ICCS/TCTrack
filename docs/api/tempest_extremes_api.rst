@@ -14,11 +14,13 @@ For an overview of the functionalities, installation, and usage see the
    :members:
    :undoc-members:
    :show-inheritance:
+   :inherited-members:
 
 .. autoclass:: DetectNodesParameters
    :members:
    :undoc-members:
    :show-inheritance:
+   :inherited-members:
 
 .. autoclass:: StitchNodesParameters
    :members:

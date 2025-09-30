@@ -14,9 +14,8 @@ from dataclasses import dataclass
 from typing import TypedDict
 
 import cf
-from cftime import date2num
 
-from tctrack.core import TCTrackerParameters, Trajectory
+from tctrack.core import TCTracker, TCTrackerParameters, Trajectory
 
 
 def lod_to_te(inputs: list[dict]) -> str:
@@ -404,7 +403,7 @@ class StitchNodesParameters(TCTrackerParameters):
             raise ValueError(msg)
 
 
-class TETracker:
+class TETracker(TCTracker):
     """Class containing bindings to the Tempest Extremes code.
 
     Attributes
@@ -416,7 +415,6 @@ class TETracker:
     """
 
     # Private attributes
-    _variable_metadata: dict
     _tempdir: tempfile.TemporaryDirectory
 
     def __init__(
@@ -994,13 +992,14 @@ class TETracker:
 
         return list(trajectories.values())
 
-    def _read_variable_metadata(self) -> None:
-        """Read in the metadata from the input files for each variable.
+    def read_variable_metadata(self) -> None:
+        """
+        Read in the metadata from the input files for each variable.
 
         Reads metadata for each variable listed in
         :attr:`detect_nodes_parameters.output_commands` from the input NetCDF files
         defined in :attr:`detect_nodes_parameters.in_data` (matching the NetCDF variable
-        name). These will be stored in the :attr:`_variable_metadata` attribute as a
+        name). These will be stored in the :attr:`variable_metadata` attribute as a
         dictionary of dictionaries. This will be called from the :meth:`to_netcdf`
         method.
 
@@ -1011,14 +1010,15 @@ class TETracker:
 
         Examples
         --------
-        To read in the metadata for ``psl`` from ``inputs.nc``
+        To read in the metadata for ``psl`` from ``inputs.nc``:
+
         >>> dn_params = DetectNodesParameters(
         >>>     in_data=["inputs.nc"],
         >>>     output_commands=[TEOutputCommand(var="psl", operator="min", dist=0)],
         >>> )
         >>> tracker = TETracker(dn_params, sn_params)
-        >>> tracker._read_variable_metadata()
-        >>> tracker._variable_metadata
+        >>> tracker.read_variable_metadata()
+        >>> tracker.variable_metadata
         {
             "psl": {
                 "standard_name": "air_pressure_at_sea_level",
@@ -1067,173 +1067,6 @@ class TETracker:
                     qualifier = {"comment": f"great circle of radius {dist} degrees"}
                     cell_method = cf.CellMethod("area", method, qualifiers=qualifier)
                 self._variable_metadata[var_name]["cell_method"] = cell_method
-
-    def to_netcdf(self, output_file: str) -> None:
-        """
-        Write StitchNodes output to CF-compliant NetCDF trajectory file.
-
-        Reads in trajectories based on the parameters set in the
-        :attr:`stitch_nodes_parameters` attribute and writes them to a CF-convention
-        compliant NetCDF trajectory file using cf-python.
-
-        Parameters
-        ----------
-        output_file: str
-            filename for the output netCDF file
-
-        References
-        ----------
-        `CF-Conventions v1.1 - H.4. Trajectory Data <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.11/cf-conventions.html#trajectory-data>`_
-        `cf-python documentation <https://ncas-cms.github.io/cf-python/index.html>`_
-
-        Examples
-        --------
-        To set the parameters, instantiate a :class:`TETracker` instance, run
-        StitchNodes, and then save the results to a CF-compliant trajectory file:
-
-        >>> my_params = StitchNodesParameters(...)
-        >>> my_tracker = TETracker(stitch_nodes_parameters=my_params)
-        >>> TETracker.stitch_nodes()
-        >>> TETracker.to_netcdf("my_netcdf_file.nc")
-        """
-        # Read in the variable metadata from input files if not done already
-        if not self._variable_metadata:
-            self._read_variable_metadata()
-
-        # Read in the trajectories from StitchNodes output file as list[Trajectory]
-        trajectories = self.trajectories()
-
-        # Determine dimensions
-        num_trajectories = len(trajectories)
-        max_obs = max(trajectory.observations for trajectory in trajectories)
-
-        # Define domain axes and coords based on number of trajectories and max lengths
-        domain_axis_traj = cf.DomainAxis(size=num_trajectories)
-        domain_axis_obs = cf.DomainAxis(size=max_obs)
-        domain_axis_traj.nc_set_dimension("trajectory")
-        domain_axis_obs.nc_set_dimension("observation")
-
-        dim_traj = cf.DimensionCoordinate(
-            data=cf.Data(range(num_trajectories)),
-            properties={
-                "standard_name": "trajectory",
-                "cf_role": "trajectory_id",
-                "long_name": "trajectory index",
-            },
-        )
-
-        dim_obs = cf.DimensionCoordinate(
-            data=cf.Data(range(max_obs)),
-            properties={
-                "standard_name": "observation",
-                "long_name": "observation index",
-            },
-        )
-
-        # Create auxiliary coordinates for time, latitude, longitude
-        # Convert time from cftime to num format to write out via cf
-        time_fill = -1e10
-        time_data = cf.Data(
-            [
-                date2num(
-                    trajectory.data["timestamp"],
-                    units="days since 1970-01-01",
-                    calendar=trajectories[
-                        0
-                    ].calendar,  # Assuming all trajectories use the same calendar
-                ).tolist()
-                + [time_fill] * (max_obs - trajectory.observations)
-                for trajectory in trajectories
-            ],
-            fill_value=time_fill,
-        )
-        time_coord = cf.AuxiliaryCoordinate(
-            data=time_data,
-            properties={
-                "standard_name": "time",
-                "long_name": "time",
-                "units": cf.Units(
-                    "days since 1970-01-01", calendar=trajectories[0].calendar
-                ),
-            },
-        )
-
-        lat_lon_fill = -999.9
-        lat_data = cf.Data(
-            [
-                trajectory.data["lat"] + [None] * (max_obs - trajectory.observations)
-                for trajectory in trajectories
-            ],
-            fill_value=lat_lon_fill,
-        )
-        lat_coord = cf.AuxiliaryCoordinate(
-            data=lat_data,
-            properties={
-                "standard_name": "lat",
-                "long_name": "latitude",
-                "units": "degrees_north",
-            },
-        )
-
-        lon_data = cf.Data(
-            [
-                trajectory.data["lon"] + [None] * (max_obs - trajectory.observations)
-                for trajectory in trajectories
-            ],
-            fill_value=lat_lon_fill,
-        )
-        lon_coord = cf.AuxiliaryCoordinate(
-            data=lon_data,
-            properties={
-                "standard_name": "lon",
-                "long_name": "longitude",
-                "units": "degrees_east",
-            },
-        )
-
-        # Create a cf.Field for each non-coordinate variable in Trajectory.data
-        # Assumes all trajectories contain the same variables
-        fields = []
-        for variable in trajectories[0].data:
-            if variable in {"timestamp", "lat", "lon"}:
-                continue
-
-            # Define the variable metadata
-            properties = self._variable_metadata.get(variable, {})
-            properties["featureType"] = "trajectory"
-            # Remove the cell method (if there is one) to add separately
-            cell_method = properties.pop("cell_method", None)
-
-            field = cf.Field(properties=properties)
-
-            if cell_method is not None:
-                field.set_construct(cell_method)
-
-            axis_traj = field.set_construct(domain_axis_traj)
-            axis_obs = field.set_construct(domain_axis_obs)
-            field.set_construct(dim_traj, axes=(axis_traj,))
-            field.set_construct(dim_obs, axes=(axis_obs,))
-            field.set_construct(time_coord, axes=(axis_traj, axis_obs))
-            field.set_construct(lat_coord, axes=(axis_traj, axis_obs))
-            field.set_construct(lon_coord, axes=(axis_traj, axis_obs))
-
-            field_fill = -1e10
-            variable_data = cf.Data(
-                [
-                    trajectory.data[variable]
-                    + [None] * (max_obs - trajectory.observations)
-                    for trajectory in trajectories
-                ],
-                fill_value=field_fill,
-            )
-
-            # Add the variable coordinate to the field
-            field.set_data(variable_data, axes=(axis_traj, axis_obs))
-
-            fields.append(field)
-
-        # Write to file
-        cf.write(fields, output_file)  # type: ignore[operator]
 
     def run_tracker(self, output_file: str):
         """Run TempestExtremes tracker to obtain tropical cyclone track trajectories.

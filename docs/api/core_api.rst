@@ -11,6 +11,11 @@ They are generic, and not tied to any particular tracking code or algorithm.
    :undoc-members:
    :show-inheritance:
 
+.. autoclass:: TCTracker
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 .. autoclass:: TCTrackerParameters
    :members:
    :undoc-members:

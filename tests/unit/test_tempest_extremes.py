@@ -188,8 +188,8 @@ class TestTETracker:
             output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
         )
         tracker = TETracker(dn_params)
-        tracker._read_variable_metadata()  # noqa: SLF001
-        metadata = tracker._variable_metadata  # noqa: SLF001
+        tracker.read_variable_metadata()
+        metadata = tracker.variable_metadata
         assert "psl" in metadata
         for key, value in properties.items():
             assert metadata["psl"][key] == value
@@ -201,7 +201,7 @@ class TestTETracker:
         assert metadata["psl"]["cell_method"] == expected_cell_method
 
     def test_te_tracker_variable_metadata_failure(self, netcdf_psl_file) -> None:
-        """Check _read_variable_metadata raises ValueError for invalid inputs."""
+        """Check read_variable_metadata raises ValueError for invalid inputs."""
         file_name = netcdf_psl_file({})
         dn_params = DetectNodesParameters(
             in_data=[file_name],
@@ -212,18 +212,18 @@ class TestTETracker:
             ValueError,
             match="Variable 'invalid' not found in input files.",
         ):
-            tracker._read_variable_metadata()  # noqa: SLF001
+            tracker.read_variable_metadata()
 
     def test_te_tracker_variable_metadata_unknown(self, netcdf_psl_file) -> None:
-        """Check _read_variable_metadata for missing metadata."""
+        """Check read_variable_metadata for missing metadata."""
         file_name = netcdf_psl_file({})
         dn_params = DetectNodesParameters(
             in_data=[file_name],
             output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
         )
         tracker = TETracker(dn_params)
-        tracker._read_variable_metadata()  # noqa: SLF001
-        metadata = tracker._variable_metadata  # noqa: SLF001
+        tracker.read_variable_metadata()
+        metadata = tracker.variable_metadata
         assert "psl" in metadata
         assert metadata["psl"]["standard_name"] == "psl"
         assert metadata["psl"]["long_name"] == "psl"
