@@ -34,7 +34,7 @@ class TRACKTracker(TCTracker):
 
     Attributes
     ----------
-    track_parameters : TRACKParameters
+    parameters : TRACKParameters
         Class containing the parameters for the TRACK algorithm(s)
     """
 
@@ -45,21 +45,21 @@ class TRACKTracker(TCTracker):
 
     def __init__(
         self,
-        track_parameters: TRACKParameters | None = None,
+        parameters: TRACKParameters | None = None,
     ):
         """
         Construct the TRACK class.
 
         Parameters
         ----------
-        track_parameters : TRACKParameters
+        parameters : TRACKParameters
             Class containing the parameters for the TRACK algorithm(s)
             Defaults to the default values in TRACKParameters Class
         """
-        if track_parameters is not None:
-            self.track_parameters: TRACKParameters = track_parameters
+        if parameters is not None:
+            self.parameters: TRACKParameters = parameters
         else:
-            self.track_parameters = TRACKParameters()
+            self.parameters = TRACKParameters()
 
         self._variable_metadata = {}
 
@@ -300,11 +300,11 @@ class TRACKTracker(TCTracker):
         inputs.append("n") # Don't check for and merge split tracks
         inputs.append("8") # Min number of points in a track
         inputs.append("1000000") # Max number of points in a track
-        if (self.track_parameters.filter_distance is None):
+        if (self.parameters.filter_distance is None):
             inputs.append("n") # Don't filter tracks according to distance
         else:
             inputs.append("y") # Filter tracks according to distance
-            inputs.append(self.track_parameters.filter_distance)
+            inputs.append(self.parameters.filter_distance)
             inputs.append("s") # Distance between start and finish (or along track 't')
         inputs.append("n") # Don't filter by system strength
         inputs.append("n") # Don't filter by propogation direction
@@ -394,8 +394,8 @@ class TRACKTracker(TCTracker):
 
         This will make a system call out to TRACK (provided it has been installed as an
         external dependency) to perform the detection and stitching of tropical cyclone
-        trajectories. according to the parameters in the :attr:`track_parameters`
-        attribute that were set when the :class:`TRACKTracker` instance was created.
+        trajectories according to the :attr:`parameters` attribute that was set when the
+        :class:`TRACKTracker` instance was created.
 
         TODO: Detail the output format
 
@@ -421,7 +421,7 @@ class TRACKTracker(TCTracker):
         DetectNodes:
 
         >>> my_params = TRACKParameters(...)
-        >>> my_tracker = TRACKTracker(track_params=my_params)
+        >>> my_tracker = TRACKTracker(parameters=my_params)
         >>> result = my_tracker.tracking()
         """
 
