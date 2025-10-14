@@ -5,9 +5,11 @@ References
 - TRACK code on the Reading University GitLab: https://gitlab.act.reading.ac.uk/track/track
 """
 
+import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 
 from tctrack.core import TCTracker, TCTrackerParameters, Trajectory
 
@@ -16,8 +18,13 @@ from tctrack.core import TCTracker, TCTrackerParameters, Trajectory
 class TRACKParameters(TCTrackerParameters):
     """Dataclass containing values for parameters used by TRACK."""
 
-    in_data: list[str] | None = None
-    """List of strings of NetCDF input files."""
+    base_dir: str
+    """The filepath to the directory where TRACK is installed."""
+
+    input_file: str
+    """
+    NetCDF input file containing the north and easterly wind speeds on a Gaussian grid.
+    """
 
     output_file: str | None = None
     """
@@ -27,6 +34,27 @@ class TRACKParameters(TCTrackerParameters):
 
     filter_distance: float | None = None
     """The minimum start-to-end distance which trajectories must travel."""
+
+    caltype: str = "standard"
+    """
+    The type of calendar to use. Options are ``"standard"`` (365 days with leap years),
+    ``"noleap"``, ``"360_day"``.
+    """
+
+    binary: str = "track.run"
+    """The filename of the main TRACK compiled binary."""
+
+    file_extension: str = "track_out"
+    """
+    The file extension to use for TRACK output files. This cannot be the same as part of
+    the /path/to/TRACK/outdir.
+    """
+
+    vorticity_file: str = "vor850.dat"
+    """The filename for the vorticity intermediate output file."""
+
+    filt_vorticity_file: str = "vor850_T63.dat"
+    """The filename for the spectral filtered vorticity intermediate output file."""
 
 
 class TRACKTracker(TCTracker):
@@ -40,8 +68,6 @@ class TRACKTracker(TCTracker):
 
     # Private attributes
     _tempdir: tempfile.TemporaryDirectory
-    _track_exe: str
-    _track_fext: str
 
     def __init__(
         self,
@@ -62,6 +88,11 @@ class TRACKTracker(TCTracker):
             self.parameters = TRACKParameters()
 
         self._variable_metadata = {}
+
+        # Set up files in the TRACK directory (if not already)
+        base_dir = self.parameters.base_dir
+        shutil.copy(base_dir + "/data/zone.dat", base_dir + "/data/zone.dat0")
+        shutil.copy(base_dir + "/data/adapt.dat", base_dir + "/data/adapt.dat0")
 
     def _get_initialisation_inputs(self, inputs: list[str]):
         """Adds "initialisation" inputs in common between tracking and filter_tracks.
@@ -113,6 +144,8 @@ class TRACKTracker(TCTracker):
         list[str]
             The list of input parameters.
         """
+        params = self.parameters
+
         inputs = []
 
         # Initialisation
@@ -150,7 +183,8 @@ class TRACKTracker(TCTracker):
         inputs.append("1") # V frame step (?)
         inputs.append("10000") # V end frame id
         inputs.append("y") # Continue despite missing data
-        inputs.append("indat/vor850.dat") # Output file name
+        output_file = params.base_dir + "/indat/" + params.vorticity_file
+        inputs.append(output_file)  # Output file name
         inputs.append("0") # Smoopy interpolation - no spherical continuity
         inputs.append("10") # 10 wrap around (x?)
         inputs.append("0") # No smoothing - interpolation only
@@ -284,6 +318,8 @@ class TRACKTracker(TCTracker):
         list[str]
             The list of input parameters.
         """
+        params = self.parameters
+
         inputs = []
 
         inputs.append("n") # No country map
@@ -294,17 +330,19 @@ class TRACKTracker(TCTracker):
         inputs.append("n") # Don't use an existing combined file
         inputs.append("1") # Use matching
         inputs.append("1") # Number of batches
-        inputs.append("<objout.new file>") # object file to use
-        inputs.append("<tdump file>") # track file to use
+        objout_file = params.base_dir + "/outdat/objout.new." + params.file_extension
+        tdump_file = params.base_dir + "/outdat/tdump." + params.file_extension
+        inputs.append(objout_file)  # object file to use
+        inputs.append(tdump_file)  # track file to use
         inputs.append("1") # First frame number
         inputs.append("n") # Don't check for and merge split tracks
         inputs.append("8") # Min number of points in a track
         inputs.append("1000000") # Max number of points in a track
-        if (self.parameters.filter_distance is None):
+        if params.filter_distance is None:
             inputs.append("n") # Don't filter tracks according to distance
         else:
             inputs.append("y") # Filter tracks according to distance
-            inputs.append(self.parameters.filter_distance)
+            inputs.append(params.filter_distance)
             inputs.append("s") # Distance between start and finish (or along track 't')
         inputs.append("n") # Don't filter by system strength
         inputs.append("n") # Don't filter by propogation direction
@@ -317,17 +355,16 @@ class TRACKTracker(TCTracker):
 
         return inputs
 
-    def _run_track_process(self, command_name: str, command_list: list[str], inputs:
-                           list[str]):
+    def _run_track_process(self, command_name: str, input_file: str, inputs: list[str]):
         """Run a TRACK command.
 
         Parameters
         ----------
         command_name : str
             The name of the command to be used in the log and error reporting.
-        command_list : list[str]
-            The list of strings that produce the command as given by
-            other private class methods.
+        input_file : str
+            The filename containing the input data for the command. The file should
+            first be copied into the 'indat' directory in the TRACK root directory.
         inputs : list[str]
             The list of input parameters to pass to the TRACK program.
 
@@ -344,8 +381,18 @@ class TRACKTracker(TCTracker):
             If TRACK executable returns a non-zero exit code.
         """
         try:
+            params = self.parameters
+            command = [
+                params.base_dir + "/bin/" + params.binary,
+                "-i",
+                input_file,
+                "-f",
+                params.file_extension,
+            ]
+
+            print(f"{command_name} running...")
             result = subprocess.run(  # noqa: S603 - no shell
-                command_list,
+                command,
                 input="\n".join(inputs) + "\n",
                 check=True,
                 capture_output=True,
@@ -379,14 +426,22 @@ class TRACKTracker(TCTracker):
             raise RuntimeError(msg) from exc
 
     def calculate_vorticity(self):
-        command = [self._track_exe, "-i", uv_file, "f", self._track_fext]
+        params = self.parameters
+        # Copy the input file to TRACK
+        shutil.copy(params.input_file, params.base_dir + "/indat/")
+        input_filename = Path(params.input_file).name
+        # Run TRACK to perform the calculation
         inputs = self._get_calculate_vorticity_inputs()
-        return self._run_track_process("calculate_vorticity", command, inputs)
+        self._run_track_process("calculate_vorticity", input_filename, inputs)
 
     def spectral_filtering(self):
-        command = [self._track_exe, "-i", vorticity_file, "f", self._track_fext]
+        params = self.parameters
         inputs = self._get_spectral_filtering_inputs()
-        return self._run_track_process("spectral_filtering", command, inputs)
+        self._run_track_process("spectral_filtering", params.vorticity_file, inputs)
+        shutil.copy(
+            f"{params.base_dir}/outdat/specfil.{params.file_extension}_band001",
+            f"{params.base_dir}/indat/{params.filt_vorticity_file}",
+        )
 
     def tracking(self):
         """
@@ -424,15 +479,14 @@ class TRACKTracker(TCTracker):
         >>> my_tracker = TRACKTracker(parameters=my_params)
         >>> result = my_tracker.tracking()
         """
-
-        command = [self._track_exe, '-i', filt_vorticity_file, 'f', self._track_fext]
+        params = self.parameters
         inputs = self._get_tracking_inputs()
-        return self._run_track_process("tracking", command, inputs)
+        self._run_track_process("tracking", params.filt_vorticity_file, inputs)
 
     def filter_tracks(self):
-        command = [self._track_exe, "-i", "N/A", "f", self._track_fext]
+        input_file = self.parameters.filt_vorticity_file
         inputs = self._get_filter_tracks_inputs()
-        return self._run_track_process("filter_tracks", command, inputs)
+        self._run_track_process("filter_tracks", input_file, inputs)
 
     def trajectories(self) -> list[Trajectory]:
         """
@@ -451,7 +505,7 @@ class TRACKTracker(TCTracker):
 
         return trajectories
 
-    def _read_variable_metadata(self) -> None:
+    def read_variable_metadata(self) -> None:
         """Read in the metadata from the input files for each variable."""
         self._variable_metadata = {}
 
