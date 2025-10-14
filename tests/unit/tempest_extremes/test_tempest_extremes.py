@@ -319,7 +319,7 @@ class TestTETracker:
         mock_data = self._mock_trajectories_data()
 
         content = (
-            ",".join(["trajectory_id"] + mock_data["datenames"] + mock_data["varnames"])
+            ",".join(["track_id"] + mock_data["datenames"] + mock_data["varnames"])
             + "\n"
         )
         for i, track in enumerate(mock_data["trajectories"]):
