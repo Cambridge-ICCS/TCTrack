@@ -937,7 +937,7 @@ class TETracker(TCTracker):
             for row in reader:
                 if has_header:
                     # Read from dict extracting variable names from keys/header
-                    trajectory_id = int(row["trajectory_id"])
+                    trajectory_id = int(row["track_id"])
                     year, month, day, hour = map(
                         int, (row["year"], row["month"], row["day"], row["hour"])
                     )
@@ -948,7 +948,7 @@ class TETracker(TCTracker):
                             for key, value in row.items()
                             if key
                             not in {
-                                "trajectory_id",
+                                "track_id",
                                 "year",
                                 "month",
                                 "day",
