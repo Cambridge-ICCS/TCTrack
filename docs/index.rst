@@ -41,6 +41,5 @@ This work was funded by a philantropic donation to the
 .. image:: images/inigo_inspire.png
    :width: 500px
    :alt: The logo for the INIGO InSPIRe (INIGO Storm Prediction and Impact Research) project
-   :align: left
 
 The TCTrack logo was designed by `Jack Atkinson <https://jackatkinson.net/>`_ - `@jatkinson1000 <https://github.com/jatkinson1000>`_.
