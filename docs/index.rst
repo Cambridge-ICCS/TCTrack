@@ -3,6 +3,14 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+
+.. image:: images/TCTrack_Logo.svg
+   :width: 400px
+   :alt: The logo TCTrack - Designed by Jack Atkinson
+   :align: center
+
+|
+
 Welcome to the TCTrack documentation
 ====================================
 
@@ -34,3 +42,5 @@ This work was funded by a philantropic donation to the
    :width: 500px
    :alt: The logo for the INIGO InSPIRe (INIGO Storm Prediction and Impact Research) project
    :align: left
+
+The TCTrack logo was designed by `Jack Atkinson <https://jackatkinson.net/>`_ - `@jatkinson1000 <https://github.com/jatkinson1000>`_.
