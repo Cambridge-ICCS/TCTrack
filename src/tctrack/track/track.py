@@ -35,6 +35,9 @@ class TRACKParameters(TCTrackerParameters):
     filter_distance: float | None = None
     """The minimum start-to-end distance which trajectories must travel."""
 
+    wind_var_names: tuple[str, str] = ("ua", "va")
+    """The variable names for the Eastward and Northward Wind in the input file."""
+
     caltype: str = "standard"
     """
     The type of calendar to use. Options are ``"standard"`` (365 days with leap years),
@@ -155,7 +158,7 @@ class TRACKTracker(TCTracker):
         inputs.append("n") # No file summary
         inputs.append("1") # Use netcdf names
         inputs.append("y") # Uses COARDS convention
-        inputs.append("ua") # Variable to use
+        inputs.append(params.wind_var_names[0])  # Variable to use
         inputs.append("n") # Translate the grid?
         inputs.append("85000") # Pressure level to use (in Pa)
         inputs.append("n") # Make periodic? (Only needed for tracking)
@@ -172,9 +175,9 @@ class TRACKTracker(TCTracker):
         inputs.append("0") # Use B-splines
         inputs.append("2") # Vorticity from winds
         inputs.append("y") # File has both u and v
-        inputs.append("ua") # Field for u
+        inputs.append(params.wind_var_names[0])  # Field for u
         inputs.append("85000") # Pressure level
-        inputs.append("va") # Field for v
+        inputs.append(params.wind_var_names[1])  # Field for v
         inputs.append("85000") # Pressure level
         inputs.append("1") # U start frame id
         inputs.append("1") # U frame step(?)
