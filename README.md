@@ -1,10 +1,15 @@
+<div align="center">
+  <img src="docs/images/TCTrack_Logo.svg" alt="TCTrack Logo">
+</div>
+
+# TCTrack
+
 ![GitHub License](https://img.shields.io/github/license/Cambridge-ICCS/TCTrack)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Cambridge-ICCS/TCTrack/unit-tests.yaml?label=unit-tests)
 [![Documentation Status](https://readthedocs.org/projects/TCTrack/badge/?version=latest)](https://tctrack.readthedocs.io/en/latest/?badge=latest)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-# TCTrack
 
 The TCTrack package aims to provide functionality for running tropical cyclone (TC)
 tracking algorithms and analysing the results. This can be used to compare the output
@@ -96,4 +101,8 @@ This work was funded by a philantropic donation to the
 [University of Cambridge](https://www.cam.ac.uk/) from
 [INIGO Insurance](https://inigoinsurance.com/) as part of the InSPIRe project.
 
-<img src="docs/images/inigo_inspire.png"  width="355" align="left">
+<p align="left">
+  <img src="docs/images/inigo_inspire.png" width="355">
+</p>
+
+The TCTrack logo was designed by [Jack Atkinson](https://jackatkinson.net/) - [@jatkinson1000](https://github.com/jatkinson1000).
