@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from tctrack.core import TCTracker, TCTrackerParameters, Trajectory
+from tctrack.utils.netcdf import lon_lat_sizes
 
 
 @dataclass(repr=False)
@@ -71,6 +72,8 @@ class TRACKTracker(TCTracker):
 
     # Private attributes
     _tempdir: tempfile.TemporaryDirectory
+    _nx: int
+    _ny: int
 
     def __init__(self, parameters: TRACKParameters):
         """Construct the TRACK class.
@@ -157,9 +160,9 @@ class TRACKTracker(TCTracker):
         inputs.append("g")  # Geodesic distance metric
         inputs.append("n")  # Don't change projection
         inputs.append("1")  # Start x domain at 1
-        inputs.append("192")  # End x domain at final lon id
+        inputs.append(str(self._nx))  # End x domain at final lon id
         inputs.append("1")  # Start y domain at 1
-        inputs.append("96")  # End y domain at final lat id
+        inputs.append(str(self._ny))  # End y domain at final lat id
         inputs.append("y")  # Perform analysis
 
         # Vorticity calculation
@@ -208,9 +211,9 @@ class TRACKTracker(TCTracker):
         inputs.append("g")  # Geodesic distance metric
         inputs.append("n")  # Don't change projection
         inputs.append("1")  # Start x domain at 1
-        inputs.append("192")  # End x domain at final lon id
+        inputs.append(str(self._nx))  # End x domain at final lon id
         inputs.append("1")  # Start y domain at 1
-        inputs.append("96")  # End y domain at final lat id
+        inputs.append(str(self._ny))  # End y domain at final lat id
         inputs.append("y")  # Perform analysis
 
         # Spectral Filtering
@@ -541,6 +544,8 @@ class TRACKTracker(TCTracker):
         >>> my_tracker = TRACKTracker(track_params)
         >>> my_tracker.run_tracker()
         """
+        self._nx, self._ny = lon_lat_sizes(self.parameters.input_file)
+
         self.calculate_vorticity()
         self.spectral_filtering()
         self.tracking()
