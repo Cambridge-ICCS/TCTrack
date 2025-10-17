@@ -3,10 +3,10 @@
 from netCDF4 import Dataset
 
 
-def lon_lat_sizes(filename: str, lon: str = "lon", lat: str = "lat") -> tuple[int, int]:
-    """Return the sizes of the longitude and latitude for a netcdf file."""
+def lat_lon_sizes(filename: str, lat: str = "lat", lon: str = "lon") -> tuple[int, int]:
+    """Get the sizes of the longitude and latitude for a netcdf file."""
     dataset = Dataset(filename, "r")
     lon_size = len(dataset.dimensions[lon])
     lat_size = len(dataset.dimensions[lat])
     dataset.close()
-    return lon_size, lat_size
+    return lat_size, lon_size

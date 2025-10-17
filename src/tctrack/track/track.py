@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from tctrack.core import TCTracker, TCTrackerParameters, Trajectory
-from tctrack.utils.netcdf import lon_lat_sizes
+from tctrack.utils.netcdf import lat_lon_sizes
 
 
 @dataclass(repr=False)
@@ -87,7 +87,7 @@ class TRACKTracker(TCTracker):
         self._variable_metadata = {}
 
         # Get sizes from input file
-        self._nx, self._ny = lon_lat_sizes(self.parameters.input_file)
+        self._ny, self._nx = lat_lon_sizes(self.parameters.input_file)
 
         # Set up files in the TRACK directory (if not already)
         base_dir = self.parameters.base_dir

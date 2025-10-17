@@ -14,26 +14,26 @@ def create_netcdf_file(path, dims):
 
 
 @pytest.mark.parametrize(
-    "dims, lon_lat_kwargs, expected, raises",
+    "dims, lat_lon_kwargs, expected, raises",
     [
-        pytest.param({"lon": 10, "lat": 20}, {}, (10, 20), None, id="standard names"),
+        pytest.param({"lon": 10, "lat": 20}, {}, (20, 10), None, id="standard names"),
         pytest.param({"lon": 0, "lat": 0}, {}, (0, 0), None, id="empty dimensions"),
         pytest.param(
             {"longitude": 7, "latitude": 9},
             {"lon": "longitude", "lat": "latitude"},
-            (7, 9),
+            (9, 7),
             None,
             id="custom_names",
         ),
-        pytest.param({"lon": 10}, {}, (10, 20), KeyError, id="missing dimension"),
+        pytest.param({"lon": 10}, {}, (20, 10), KeyError, id="missing dimension"),
     ],
 )
-def test_lon_lat_sizes_valid(tmp_path, dims, lon_lat_kwargs, expected, raises):
-    """Test lon_lat_sizes returns the expected values / raises the expected error."""
+def test_lat_lon_sizes_valid(tmp_path, dims, lat_lon_kwargs, expected, raises):
+    """Test lat_lon_sizes returns the expected values / raises the expected error."""
     ncfile = tmp_path / "test.nc"
     create_netcdf_file(ncfile, dims)
     if raises:
         with pytest.raises(raises):
-            netcdf.lon_lat_sizes(str(ncfile), **lon_lat_kwargs)
+            netcdf.lat_lon_sizes(str(ncfile), **lat_lon_kwargs)
     else:
-        assert netcdf.lon_lat_sizes(str(ncfile), **lon_lat_kwargs) == expected
+        assert netcdf.lat_lon_sizes(str(ncfile), **lat_lon_kwargs) == expected
