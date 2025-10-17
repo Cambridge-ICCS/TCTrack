@@ -7,7 +7,6 @@ References
 
 import shutil
 import subprocess
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -45,13 +44,13 @@ class TRACKParameters(TCTrackerParameters):
     ``"noleap"``, ``"360_day"``.
     """
 
-    binary: str = "track.run"
-    """The filename of the main TRACK compiled binary."""
+    binary: str = "bin/track.run"
+    """The filepath of the main TRACK compiled binary relative to :attr:`base_dir`."""
 
     file_extension: str = "track_out"
     """
     The file extension to use for TRACK output files. This cannot be the same as part of
-    the /path/to/TRACK/outdir.
+    the /path/to/TRACK/outdat.
     """
 
     vorticity_file: str = "vor850.dat"
@@ -71,7 +70,6 @@ class TRACKTracker(TCTracker):
     """
 
     # Private attributes
-    _tempdir: tempfile.TemporaryDirectory
     _nx: int
     _ny: int
 
@@ -87,6 +85,9 @@ class TRACKTracker(TCTracker):
         self.parameters: TRACKParameters = parameters
 
         self._variable_metadata = {}
+
+        # Get sizes from input file
+        self._nx, self._ny = lon_lat_sizes(self.parameters.input_file)
 
         # Set up files in the TRACK directory (if not already)
         base_dir = self.parameters.base_dir
@@ -314,7 +315,7 @@ class TRACKTracker(TCTracker):
 
         return inputs
 
-    def _get_filter_tracks_inputs(self) -> list[str]:
+    def _get_filter_trajectories_inputs(self) -> list[str]:
         """Build the list of TRACK input parameters to perform the track filtering.
 
         Returns
@@ -388,7 +389,7 @@ class TRACKTracker(TCTracker):
         try:
             params = self.parameters
             command = [
-                params.base_dir + "/bin/" + params.binary,
+                params.base_dir + "/" + params.binary,
                 "-i",
                 input_file,
                 "-f",
@@ -489,11 +490,11 @@ class TRACKTracker(TCTracker):
         inputs = self._get_tracking_inputs()
         self._run_track_process("tracking", params.filt_vorticity_file, inputs)
 
-    def filter_tracks(self):
+    def filter_trajectories(self):
         """Use TRACK to filter the identified trajectories."""
         input_file = self.parameters.filt_vorticity_file
-        inputs = self._get_filter_tracks_inputs()
-        self._run_track_process("filter_tracks", input_file, inputs)
+        inputs = self._get_filter_trajectories_inputs()
+        self._run_track_process("filter_trajectories", input_file, inputs)
 
     def trajectories(self) -> list[Trajectory]:
         """Parse outputs from TRACK to list of :class:`tctrack.core.Trajectory`.
@@ -544,11 +545,9 @@ class TRACKTracker(TCTracker):
         >>> my_tracker = TRACKTracker(track_params)
         >>> my_tracker.run_tracker()
         """
-        self._nx, self._ny = lon_lat_sizes(self.parameters.input_file)
-
         self.calculate_vorticity()
         self.spectral_filtering()
         self.tracking()
-        self.filter_tracks()
+        self.filter_trajectories()
 
         self.to_netcdf(output_file)
