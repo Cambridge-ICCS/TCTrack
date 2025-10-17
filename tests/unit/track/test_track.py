@@ -24,8 +24,8 @@ class TestTrackParameters:
         assert params.caltype == "standard"
         assert params.binary == "bin/track.run"
         assert params.file_extension == "track_out"
-        assert params.vorticity_file == "vor850.dat"
-        assert params.filt_vorticity_file == "vor850_T63.dat"
+        assert params.vorticity_file == "vor.dat"
+        assert params.filt_vorticity_file == "vor_T63.dat"
 
 
 class TestTrackTracker:
@@ -88,7 +88,7 @@ class TestTrackTracker:
             *["n", "0", "4", "n", "1", "y", "ua", "n", "85000", "n", "g"],
             *["n", "1", str(self.nx), "1", str(self.ny), "y", "12", "0", "2", "y"],
             *["ua", "85000", "va", "85000", "1", "1", "10000", "1", "1"],
-            *["10000", "y", "dir/indat/vor850.dat", "0", "10", "0", "0", "0"],
+            *["10000", "y", "dir/indat/vor.dat", "0", "10", "0", "0", "0"],
         ]
 
         # Check call to subprocess.run is as expected
