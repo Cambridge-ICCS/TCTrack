@@ -95,7 +95,7 @@ class TRACKTracker(TCTracker):
         shutil.copy(base_dir + "/data/adapt.dat", base_dir + "/data/adapt.dat0")
 
     def _get_initialisation_inputs(self, inputs: list[str]):
-        """Add "initialisation" inputs in common between tracking and filter_tracks.
+        """Add "initialisation" inputs common to both tracking and filter_tracks calls.
 
         Parameters
         ----------
