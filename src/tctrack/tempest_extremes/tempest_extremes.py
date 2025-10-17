@@ -241,7 +241,7 @@ class DetectNodesParameters(TCTrackerParameters):
     time_filter: str | None = None
     """
     Filter for the input data frequency. Options are: `"3hr"`, `"6hr"`, `"daily"`.
-    Alternatively, can be a regex for the datetime in the format `"YYYY-MM-DD HH:MM:SS"`.
+    Alternatively, can be a regex for the datetime using format `"YYYY-MM-DD HH:MM:SS"`.
     """
 
     lat_name: str = "lat"
