@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from tctrack.core import TCTracker, TCTrackerParameters, Trajectory
-from tctrack.utils.netcdf import lat_lon_sizes
+from tctrack.utils import lat_lon_sizes
 
 
 @dataclass(repr=False)
