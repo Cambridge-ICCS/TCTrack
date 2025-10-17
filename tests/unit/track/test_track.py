@@ -42,9 +42,9 @@ class TestTrackTracker:
 
     def _setup_tracker(self, mocker, clear_copy=True) -> TRACKTracker:
         """Create the TRACKTracker object and mock the necessary functions."""
-        # Mock shutil.copy, subprocess.run, and lon_lat_size
+        # Mock shutil.copy, subprocess.run, and lat_lon_size
         mocker.patch(
-            "tctrack.track.track.lon_lat_sizes", return_value=(self.nx, self.ny)
+            "tctrack.track.track.lat_lon_sizes", return_value=(self.ny, self.nx)
         )
         self.mock_copy = mocker.patch("shutil.copy")
         self.mock_subprocess_run = mocker.patch("subprocess.run")
