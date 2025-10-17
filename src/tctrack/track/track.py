@@ -53,10 +53,10 @@ class TRACKParameters(TCTrackerParameters):
     the /path/to/TRACK/outdat.
     """
 
-    vorticity_file: str = "vor850.dat"
+    vorticity_file: str = "vor.dat"
     """The filename for the vorticity intermediate output file."""
 
-    filt_vorticity_file: str = "vor850_T63.dat"
+    filt_vorticity_file: str = "vor_T63.dat"
     """The filename for the spectral filtered vorticity intermediate output file."""
 
 
@@ -70,8 +70,8 @@ class TRACKTracker(TCTracker):
     """
 
     # Private attributes
-    _nx: int
-    _ny: int
+    _nx: int  # Length of the longitude dimension of the data
+    _ny: int  # Length of the latitude dimension of the data
 
     def __init__(self, parameters: TRACKParameters):
         """Construct the TRACK class.
