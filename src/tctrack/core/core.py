@@ -1,5 +1,7 @@
 """Core components and utilities used throughout the TCTrack codebase."""
 
+import numbers
+
 from cftime import Datetime360Day, DatetimeGregorian, DatetimeNoLeap
 
 
@@ -120,7 +122,7 @@ class Trajectory:
         """
         # Validate variables as int or float
         if not isinstance(variables, dict) or not all(
-            isinstance(value, (int, float)) for value in variables.values()
+            isinstance(value, numbers.Real) for value in variables.values()
         ):
             msg = (
                 f"Invalid variable data: {variables}."
