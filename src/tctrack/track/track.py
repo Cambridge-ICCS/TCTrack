@@ -454,10 +454,9 @@ class TRACKTracker(TCTracker):
     def tracking(self):
         """Call the tracking utility of TRACK.
 
-        This will make a system call out to TRACK (provided it has been installed as an
-        external dependency) to perform the detection and stitching of tropical cyclone
-        trajectories according to the :attr:`parameters` attribute that was set when the
-        :class:`TRACKTracker` instance was created.
+        This will make a system call out to TRACK to perform the detection and stitching
+        of tropical cyclone trajectories according to the :attr:`parameters` attribute
+        that was set when the :class:`TRACKTracker` instance was created.
 
         TODO: Detail the output format
 
