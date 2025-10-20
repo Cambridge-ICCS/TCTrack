@@ -10,6 +10,9 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+import cf
+import xarray as xr
+
 from tctrack.core import TCTracker, TCTrackerParameters, Trajectory
 from tctrack.utils import lat_lon_sizes
 
@@ -498,16 +501,64 @@ class TRACKTracker(TCTracker):
     def trajectories(self) -> list[Trajectory]:
         """Parse outputs from TRACK to list of :class:`tctrack.core.Trajectory`.
 
-        The file to be read and its properties are based on the values in the
-        TODO
+        This reads the output file from the filter_trajectories step, i.e.
+        ``ff_trs_<ext>.nc`` in the TRACK outdat folder. It also takes the times from the
+        data in :attr:`TRACKParameters.input_file`.
 
         Returns
         -------
         list[Trajectory]
             A list of :class:`tctrack.core.Trajectory` objects.
         """
-        # TODO: Define trajectories based on TRACK output data
+        params = self.parameters
+        fields = cf.read(f"{params.base_dir}/outdat/ff_trs.{params.file_extension}.nc")  # type: ignore[operator]
+
+        # Get the number of points for each track
+        num_pts_all = fields.select_field("ncvar%NUM_PTS").array
+        (ids,) = num_pts_all.nonzero()
+        num_pts = num_pts_all[ids]
+        i_start = fields.select_field("ncvar%FIRST_PT").array[ids]
+
+        # Get the data for each track
+        time_idx = fields.select_field("ncvar%time").array - 1
+        lon = fields.select_field("ncvar%longitude").array
+        lat = fields.select_field("ncvar%latitude").array
+        intensity = fields.select_field("ncvar%intensity").array
+
+        # Convert the time indicies to datetimes
+        all_times = xr.open_dataset(params.input_file).time
+        times = all_times.isel(time=time_idx)
+        years = times.dt.year
+        months = times.dt.month
+        days = times.dt.day
+        hours = times.dt.hour
+
         trajectories: list[Trajectory] = []
+        for it in range(len(ids)):
+            i1 = i_start[it]
+            i2 = i1 + num_pts[it]
+            trajectory = Trajectory(
+                it,
+                num_pts[it],
+                years[i1],
+                months[i1],
+                days[i1],
+                hours[i1],
+                calendar=times.dt.calendar,
+            )
+            variables = {
+                "lon": lon[i1:i2],
+                "lat": lat[i1:i2],
+                "intensity": intensity[i1:i2],
+            }
+            trajectory.add_multiple_points(
+                years[i1:i2],
+                months[i1:i2],
+                days[i1:i2],
+                hours[i1:i2],
+                variables,
+            )
+            trajectories.append(trajectory)
 
         return trajectories
 
