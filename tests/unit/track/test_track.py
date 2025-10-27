@@ -5,6 +5,9 @@ Note that these do not require a TRACK installation to run and make use of
 pytest-mock to mock the results of subprocess calls to the system.
 """
 
+import cftime
+from numpy.testing import assert_array_equal
+from netCDF4 import Dataset
 from unittest import mock
 
 from tctrack.track import TRACKParameters, TRACKTracker
@@ -40,20 +43,27 @@ class TestTrackTracker:
         *["-90", "0", "1", "193", "1", "48", "0", "150", "150"],
     )
 
-    def _setup_tracker(self, mocker, clear_copy=True) -> TRACKTracker:
+    def _setup_tracker(
+        self, mocker, clear_copy=True, mock_input_file=True, params_dict={}
+    ) -> TRACKTracker:
         """Create the TRACKTracker object and mock the necessary functions."""
         # Mock shutil.copy, subprocess.run, and lat_lon_size
-        mocker.patch(
-            "tctrack.track.track.lat_lon_sizes", return_value=(self.ny, self.nx)
-        )
         self.mock_copy = mocker.patch("shutil.copy")
         self.mock_subprocess_run = mocker.patch("subprocess.run")
         self.mock_subprocess_run.return_value = mocker.MagicMock(
             returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
         )
 
+        if mock_input_file is True:
+            mocker.patch(
+                "tctrack.track.track.lat_lon_sizes", return_value=(self.ny, self.nx)
+            )
+            mocker.patch("tctrack.track.track.TRACKTracker._check_input_file")
+
         # Create the tracker
-        params = TRACKParameters(base_dir="dir", input_file="input")
+        params_dict.setdefault("base_dir", "dir")
+        params_dict.setdefault("input_file", "input")
+        params = TRACKParameters(**params_dict)
         tracker = TRACKTracker(params)
 
         if clear_copy:
@@ -192,3 +202,94 @@ class TestTrackTracker:
             capture_output=True,
             text=True,
         )
+
+    def _create_nc_output_file(self, tmp_path):
+        """Create a minimal TRACK NetCDF output file with 2 tracks."""
+        directory = tmp_path / "outdat"
+        directory.mkdir()
+        file_path = directory / "ff_trs.track_out.nc"
+
+        with Dataset(file_path, "w", format="NETCDF4") as nc:
+            # Dimensions
+            nc.createDimension("tracks", 2)
+            nc.createDimension("record", None)  # unlimited
+
+            # Variables
+            track_id = nc.createVariable("TRACK_ID", "i4", ("tracks",))
+            first_pt = nc.createVariable("FIRST_PT", "i4", ("tracks",))
+            num_pts = nc.createVariable("NUM_PTS", "i4", ("tracks",))
+            index = nc.createVariable("index", "i4", ("record",))
+            time = nc.createVariable("time", "i4", ("record",))
+            lon = nc.createVariable("longitude", "f4", ("record",))
+            lat = nc.createVariable("latitude", "f4", ("record",))
+            intensity = nc.createVariable("intensity", "f4", ("record",))
+
+            # Data
+            track_id[:] = [0, 1]
+            first_pt[:] = [0, 2]
+            num_pts[:] = [2, 3]
+
+            index[:] = [0, 1, 0, 1, 2]
+            time[:] = [1, 2, 1, 2, 3]  # 1-indexed
+            lon[:] = [0, 1, 2, 3, 4]
+            lat[:] = [0, -1, -2, -3, -4]
+            intensity[:] = [0, 10, 20, 30, 40]
+
+    def _create_nc_input_file(self, tmp_path):
+        """Create a minimal NetCDF input file with defined times."""
+        file_path = tmp_path / "input.nc"
+
+        with Dataset(file_path, "w", format="NETCDF4") as nc:
+            # Dimensions
+            nc.createDimension("lon", self.nx)
+            nc.createDimension("lat", self.ny)
+            nc.createDimension("time", None)  # unlimited
+
+            # Time data
+            time = nc.createVariable("time", "f4", ("time",))
+            time[:] = [0, 0.5, 1, 1.5, 2]
+            time.standard_name = "time"
+            time.long_name = "time"
+            time.units = "days since 1950-01-01"
+            time.calendar = "360_day"
+            time.axis = "T"
+
+        return str(file_path)
+
+    def test_trajectories(self, mocker, tmp_path):
+        """Check trajectories correctly reads in the output netcdf file."""
+        # Create the temporary input and output files
+        self._create_nc_output_file(tmp_path)
+        input_file = self._create_nc_input_file(tmp_path)
+
+        # Set up the tracker pointing to the created files
+        params = {"base_dir": str(tmp_path), "input_file": input_file}
+        tracker = self._setup_tracker(mocker, mock_input_file=False, params_dict=params)
+
+        # Get the trajectories
+        trajectories = tracker.trajectories()
+
+        # Check the trajectories
+        t1 = trajectories[0]
+        assert t1.trajectory_id == 0
+        assert t1.observations == 2
+        assert t1.calendar == "360_day"
+        assert_array_equal(t1.data["lon"], [0, 1])
+        assert_array_equal(t1.data["lat"], [0, -1])
+        assert_array_equal(t1.data["intensity"], [0, 10])
+        times1 = cftime.num2date(
+            [0, 0.5], units="days since 1950-01-01", calendar="360_day"
+        )
+        assert_array_equal(t1.data["timestamp"], times1)
+
+        t2 = trajectories[1]
+        assert t2.trajectory_id == 1
+        assert t2.observations == 3
+        assert t2.calendar == "360_day"
+        assert_array_equal(t2.data["lon"], [2, 3, 4])
+        assert_array_equal(t2.data["lat"], [-2, -3, -4])
+        assert_array_equal(t2.data["intensity"], [20, 30, 40])
+        times2 = cftime.num2date(
+            [0, 0.5, 1], units="days since 1950-01-01", calendar="360_day"
+        )
+        assert_array_equal(t2.data["timestamp"], times2)
