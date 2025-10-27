@@ -84,18 +84,37 @@ class TRACKTracker(TCTracker):
         parameters : TRACKParameters
             Class containing the parameters for the TRACK algorithm(s)
             Defaults to the default values in TRACKParameters Class
+
+        Raises
+        ------
+        FileNotFoundError
+            If the input file does not exist.
         """
         self.parameters: TRACKParameters = parameters
 
         self._variable_metadata = {}
 
         # Get sizes from input file
+        self._check_input_file()
         self._ny, self._nx = lat_lon_sizes(self.parameters.input_file)
 
         # Set up files in the TRACK directory (if not already)
         base_dir = self.parameters.base_dir
         shutil.copy(base_dir + "/data/zone.dat", base_dir + "/data/zone.dat0")
         shutil.copy(base_dir + "/data/adapt.dat", base_dir + "/data/adapt.dat0")
+
+    def _check_input_file(self):
+        """Check that the input file exists.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the input file does not exist.
+        """
+        input_file = self.parameters.input_file
+        if not Path(input_file).exists():
+            msg = f"Input file does not exist ({input_file})."
+            raise FileNotFoundError(msg)
 
     def _get_initialisation_inputs(self, inputs: list[str]):
         """Add "initialisation" inputs common to both tracking and filter_tracks calls.
@@ -509,9 +528,24 @@ class TRACKTracker(TCTracker):
         -------
         list[Trajectory]
             A list of :class:`tctrack.core.Trajectory` objects.
+
+        Raises
+        ------
+        FileNotFoundError
+            - If the TRACK output file does not exist.
+            - If the input file does not exist.
         """
         params = self.parameters
-        fields = cf.read(f"{params.base_dir}/outdat/ff_trs.{params.file_extension}.nc")  # type: ignore[operator]
+        trajectory_file = f"{params.base_dir}/outdat/ff_trs.{params.file_extension}.nc"
+
+        try:
+            fields = cf.read(trajectory_file)  # type: ignore[operator]
+        except FileNotFoundError as e:
+            msg = (
+                f"TRACK output trajectory file does not exist ({trajectory_file}).\n"
+                "Check if TRACK completed successfully."
+            )
+            raise FileNotFoundError(msg) from e
 
         # Get the number of points for each track
         num_pts_all = fields.select_field("ncvar%NUM_PTS").array
@@ -520,12 +554,13 @@ class TRACKTracker(TCTracker):
         i_start = fields.select_field("ncvar%FIRST_PT").array[ids]
 
         # Get the data for each track
-        time_idx = fields.select_field("ncvar%time").array - 1
+        time_idx = fields.select_field("ncvar%time").array - 1  # This is 1-indexed
         lon = fields.select_field("ncvar%longitude").array
         lat = fields.select_field("ncvar%latitude").array
         intensity = fields.select_field("ncvar%intensity").array
 
         # Convert the time indicies to datetimes
+        self._check_input_file()
         all_times = xr.open_dataset(params.input_file).time
         times = all_times.isel(time=time_idx)
         years = times.dt.year
