@@ -5,10 +5,12 @@ Note that these do not require a TRACK installation to run and make use of
 pytest-mock to mock the results of subprocess calls to the system.
 """
 
-import cftime
-from numpy.testing import assert_array_equal
-from netCDF4 import Dataset
 from unittest import mock
+
+import cftime
+import pytest
+from netCDF4 import Dataset
+from numpy.testing import assert_array_equal
 
 from tctrack.track import TRACKParameters, TRACKTracker
 
@@ -44,16 +46,17 @@ class TestTrackTracker:
     )
 
     def _setup_tracker(
-        self, mocker, clear_copy=True, mock_input_file=True, params_dict={}
+        self, mocker, clear_copy=True, mock_input_file=True, params_dict=None
     ) -> TRACKTracker:
         """Create the TRACKTracker object and mock the necessary functions."""
-        # Mock shutil.copy, subprocess.run, and lat_lon_size
+        # Mock shutil.copy, subprocess.run
         self.mock_copy = mocker.patch("shutil.copy")
         self.mock_subprocess_run = mocker.patch("subprocess.run")
         self.mock_subprocess_run.return_value = mocker.MagicMock(
             returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
         )
 
+        # Mock the functions checking the input file
         if mock_input_file is True:
             mocker.patch(
                 "tctrack.track.track.lat_lon_sizes", return_value=(self.ny, self.nx)
@@ -61,6 +64,8 @@ class TestTrackTracker:
             mocker.patch("tctrack.track.track.TRACKTracker._check_input_file")
 
         # Create the tracker
+        if params_dict is None:
+            params_dict = {}
         params_dict.setdefault("base_dir", "dir")
         params_dict.setdefault("input_file", "input")
         params = TRACKParameters(**params_dict)
@@ -84,6 +89,11 @@ class TestTrackTracker:
             mock.call("dir/data/adapt.dat", "dir/data/adapt.dat0"),
         ]
         self.mock_copy.assert_has_calls(copy_calls)
+
+    def test_initialisation_failure(self, mocker):
+        """Check TRACKTracker initialisation fails as expected."""
+        with pytest.raises(FileNotFoundError, match="Input file does not exist"):
+            self._setup_tracker(mocker, mock_input_file=False)
 
     def test_calculate_vorticity(self, mocker):
         """Check calculate_vorticity calls TRACK with the expected inputs."""
@@ -293,3 +303,21 @@ class TestTrackTracker:
             [0, 0.5, 1], units="days since 1950-01-01", calendar="360_day"
         )
         assert_array_equal(t2.data["timestamp"], times2)
+
+    def test_trajectories_failure(self, mocker, tmp_path):
+        """Check trajectories fails as expected."""
+        # No output file
+        tracker = self._setup_tracker(mocker)
+        mocker.stopall()
+        with pytest.raises(
+            FileNotFoundError, match="TRACK output trajectory file does not exist"
+        ):
+            tracker.trajectories()
+
+        # No input file (create the output file)
+        self._create_nc_output_file(tmp_path)
+        params = {"base_dir": str(tmp_path)}
+        tracker = self._setup_tracker(mocker, params_dict=params)
+        mocker.stopall()
+        with pytest.raises(FileNotFoundError, match="Input file does not exist"):
+            tracker.trajectories()
