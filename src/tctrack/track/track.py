@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import cf
-import xarray as xr
 
 from tctrack.core import TCTracker, TCTrackerParameters, Trajectory
 from tctrack.utils import lat_lon_sizes
@@ -548,13 +547,13 @@ class TRACKTracker(TCTracker):
         lat = fields.select_field("ncvar%latitude").array
         intensity = fields.select_field("ncvar%intensity").array
 
-        # Convert the time indicies to datetimes
-        all_times = xr.open_dataset(params.input_file).time
-        times = all_times.isel(time=time_idx)
-        years = times.dt.year
-        months = times.dt.month
-        days = times.dt.day
-        hours = times.dt.hour
+        # Convert the time indicies to datetimes using the input file data
+        all_times = cf.read(params.input_file)[0].coordinate("time")  # type: ignore[operator]
+        datetimes = all_times.datetime_array[time_idx]
+        years = [dt.year for dt in datetimes]
+        months = [dt.month for dt in datetimes]
+        days = [dt.day for dt in datetimes]
+        hours = [dt.hour for dt in datetimes]
 
         trajectories: list[Trajectory] = []
         for it in range(len(ids)):
@@ -567,7 +566,7 @@ class TRACKTracker(TCTracker):
                 months[i1],
                 days[i1],
                 hours[i1],
-                calendar=times.dt.calendar,
+                calendar=all_times.calendar,
             )
             variables = {
                 "lon": lon[i1:i2],
