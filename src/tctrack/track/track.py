@@ -95,26 +95,16 @@ class TRACKTracker(TCTracker):
         self._variable_metadata = {}
 
         # Get sizes from input file
-        self._check_input_file()
-        self._ny, self._nx = lat_lon_sizes(self.parameters.input_file)
+        input_file = self.parameters.input_file
+        if not Path(input_file).exists():
+            msg = f"Input file does not exist ({input_file})."
+            raise FileNotFoundError(msg)
+        self._ny, self._nx = lat_lon_sizes(input_file)
 
         # Set up files in the TRACK directory (if not already)
         base_dir = self.parameters.base_dir
         shutil.copy(base_dir + "/data/zone.dat", base_dir + "/data/zone.dat0")
         shutil.copy(base_dir + "/data/adapt.dat", base_dir + "/data/adapt.dat0")
-
-    def _check_input_file(self):
-        """Check that the input file exists.
-
-        Raises
-        ------
-        FileNotFoundError
-            If the input file does not exist.
-        """
-        input_file = self.parameters.input_file
-        if not Path(input_file).exists():
-            msg = f"Input file does not exist ({input_file})."
-            raise FileNotFoundError(msg)
 
     def _get_initialisation_inputs(self, inputs: list[str]):
         """Add "initialisation" inputs common to both tracking and filter_tracks calls.
@@ -532,8 +522,7 @@ class TRACKTracker(TCTracker):
         Raises
         ------
         FileNotFoundError
-            - If the TRACK output file does not exist.
-            - If the input file does not exist.
+            If the TRACK output file does not exist.
         """
         params = self.parameters
         trajectory_file = f"{params.base_dir}/outdat/ff_trs.{params.file_extension}.nc"
@@ -560,7 +549,6 @@ class TRACKTracker(TCTracker):
         intensity = fields.select_field("ncvar%intensity").array
 
         # Convert the time indicies to datetimes
-        self._check_input_file()
         all_times = xr.open_dataset(params.input_file).time
         times = all_times.isel(time=time_idx)
         years = times.dt.year
