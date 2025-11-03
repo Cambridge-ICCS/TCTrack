@@ -61,7 +61,7 @@ class TestTrackTracker:
             mocker.patch(
                 "tctrack.track.track.lat_lon_sizes", return_value=(self.ny, self.nx)
             )
-            mocker.patch("tctrack.track.track.TRACKTracker._check_input_file")
+            mocker.patch("pathlib.Path.exists")
 
         # Create the tracker
         if params_dict is None:
@@ -304,20 +304,11 @@ class TestTrackTracker:
         )
         assert_array_equal(t2.data["timestamp"], times2)
 
-    def test_trajectories_failure(self, mocker, tmp_path):
-        """Check trajectories fails as expected."""
-        # No output file
+    def test_trajectories_missing_output(self, mocker):
+        """Check trajectories fails when the TRACK output file doesn't exist."""
         tracker = self._setup_tracker(mocker)
         mocker.stopall()
         with pytest.raises(
             FileNotFoundError, match="TRACK output trajectory file does not exist"
         ):
-            tracker.trajectories()
-
-        # No input file (create the output file)
-        self._create_nc_output_file(tmp_path)
-        params = {"base_dir": str(tmp_path)}
-        tracker = self._setup_tracker(mocker, params_dict=params)
-        mocker.stopall()
-        with pytest.raises(FileNotFoundError, match="Input file does not exist"):
             tracker.trajectories()
