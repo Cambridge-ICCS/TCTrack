@@ -27,35 +27,35 @@ class DriverParameters(TCTrackerParameters):
         - If do_thickness is set to True as this has no effect.
     """
 
-    u_in_file: str | None = None
+    u_in_file: str
     """
     Filename of the u (zonal) velocity input file.
     This should be a NetCDF file containing a single lat-lon slice of the u field named
     `u_ref` (if `use_sfc_wind=True`) or `u850`.
     """
 
-    v_in_file: str | None = None
+    v_in_file: str
     """
     Filename of the v (meridional) velocity input file.
     This should be a NetCDF file containing a single lat-lon slice of the v field named
     `v_ref` (if `use_sfc_wind=True`) or `v850`.
     """
 
-    vort_in_file: str | None = None
+    vort_in_file: str
     """
     Filename of the vorticity input file.
     This should be a NetCDF file containing a single lat-lon slice of the vorticity
     field named `vort850` at the 850 hPa level.
     """
 
-    tm_in_file: str | None = None
+    tm_in_file: str
     """
     Filename of the temperature input file.
     This should be a NetCDF file containing a single lat-lon slice of the mean
     temperature of the warm-core layer named `tm`.
     """
 
-    slp_in_file: str | None = None
+    slp_in_file: str
     """
     Filename of the sea-level pressure input file.
     This should be a NetCDF file containing a single lat-lon slice of sea-level pressure
@@ -124,15 +124,3 @@ class DriverParameters(TCTrackerParameters):
                 "implemented in TSTORMS."
             )
             warnings.warn(msg, category=UserWarning, stacklevel=3)
-        if any(
-            f is None
-            for f in [
-                self.u_in_file,
-                self.v_in_file,
-                self.vort_in_file,
-                self.tm_in_file,
-                self.slp_in_file,
-            ]
-        ):
-            msg = "Input file not provided for one of u, v, vort, tm, slp."
-            raise ValueError(msg)
