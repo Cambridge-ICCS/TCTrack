@@ -2,8 +2,10 @@
 
 from .tstorms import (
     DriverParameters,
+    TrajectoryParameters,
 )
 
 __all__ = [
     "DriverParameters",
+    "TrajectoryParameters",
 ]
