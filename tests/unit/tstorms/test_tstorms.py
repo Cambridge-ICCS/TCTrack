@@ -14,7 +14,7 @@ from tctrack.tstorms import (
 
 @pytest.fixture
 def tstorms_filenames() -> dict[str, str]:
-    """Provide filenames for DriverParameters as error raised if None (default)."""
+    """Provide filenames for DriverParameters as non-optional/no default."""
     return {
         "u_in_file": "u.nc",
         "v_in_file": "v.nc",
@@ -57,19 +57,3 @@ class TestTSTORMSTypes:
             UserWarning, match="`do_thickness` is set, but will have no effect.*"
         ):
             DriverParameters(**tstorms_filenames, do_thickness=True)
-
-    @pytest.mark.parametrize(
-        "missing_file",
-        ["u_in_file", "v_in_file", "vort_in_file", "tm_in_file", "slp_in_file"],
-    )
-    def test_driver_parameters_missing_input_files_error(
-        self, missing_file: str, tstorms_filenames: dict
-    ) -> None:
-        """Check ValueError when any of the required input files is not specified."""
-        params = tstorms_filenames
-        params[missing_file] = None
-
-        with pytest.raises(
-            ValueError, match="Input file not provided for one of u, v, vort, tm, slp"
-        ):
-            DriverParameters(**params)
