@@ -3,9 +3,11 @@
 from .tstorms import (
     DriverParameters,
     TrajectoryParameters,
+    TSTORMSParameters,
 )
 
 __all__ = [
     "DriverParameters",
+    "TSTORMSParameters",
     "TrajectoryParameters",
 ]
