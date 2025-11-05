@@ -1,16 +1,17 @@
 TRACK
 =====
 
-TRACK is an algorithm and software for tracking and analysing tropical cyclones and
-other weather systems in meteorological and oceanic data. It is developed by Kevin
-Hodges and released under an AGPLv3 license.
+TRACK is a software package and algorithm for tracking and analysing tropical
+cyclones and other weather systems in meteorological and oceanic datasets. It
+is developed by Kevin Hodges at the University of Reading, UK, and released
+under an AGPLv3 license.
 
-The TRACK code can be found `on the Reading University GitLab
+The TRACK code can be found `on the University of Reading GitLab
 <https://gitlab.act.reading.ac.uk/track/track>`_ and the algorithm is described in
 [Hodges2017]_.
 
 TCTrack provides bindings to perform tropical cyclone tracking using the basic TRACK
-algorithm. Other components may be added in future is required by users.
+algorithm. Other components may be added in future as required by users.
 
 For full details of the TRACK API in TCTrack see the
 :doc:`TCTrack TRACK API documentation <../api/track_api>`.
