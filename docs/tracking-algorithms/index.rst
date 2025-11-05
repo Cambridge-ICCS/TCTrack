@@ -14,3 +14,4 @@ For full details of the API for each of the components please see the
    :caption: Tracking Algorithms
 
    Tempest Extremes <tempest_extremes>
+   TSTORMS <tstorms>
