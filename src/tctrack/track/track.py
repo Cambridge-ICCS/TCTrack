@@ -2,7 +2,7 @@
 
 References
 ----------
-- `TRACK code on the Reading University GitLab
+- `TRACK code on the University of Reading GitLab
   <https://gitlab.act.reading.ac.uk/track/track>`__
 - Publication describing the algorithm: `Hodges et al., 2017
   <https://doi.org/10.1175/JCLI-D-16-0557.1>`__
@@ -75,7 +75,7 @@ class TRACKTracker(TCTracker):
 
     References
     ----------
-    `TRACK code on the Reading University GitLab <https://gitlab.act.reading.ac.uk/track/track>`__
+    `TRACK code on the University of Reading GitLab <https://gitlab.act.reading.ac.uk/track/track>`__
     """
 
     # Private attributes
