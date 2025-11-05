@@ -12,7 +12,7 @@ from tctrack.core import TCTrackerParameters
 
 
 @dataclass(repr=False)
-class TSTORMSParameters(TCTrackerParameters):
+class TSTORMSBaseParameters(TCTrackerParameters):
     """
     Dataclass containing values used in configuring the TSTORMS install.
 
@@ -36,11 +36,11 @@ class TSTORMSParameters(TCTrackerParameters):
 
 
 @dataclass(repr=False)
-class DriverParameters(TCTrackerParameters):
+class TSTORMSDetectParameters(TCTrackerParameters):
     """
-    Dataclass containing values used by the Driver operation of TSTORMS.
+    Dataclass of values used by the Driver operation of TSTORMS for candidate detection.
 
-    Default values are set to match those in the TSTORMS source-code.
+    Default values are set to match those in the TSTORMS tstorms_driver source-code.
 
     Raises
     ------
@@ -151,11 +151,12 @@ class DriverParameters(TCTrackerParameters):
 
 
 @dataclass(repr=False)
-class TrajectoryParameters(TCTrackerParameters):
+class TSTORMSStitchParameters(TCTrackerParameters):
     """
-    Dataclass containing values used by the Trajectory operation of TSTORMS.
+    Dataclass containing values used by the stitching trajectory operation of TSTORMS.
 
-    Default values are set to match those in the TSTORMS source-code.
+    Default values are set to match those in the TSTORMS trajectory_analysis
+    source-code.
 
     Raises
     ------
