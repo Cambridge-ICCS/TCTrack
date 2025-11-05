@@ -27,7 +27,37 @@ For full details of the TRACK API in TCTrack see the
 Installation
 ------------
 
-.. TODO
+Using the TRACK module in TCTrack requires TRACK to be installed on a user's system.
+
+TRACK requires NetCDF as well as a C compiler, a FORTRAN 77 compiler, Make, and
+`makedepend`. It can then be installed with the following commands:
+
+.. code-block:: bash
+
+  # Download the TRACK code
+  git clone https://gitlab.act.reading.ac.uk/track/track
+  cd track
+  git checkout 6ded301a5f5183d73e5b49c16019024b9a53eff7
+
+  # Set necessary environment variables
+  export PATH=${PATH}:.
+  export CC=gcc
+  export FC=gfortran
+  export NETCDF=$(nc-config --prefix)
+  export ARFLAGS=
+
+  # Update the source file dependencies
+  make -C src -f Makefile.linux depend
+
+  # Compile the code
+  ./master -build -fext=run -inpf=inputs.nc -upath=$(cd .. && pwd)
+
+This will clone TRACK and checkout the most recent commit that TCTrack has been built
+against before compiling the code using `make`. The compiled executable will then be
+``track/bin/track.run``.
+
+For further details about installation see the instructions `here
+<https://gitlab.act.reading.ac.uk/track/track/-/blob/master/INSTALL>`_.
 
 Usage
 -----
