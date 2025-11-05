@@ -13,5 +13,6 @@ For full details of the API for each of the components please see the
    :maxdepth: 1
    :caption: Tracking Algorithms
 
+   TSTORMS <tstorms>
    Tempest Extremes <tempest_extremes>
    TRACK <track>
