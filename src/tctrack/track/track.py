@@ -2,7 +2,10 @@
 
 References
 ----------
-- TRACK code on the Reading University GitLab: https://gitlab.act.reading.ac.uk/track/track
+- `TRACK code on the Reading University GitLab
+  <https://gitlab.act.reading.ac.uk/track/track>`__
+- Publication describing the algorithm: `Hodges et al., 2017
+  <https://doi.org/10.1175/JCLI-D-16-0557.1>`__
 """
 
 import shutil
@@ -69,6 +72,10 @@ class TRACKTracker(TCTracker):
     ----------
     parameters : TRACKParameters
         Class containing the parameters for the TRACK algorithm(s)
+
+    References
+    ----------
+    `TRACK code on the Reading University GitLab <https://gitlab.act.reading.ac.uk/track/track>`__
     """
 
     # Private attributes
@@ -393,9 +400,9 @@ class TRACKTracker(TCTracker):
         Raises
         ------
         FileNotFoundError
-            If the TRACK executables cannot be found on the system.
+            If the TRACK executable cannot be found on the system.
         RuntimeError
-            If TRACK executable returns a non-zero exit code.
+            If the TRACK executable returns a non-zero exit code.
         """
         try:
             params = self.parameters
@@ -443,7 +450,32 @@ class TRACKTracker(TCTracker):
             raise RuntimeError(msg) from exc
 
     def calculate_vorticity(self):
-        """Use TRACK to calculate the vorticity from the wind components."""
+        """Use TRACK to calculate the vorticity from the wind components.
+
+        This method requires the wind speed components to be on a Gaussian grid in a
+        netcdf file, given by :attr:`~TRACKParameters.input_file`. This is copied to the
+        TRACK 'indat' folder and used as an input for a system call to TRACK to
+        calculate the vorticity.
+
+        The vorticity is written to a new file in the 'indat' folder given by
+        :attr:`~TRACKParameters.vorticity_file`. This uses the following layout::
+
+            <n_lon> <n_lat> <n_frames>
+            <List of longitudes spaced 10 to a line>
+            <List of latitudes spaced 10 to a line>
+            FRAME 1
+            <Binary block of floats for the vorticities in frame 1>
+            FRAME 2
+            <Binary block of floats for the vorticities in frame 2>
+            ...
+
+        Raises
+        ------
+        FileNotFoundError
+            If the TRACK executable cannot be found on the system.
+        RuntimeError
+            If the TRACK executable returns a non-zero exit code.
+        """
         params = self.parameters
         # Copy the input file to TRACK
         shutil.copy(params.input_file, params.base_dir + "/indat/")
@@ -453,7 +485,22 @@ class TRACKTracker(TCTracker):
         self._run_track_process("calculate_vorticity", input_filename, inputs)
 
     def spectral_filtering(self):
-        """Use TRACK to perform the spectral filtering of the vorticity."""
+        """Use TRACK to perform the spectral filtering of the vorticity.
+
+        This makes a system call to TRACK to spectrally filter the vorticity (in the
+        file :attr:`~TRACKParameters.vorticity_file`) to keep only wavenumbers 6-63.
+
+        The output file is copied to :attr:`~TRACKParameters.filt_vorticity_file` in the
+        TRACK 'indat' folder, so that it can be used in :meth:`tracking`. This file
+        has the same format as described in :meth:`calculate_vorticity`.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the TRACK executable cannot be found on the system.
+        RuntimeError
+            If the TRACK executable returns a non-zero exit code.
+        """
         params = self.parameters
         inputs = self._get_spectral_filtering_inputs()
         self._run_track_process("spectral_filtering", params.vorticity_file, inputs)
@@ -465,43 +512,47 @@ class TRACKTracker(TCTracker):
     def tracking(self):
         """Call the tracking utility of TRACK.
 
-        This will make a system call out to TRACK to perform the detection and stitching
-        of tropical cyclone trajectories according to the :attr:`parameters` attribute
-        that was set when the :class:`TRACKTracker` instance was created.
+        This will make a system call out to TRACK to perform the detection of tropical
+        cyclone candidates using the spectrally filtered vorticity (stored in the file
+        :attr:`~TRACKParameters.filt_vorticity_file`). These candidates are then
+        combined into trajectories by minimising a cost function.
 
-        TODO: Detail the output format
-
-        Returns
-        -------
-        dict
-            dict of subprocess output corresponding to stdout, stderr, and returncode.
+        The trajectories are output in the ``objout.new.<ext>`` and ``tdump.<ext>`` text
+        files in the TRACK 'outdat' folder.
 
         Raises
         ------
         FileNotFoundError
-            If the TRACK executeables cannot be found.
+            If the TRACK executable cannot be found on the system.
         RuntimeError
-            If a TRACK executable returns a non-zero exit code.
-
-        References
-        ----------
-        TODO: Add reference to Source Code?
-
-        Examples
-        --------
-        To set the parameters, instantiate a :class:`TRACKTracker` instance and run
-        DetectNodes:
-
-        >>> my_params = TRACKParameters(...)
-        >>> my_tracker = TRACKTracker(parameters=my_params)
-        >>> result = my_tracker.tracking()
+            If the TRACK executable returns a non-zero exit code.
         """
         params = self.parameters
         inputs = self._get_tracking_inputs()
         self._run_track_process("tracking", params.filt_vorticity_file, inputs)
 
     def filter_trajectories(self):
-        """Use TRACK to filter the identified trajectories."""
+        """Use TRACK to filter the identified trajectories.
+
+        This step takes the identified trajectories from the :meth:`tracking` step
+        stored in the ``objout.new.<ext>`` and ``tdump.<ext>`` files. It then filters
+        out trajectories with fewer than 8 points (i.e. based on the duration) or a
+        total distance less than :attr:`~TRACKParameters.filter_distance` (if set).
+
+        This step could also be used to combine multiple outputs if the previous
+        tracking step was batched. However, this is not currently used.
+
+        The output of this step is a ``ff_trs.<ext>.nc`` file in the TRACK 'outdat'
+        folder containing the data along the filtered trajectories. To convert this into
+        a CF-compliant trajectory format the :meth:`to_netcdf` function should be used.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the TRACK executable cannot be found on the system.
+        RuntimeError
+            If the TRACK executable returns a non-zero exit code.
+        """
         input_file = self.parameters.filt_vorticity_file
         inputs = self._get_filter_trajectories_inputs()
         self._run_track_process("filter_trajectories", input_file, inputs)
@@ -510,8 +561,8 @@ class TRACKTracker(TCTracker):
         """Parse outputs from TRACK to list of :class:`tctrack.core.Trajectory`.
 
         This reads the output file from the filter_trajectories step, i.e.
-        ``ff_trs_<ext>.nc`` in the TRACK outdat folder. It also takes the times from the
-        data in :attr:`TRACKParameters.input_file`.
+        ``ff_trs.<ext>.nc`` in the TRACK 'outdat' folder. It also takes the times from
+        the data in :attr:`TRACKParameters.input_file`.
 
         Returns
         -------
@@ -593,8 +644,19 @@ class TRACKTracker(TCTracker):
     def run_tracker(self, output_file: str):
         """Run the TRACK tracker to obtain the tropical cyclone track trajectories.
 
-        This runs the relevant methods in order :meth:`TODO`
-        The TRACK output is then saved as a CF-compliant trajectory netCDF file.
+        This runs the relevant methods in order:
+
+        * :meth:`calculate_vorticity`
+        * :meth:`spectral_filtering`
+        * :meth:`tracking`
+        * :meth:`filter_trajectories`
+
+        Finally the output is then saved as a CF-compliant trajectory netCDF file by
+        calling :meth:`to_netcdf`.
+
+        This method will overwrite the files in the 'outdat' folder in the TRACK source
+        location. Therefore, any outputs from running TRACK manually should be moved
+        to prevent loss of data.
 
         Arguments
         ---------
@@ -604,9 +666,9 @@ class TRACKTracker(TCTracker):
         Raises
         ------
         FileNotFoundError
-            - If the TRACK executables cannot be found.
+            If the TRACK executable cannot be found.
         RuntimeError
-            If the TRACK commands return a non-zero exit code.
+            If the TRACK executable returns a non-zero exit code.
 
         Examples
         --------
@@ -615,7 +677,7 @@ class TRACKTracker(TCTracker):
 
         >>> track_params = TRACKParameters(...)
         >>> my_tracker = TRACKTracker(track_params)
-        >>> my_tracker.run_tracker()
+        >>> my_tracker.run_tracker("trajectories.nc")
         """
         self.calculate_vorticity()
         self.spectral_filtering()
