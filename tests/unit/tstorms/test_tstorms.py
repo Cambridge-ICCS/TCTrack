@@ -7,7 +7,7 @@ pytest-mock to mock the results of subprocess calls to the system.
 
 import pytest
 
-from tctrack.tstorms import DriverParameters, TrajectoryParameters
+from tctrack.tstorms import DriverParameters, TrajectoryParameters, TSTORMSParameters
 
 
 @pytest.fixture
@@ -24,6 +24,25 @@ def tstorms_filenames() -> dict[str, str]:
 
 class TestTSTORMSTypes:
     """Tests for the different Classes and Types defined for TSTORMS."""
+
+    def test_tstorms_parameters_initialization(self):
+        """Check that TSTORMSParameters initializes correctly with valid arguments."""
+        params = TSTORMSParameters(
+            tstorms_dir="/path/to/tstorms", output_dir="/path/to/output"
+        )
+        assert params.tstorms_dir == "/path/to/tstorms"
+        assert params.output_dir == "/path/to/output"
+
+    def test_tstorms_parameters_missing_values(self):
+        """Check that TypeError is raised when required arguments are missing."""
+        with pytest.raises(
+            TypeError,
+            match=(
+                "missing 2 required positional arguments: "
+                "'tstorms_dir' and 'output_dir'"
+            ),
+        ):
+            TSTORMSParameters()
 
     def test_driver_parameters_defaults(self, tstorms_filenames: dict) -> None:
         """Check the default values for DriverParameters."""

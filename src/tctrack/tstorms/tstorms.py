@@ -12,6 +12,30 @@ from tctrack.core import TCTrackerParameters
 
 
 @dataclass(repr=False)
+class TSTORMSParameters(TCTrackerParameters):
+    """
+    Dataclass containing values used in configuring the TSTORMS install.
+
+    This class is intended to configure the install to that executables can be run
+    correctly and data stored in a desired location.
+    Configuration of the actual cyclone detection algorithm is done using
+    :class:`DriverParameters` and :class:`TrajectoryParameters`.
+    """
+
+    tstorms_dir: str
+    """
+    Full path to the TSTORMS installation directory. This will be likely be a directory
+    named `tropical_storms_pub/` and should contain `tstorms_driver/` and
+    `trajectory_analysis/` subdirectories.
+    """
+
+    output_dir: str
+    """
+    Full path to trhe directory where TSTORMS outputs should be deposited.
+    """
+
+
+@dataclass(repr=False)
 class DriverParameters(TCTrackerParameters):
     """
     Dataclass containing values used by the Driver operation of TSTORMS.
