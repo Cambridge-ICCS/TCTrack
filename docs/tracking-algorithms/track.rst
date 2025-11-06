@@ -29,8 +29,12 @@ Installation
 
 Using the TRACK module in TCTrack requires TRACK to be installed on a user's system.
 
-TRACK requires NetCDF as well as a C compiler, a FORTRAN 77 compiler, Make, and
-`makedepend`. It can then be installed with the following commands:
+TRACK requires `NetCDF <https://www.unidata.ucar.edu/software/netcdf>`_ (it can
+be installed through system package managers, or see the `detailed installation
+instructions
+<https://docs.unidata.ucar.edu/nug/current/getting_and_building_netcdf.html>`_)
+as well as a C compiler, a FORTRAN 77 compiler, Make, and `makedepend`. It can
+then be installed with the following commands:
 
 .. code-block:: bash
 
@@ -52,9 +56,9 @@ TRACK requires NetCDF as well as a C compiler, a FORTRAN 77 compiler, Make, and
   # Compile the code
   ./master -build -fext=run -inpf=inputs.nc -upath=$(cd .. && pwd)
 
-This will clone TRACK and checkout the most recent commit that TCTrack has been built
-against before compiling the code using `make`. The compiled executable will then be
-``track/bin/track.run``.
+This will clone TRACK and checkout the most recent commit that TCTrack has been tested
+against, however there may be newer versions available. The code is then compiled using
+`make`, creating the executable at ``track/bin/track.run``.
 
 For further details about installation see the instructions `here
 <https://gitlab.act.reading.ac.uk/track/track/-/blob/master/INSTALL>`_.
@@ -70,11 +74,10 @@ stitched into trajectories by minimising a cost function. Finally, the trajector
 filtered to remove any that do not travel a sufficient distance or last for a sufficient
 duration.
 
-Tracking can also be performed based using different fields, including mean sea level
+Tracking can also be performed using different fields, including mean sea level
 pressure, but this is not currently implemented in TCTrack. In addition, the TRACK
 algorithm describes performing checks for a warm core based upon the difference in
-vorticity between 850 and 200 hPa. However, it is not clear if this is included within
-the TRACK software.
+vorticity between 850 and 200 hPa. However, this is also not currently implemented.
 
 Further details can be found in [Hodges2017]_.
 
