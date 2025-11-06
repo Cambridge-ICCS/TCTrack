@@ -31,31 +31,19 @@ class TRACKParameters(TCTrackerParameters):
     NetCDF input file containing the north and easterly wind speeds on a Gaussian grid.
     """
 
-    output_file: str | None = None
-    """
-    Output file to write to. If ``None``, a temporary file will be created for the
-    lifetime of the :class:`TRACKTracker` instance.
-    """
-
     filter_distance: float | None = None
-    """The minimum start-to-end distance which trajectories must travel."""
+    """The minimum start-to-end distance which trajectories must travel, in degrees."""
 
     wind_var_names: tuple[str, str] = ("ua", "va")
     """The variable names for the Eastward and Northward Wind in the input file."""
-
-    caltype: str = "standard"
-    """
-    The type of calendar to use. Options are ``"standard"`` (365 days with leap years),
-    ``"noleap"``, ``"360_day"``.
-    """
 
     binary: str = "bin/track.run"
     """The filepath of the main TRACK compiled binary relative to :attr:`base_dir`."""
 
     file_extension: str = "track_out"
     """
-    The file extension to use for TRACK output files. This cannot be the same as part of
-    the /path/to/TRACK/outdat.
+    The file extension to use for intermediate TRACK output files. This cannot be the
+    same as part of the /path/to/TRACK/outdat.
     """
 
     vorticity_file: str = "vor.dat"

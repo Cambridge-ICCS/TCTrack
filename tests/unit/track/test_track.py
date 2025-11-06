@@ -23,10 +23,8 @@ class TestTrackParameters:
         params = TRACKParameters(base_dir="dir", input_file="input")
         assert params.base_dir == "dir"
         assert params.input_file == "input"
-        assert params.output_file is None
         assert params.filter_distance is None
         assert params.wind_var_names == ("ua", "va")
-        assert params.caltype == "standard"
         assert params.binary == "bin/track.run"
         assert params.file_extension == "track_out"
         assert params.vorticity_file == "vor.dat"
