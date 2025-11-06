@@ -59,10 +59,95 @@ against before compiling the code using `make`. The compiled executable will the
 For further details about installation see the instructions `here
 <https://gitlab.act.reading.ac.uk/track/track/-/blob/master/INSTALL>`_.
 
+Algorithm
+---------
+
+Tropical cyclone tracking in TRACK uses relative vorticity at 850 hPa. This is
+preprocessed using spectral filtering to retain only wavenumbers 6 - 63. Tropical
+cyclone candidates are then identified at each time step where there is a local maximum
+in the relative vorticity exceeding a specific threshold. These candidates are then
+stitched into trajectories by minimising a cost function. Finally, the trajectories are
+filtered to remove any that do not travel a sufficient distance or last for a sufficient
+duration.
+
+Tracking can also be performed based using different fields, including mean sea level
+pressure, but this is not currently implemented in TCTrack. In addition, the TRACK
+algorithm describes performing checks for a warm core based upon the difference in
+vorticity between 850 and 200 hPa. However, it is not clear if this is included within
+the TRACK software.
+
+Further details can be found in [Hodges2017]_.
+
 Usage
 -----
 
-.. TODO
+TRACK takes a single NetCDF file as input which must contain the northward and eastward
+windspeeds on a single `Gaussian grid <https://en.wikipedia.org/wiki/Gaussian_grid>`_.
+Some preprocessing of the input data may be required. For example, using the following
+`NCO <https://nco.sourceforge.net/nco.html>`_ and `CDO
+<https://code.mpimet.mpg.de/projects/cdo/wiki/tutorial>`_ commands:
+
+.. code-block:: bash
+
+   # Combine the windspeeds onto a single grid / file (grid given by ua_file.nc)
+   ncremap -i va_file.nc -d ua_file.nc -o ua_va_file.nc
+
+   # Map to a Gaussian grid with 512 (2x256) latitude points
+   cdo remapbil,F256 ua_va_file.nc ua_va_file_F256.nc
+
+Usage of TRACK is performed using the :mod:`tctrack.track` module. This contains the
+:class:`TRACKTracker` class which is used to run the algorithm, and the
+:class:`TRACKParameters` dataclass for specifying the various parameters.
+
+The example below illustrates how to use these to run TRACK using the default
+parameters. The output trajectories are written to the ``"trajectories.nc"`` file in a
+CF-compliant NetCDF format. Note that the location of the TRACK source directory must be
+provided using the :attr:`~TRACKParameters.base_dir` parameter and the NetCDF variable
+names for the windspeed should be specified with
+:attr:`~TRACKParameters.wind_var_names`.
+
+.. code-block:: python
+
+    from tctrack.track import TRACKParameters, TRACKTracker
+
+    params = TRACKParameters(
+        base_dir="/path/to/track",
+        input_file="ua_va_file_F256.nc",
+        wind_var_names=("ua", "va"),
+    )
+
+    tracker = TRACKTracker(params)
+    tracker.run_tracker("trajectories.nc")
+
+In addition to :attr:`~TRACKParameters.base_dir` and
+:attr:`~TRACKParameters.wind_var_names` there are a number of other parameters
+that can be used in :class:`TRACKParameters`. Most notable is
+:attr:`~TRACKParameters.filter_distance` which sets the minimum distance (in degrees) of
+trajectories.
+
+The :meth:`~TRACKTracker.run_tracker` method performs several steps in sucession. These
+are:
+
+* :meth:`~TRACKTracker.calculate_vorticity`, to calculate the relative vorticity from
+  the windspeed.
+* :meth:`~TRACKTracker.spectral_filtering`, to perform the spectral filtering on the
+  vorticity.
+* :meth:`~TRACKTracker.tracking`, to perform the tracking to identify trajectories.
+* :meth:`~TRACKTracker.filter_trajectories`, to filter trajectories based on distance
+  and duration.
+* :meth:`~TRACKTracker.to_netcdf`, to convert the output to a CF-compliant NetCDF file.
+
+It is possible to call some or all of these to manually perform the tracking or repeat
+individual steps without rerunning the whole process. For each step, intermediate input
+and output files are stored in the 'indat' and 'outdat' folders in the TRACK source
+directory - the same location as when calling TRACK manually. Therefore, any generated
+files that you wish to keep should be moved to prevent them from being overwritten.
+
+Each step of the algorithm makes a call out to the TRACK software with a list of inputs
+that are built up using :class:`TRACKParameters`. Currently if you wish to change any
+inputs that are not supported by :class:`TRACKParameters` you must modify the code
+directly in the ``_get_<step>_inputs()`` functions in :class:`TRACKTracker`. This should
+be made more user-friendly in the future.
 
 .. rubric:: References
 
