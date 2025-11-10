@@ -381,3 +381,20 @@ class TestTrackTracker:
             FileNotFoundError, match="TRACK output trajectory file does not exist"
         ):
             tracker.trajectories()
+
+    def test_variable_metadata(self, mocker):
+        """Test variable_metadata is defined correctly by read_variable_metadata."""
+        tracker = self._setup_tracker(mocker)
+
+        tracker.read_variable_metadata()
+        metadata = tracker.variable_metadata
+
+        # Intensity
+        assert "intensity" in metadata
+        properties = metadata["intensity"]
+        expected_properties = {
+            "standard_name": "atmosphere_upward_relative_vorticity",
+            "long_name": "Relative vorticity at 85000 Pa",
+            "units": "s-1",
+        }
+        assert properties == expected_properties

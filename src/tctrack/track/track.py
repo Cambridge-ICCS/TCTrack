@@ -29,7 +29,8 @@ class TRACKParameters(TCTrackerParameters):
 
     input_file: str
     """
-    NetCDF input file containing the north and easterly wind speeds on a Gaussian grid.
+    NetCDF input file containing the north and easterly wind speeds on a Gaussian grid
+    in m/s.
     """
 
     filter_distance: float | None = None
@@ -707,7 +708,12 @@ class TRACKTracker(TCTracker):
         """Read in the metadata from the input files for each variable."""
         self._variable_metadata = {}
 
-        # TODO: Complete this method based on input data files and TRACK code
+        plev = f"{self.parameters.pressure_level} Pa"
+        self._variable_metadata["intensity"] = {
+            "standard_name": "atmosphere_upward_relative_vorticity",
+            "long_name": f"Relative vorticity at {plev}",
+            "units": "s-1",
+        }
 
     def run_tracker(self, output_file: str):
         """Run the TRACK tracker to obtain the tropical cyclone track trajectories.
