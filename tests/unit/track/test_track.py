@@ -29,6 +29,9 @@ class TestTrackParameters:
         assert params.file_extension == "track_out"
         assert params.vorticity_file == "vor.dat"
         assert params.filt_vorticity_file == "vor_T63.dat"
+        assert params.export_inputs is False
+        assert params.read_inputs is False
+        assert params.inputs_directory is None
 
 
 class TestTrackTracker:

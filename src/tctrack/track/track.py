@@ -52,6 +52,23 @@ class TRACKParameters(TCTrackerParameters):
     filt_vorticity_file: str = "vor_T63.dat"
     """The filename for the spectral filtered vorticity intermediate output file."""
 
+    export_inputs: bool = False
+    """Flag to export the TRACK command line inputs to files."""
+
+    read_inputs: bool = False
+    """
+    Flag to read the command line inputs from files instead of TRACKParameters. There
+    should be a file for each step, named as ``calculate_vorticity.in``,
+    ``spectral_filtering.in``, ``tracking.in``, and ``filter_trajectories.in``. If a
+    file dose not exist it will generate inputs from TRACKParameters as normal.
+    """
+
+    inputs_directory: str | None = None
+    """
+    Directory containing files for exporting / reading command line inputs. This will be
+    created if it does not exist. By default, the current directory is used.
+    """
+
 
 class TRACKTracker(TCTracker):
     """Class containing bindings to the TRACK code.
