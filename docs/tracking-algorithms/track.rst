@@ -85,9 +85,9 @@ Usage
 -----
 
 TRACK takes a single NetCDF file as input which must contain the northward and eastward
-windspeeds on a single `Gaussian grid <https://en.wikipedia.org/wiki/Gaussian_grid>`_.
-Some preprocessing of the input data may be required. For example, using the following
-`NCO <https://nco.sourceforge.net/nco.html>`_ and `CDO
+windspeeds on a single `Gaussian grid <https://en.wikipedia.org/wiki/Gaussian_grid>`_
+and in units of ``m s-1``. Some preprocessing of the input data may be required. For
+example, using the following `NCO <https://nco.sourceforge.net/nco.html>`_ and `CDO
 <https://code.mpimet.mpg.de/projects/cdo/wiki/tutorial>`_ commands:
 
 .. code-block:: bash
