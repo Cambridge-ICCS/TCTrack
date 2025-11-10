@@ -707,7 +707,12 @@ class TRACKTracker(TCTracker):
         """Read in the metadata from the input files for each variable."""
         self._variable_metadata = {}
 
-        # TODO: Complete this method based on input data files and TRACK code
+        plev = f"{self.parameters.pressure_level} Pa"
+        self._variable_metadata["intensity"] = {
+            "standard_name": "atmosphere_relative_vorticity",
+            "long_name": f"Relative vorticity at {plev}",
+            "units": "s-1", #TODO: check if TRACK will always output these units
+        }
 
     def run_tracker(self, output_file: str):
         """Run the TRACK tracker to obtain the tropical cyclone track trajectories.
