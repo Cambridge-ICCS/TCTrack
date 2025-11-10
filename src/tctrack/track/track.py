@@ -10,6 +10,7 @@ References
 
 import shutil
 import subprocess
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -384,6 +385,63 @@ class TRACKTracker(TCTracker):
 
         return inputs
 
+    def _prepare_inputs(self, command_name: str, inputs: list[str]) -> str:
+        """Get the inputs as a string. Optionally reading from / exporting to a file.
+
+        The file is a text file containing the raw, unlabelled inputs in a specific
+        order. Refer to the _get_<step>_inputs functions for descriptions of the
+        variables.
+
+        If :attr:`~TRACKParameters.read_inputs` is ``True`` but the file doesn't exist a
+        warning will be thrown and it will continue with the generated inputs.
+
+        Parameters
+        ----------
+        command_name : str
+            The name of the TRACK step. Used in the file name:
+            ``<inputs_directory>/<command_name>.in``.
+        inputs : list[str]
+            The list of input parameters to pass to the TRACK program.
+
+        Returns
+        -------
+        str
+            A string containing the (unlabelled) input parameters separated by newline
+            characters.
+        """
+        input_commands = "\n".join(inputs) + "\n"
+
+        inputs_file = Path(f"{command_name}.in")
+        inputs_directory = self.parameters.inputs_directory
+        if inputs_directory is not None:
+            inputs_file = Path(inputs_directory) / inputs_file
+
+        # Read from file
+        if self.parameters.read_inputs:
+            try:
+                with open(inputs_file, "r") as f:
+                    input_commands = f.read()
+                warnings.warn(
+                    f"TRACK inputs are being read from file for {command_name}. "
+                    "TRACKParameter values will be ignored.",
+                    stacklevel=4,
+                )
+            except FileNotFoundError:
+                warnings.warn(
+                    f"Exported TRACK inputs file for {command_name} does not exist "
+                    "despite read_inputs=True. Continuing with generated inputs.",
+                    stacklevel=4,
+                )
+
+        # Export to file
+        if self.parameters.export_inputs:
+            if inputs_directory is not None:
+                Path(inputs_directory).mkdir(parents=True, exist_ok=True)
+            with open(inputs_file, "w") as f:
+                f.write(input_commands)
+
+        return input_commands
+
     def _run_track_process(self, command_name: str, input_file: str, inputs: list[str]):
         """Run a TRACK command.
 
@@ -419,10 +477,12 @@ class TRACKTracker(TCTracker):
                 params.file_extension,
             ]
 
+            input_commands = self._prepare_inputs(command_name, inputs)
+
             print(f"{command_name} running...")
             result = subprocess.run(  # noqa: S603 - no shell
                 command,
-                input="\n".join(inputs) + "\n",
+                input=input_commands,
                 check=True,
                 capture_output=True,
                 text=True,

@@ -5,6 +5,7 @@ Note that these do not require a TRACK installation to run and make use of
 pytest-mock to mock the results of subprocess calls to the system.
 """
 
+from pathlib import Path
 from unittest import mock
 
 import cftime
@@ -95,6 +96,68 @@ class TestTrackTracker:
         """Check TRACKTracker initialisation fails as expected."""
         with pytest.raises(FileNotFoundError, match="Input file does not exist"):
             self._setup_tracker(mocker, mock_input_file=False)
+
+    def test_export_inputs(self, mocker):
+        """Check the command line inputs are correctly exported."""
+        tracker = self._setup_tracker(mocker)
+        tracker.parameters.export_inputs = True
+
+        command_name = "export"
+        file_path = Path(f"{command_name}.in")
+        assert not file_path.exists()
+
+        inputs = ["param1", "param2"]
+        result = tracker._prepare_inputs(command_name, inputs)  # noqa: SLF001
+
+        expected_result = "param1\nparam2\n"
+        assert result == expected_result
+
+        assert file_path.exists()
+        assert file_path.read_text() == expected_result
+        file_path.unlink()  # cleanup
+
+    def test_export_inputs_no_directory(self, mocker, tmp_path):
+        """Check a directory is created when it doesn't exist."""
+        tracker = self._setup_tracker(mocker)
+
+        tracker.parameters.inputs_directory = str(tmp_path / "a" / "b")
+        tracker.parameters.export_inputs = True
+
+        command_name = "missing_dir"
+        _ = tracker._prepare_inputs(command_name, ["param1"])  # noqa: SLF001
+
+        file_path = tmp_path / "a" / "b" / f"{command_name}.in"
+        assert file_path.exists()
+
+    def test_read_inputs(self, mocker, tmp_path):
+        """Check reading of exported command line inputs is correct."""
+        tracker = self._setup_tracker(mocker)
+        tracker.parameters.read_inputs = True
+        tracker.parameters.inputs_directory = str(tmp_path)
+        command_name = "read"
+
+        # Create file to read from
+        input_commands = "param1\nparam2\n"
+        inputs_file = tmp_path / f"{command_name}.in"
+        inputs_file.write_text(input_commands)
+
+        result = tracker._prepare_inputs(command_name, ["ignored"])  # noqa: SLF001
+
+        assert result == input_commands
+
+    def test_read_inputs_missing_file(self, mocker):
+        """Check reading inputs warns when the file doesn't exist."""
+        tracker = self._setup_tracker(mocker)
+        tracker.parameters.read_inputs = True
+
+        inputs = ["param1", "param2"]
+        with pytest.warns(
+            UserWarning,
+            match="Exported TRACK inputs file for missing_file does not exist",
+        ):
+            result = tracker._prepare_inputs("missing_file", inputs)  # noqa: SLF001
+
+        assert result == "\n".join(inputs) + "\n"
 
     def test_calculate_vorticity(self, mocker):
         """Check calculate_vorticity calls TRACK with the expected inputs."""
