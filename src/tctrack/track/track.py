@@ -38,6 +38,9 @@ class TRACKParameters(TCTrackerParameters):
     wind_var_names: tuple[str, str] = ("ua", "va")
     """The variable names for the Eastward and Northward Wind in the input file."""
 
+    pressure_level: int = 85000
+    """The pressure level at which to calculate the vorticity. In Pa."""
+
     binary: str = "bin/track.run"
     """The filepath of the main TRACK compiled binary relative to :attr:`base_dir`."""
 
@@ -180,7 +183,7 @@ class TRACKTracker(TCTracker):
         inputs.append("y")  # Uses COARDS convention
         inputs.append(params.wind_var_names[0])  # Variable to use
         inputs.append("n")  # Translate the grid?
-        inputs.append("85000")  # Pressure level to use (in Pa)
+        inputs.append(str(params.pressure_level))  # Pressure level to use (in Pa)
         inputs.append("n")  # Make periodic? (Only needed for tracking)
         inputs.append("g")  # Geodesic distance metric
         inputs.append("n")  # Don't change projection
@@ -196,9 +199,9 @@ class TRACKTracker(TCTracker):
         inputs.append("2")  # Vorticity from winds
         inputs.append("y")  # File has both u and v
         inputs.append(params.wind_var_names[0])  # Field for u
-        inputs.append("85000")  # Pressure level
+        inputs.append(str(params.pressure_level))  # Pressure level
         inputs.append(params.wind_var_names[1])  # Field for v
-        inputs.append("85000")  # Pressure level
+        inputs.append(str(params.pressure_level))  # Pressure level
         inputs.append("1")  # U start frame id
         inputs.append("1")  # U frame step(?)
         inputs.append("10000")  # U end frame id
