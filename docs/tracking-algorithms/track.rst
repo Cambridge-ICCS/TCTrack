@@ -146,11 +146,29 @@ and output files are stored in the 'indat' and 'outdat' folders in the TRACK sou
 directory - the same location as when calling TRACK manually. Therefore, any generated
 files that you wish to keep should be moved to prevent them from being overwritten.
 
+Modifying Parameters
+--------------------
+
 Each step of the algorithm makes a call out to the TRACK software with a list of inputs
-that are built up using :class:`TRACKParameters`. Currently if you wish to change any
-inputs that are not supported by :class:`TRACKParameters` you must modify the code
-directly in the ``_get_<step>_inputs()`` functions in :class:`TRACKTracker`. This should
-be made more user-friendly in the future.
+that are built up using :class:`TRACKParameters`. If you wish to experiment with
+different inputs that are not currently implemented in TCTrack then you can export these
+input lists, modify the resulting files, and then run TRACK using these files as input.
+
+To export the inputs you can set the :attr:`~TRACKParameters.export_inputs` parameter to
+``True``. The result will be a ``.in`` file for each step of the algorithm with one
+input per line. It is a bit opaque what each input corresponds to, so refer to the
+comments in the ``_get_<step>_inputs`` methods in :class:`TRACKTracker`, or look at the
+output of the TRACK calls.
+
+To read in the files, simply set the :attr:`~TRACKParameters.read_inputs` parameter to
+``True``. Be aware that the files will then supercede any values set in
+:class:`TRACKParameters`. If any of the inputs files do not exist it will fall back to
+the generated inputs for that step. So it is possible to only read inputs for a single
+step by deleting the exported files for the other steps. The location of the input files
+can also be changed by setting the value of :attr:`~TRACKParameters.inputs_directory`.
+
+If you identify any useful inputs it would be appreciated if you can contribute by
+adding these to :class:`TRACKParameters` and the relevant input generation method(s).
 
 .. rubric:: References
 
