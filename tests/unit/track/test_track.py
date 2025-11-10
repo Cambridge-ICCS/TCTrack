@@ -26,6 +26,7 @@ class TestTrackParameters:
         assert params.input_file == "input"
         assert params.filter_distance is None
         assert params.wind_var_names == ("ua", "va")
+        assert params.pressure_level == 85000
         assert params.binary == "bin/track.run"
         assert params.file_extension == "track_out"
         assert params.vorticity_file == "vor.dat"
