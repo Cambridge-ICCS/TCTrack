@@ -4,10 +4,12 @@ from .tstorms import (
     TSTORMSBaseParameters,
     TSTORMSDetectParameters,
     TSTORMSStitchParameters,
+    TSTORMSTracker,
 )
 
 __all__ = [
     "TSTORMSBaseParameters",
     "TSTORMSDetectParameters",
     "TSTORMSStitchParameters",
+    "TSTORMSTracker",
 ]
