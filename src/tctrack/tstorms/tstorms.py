@@ -5,10 +5,15 @@ References
 - TSTORMS NOAA page: https://www.gfdl.noaa.gov/tstorms/
 """
 
+import json
+import os
+import subprocess
+import tempfile
+import textwrap
 import warnings
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
-from tctrack.core import TCTrackerParameters
+from tctrack.core import TCTracker, TCTrackerParameters
 
 
 @dataclass(repr=False)
@@ -16,10 +21,10 @@ class TSTORMSBaseParameters(TCTrackerParameters):
     """
     Dataclass containing values used in configuring the TSTORMS install.
 
-    This class is intended to configure the install to that executables can be run
+    This class is intended to configure the install so that executables can be run
     correctly and data stored in a desired location.
     Configuration of the actual cyclone detection algorithm is done using
-    :class:`DriverParameters` and :class:`TrajectoryParameters`.
+    :class:`TSTORMSDetectParameters` and :class:`TSTORMSStitchParameters`.
     """
 
     tstorms_dir: str
@@ -31,7 +36,13 @@ class TSTORMSBaseParameters(TCTrackerParameters):
 
     output_dir: str
     """
-    Full path to trhe directory where TSTORMS outputs should be deposited.
+    Full path to the directory where TSTORMS outputs should be deposited.
+    """
+
+    input_dir: str | None = None
+    """
+    Full path to the directory where TSTORMS input files can be found.
+    Defaults to None.
     """
 
 
@@ -224,3 +235,309 @@ class TSTORMSStitchParameters(TCTrackerParameters):
                 "implemented in TSTORMS."
             )
             warnings.warn(msg, category=UserWarning, stacklevel=3)
+
+
+class TSTORMSTracker(TCTracker):
+    """Class containing bindings to the TSTORMS code.
+
+    Attributes
+    ----------
+    driver_parameters : TSTORMSDetectParameters | None
+        Class containing the parameters for the driver detection algorithm
+    trajectory_parameters : TSTORMSStitchParameters | None
+        Class containing the parameters for the trajectory stitching algorithm
+    """
+
+    # Private attributes
+    _tempdir: tempfile.TemporaryDirectory
+
+    def __init__(
+        self,
+        tstorms_parameters: TSTORMSBaseParameters,
+        detect_parameters: TSTORMSDetectParameters,
+        stitch_parameters: TSTORMSStitchParameters | None = None,
+    ):
+        """
+        Construct the TSTORMSTracker class.
+
+        Parameters
+        ----------
+        tstorms_parameters : TSTORMSBaseParameters
+            Class containing the parameters for setting up TSTORMS usage.
+        detect_parameters : TSTORMSDetectParameters
+            Class containing the parameters for the node detection in TSTORMS.
+            Used to create the namelists for `tstorms_driver`.
+        stitch_parameters : TSTORMSStitchParameters | None
+            Class containing the parameters for the stitching algorithm of TSTORMS
+            Defaults to the default values in StitchNodesParameters Class
+        """
+        self.tstorms_parameters: TSTORMSBaseParameters = tstorms_parameters
+        self.detect_parameters: TSTORMSDetectParameters = detect_parameters
+
+        if stitch_parameters is not None:
+            self.stitch_parameters: TSTORMSStitchParameters = stitch_parameters
+        else:
+            self.stitch_parameters = TSTORMSStitchParameters()
+
+        # Check TSTORMSStitchParameters input arguments according to
+        # TSTORMSDetectParameters
+        # TODO: Decide which parameters we want to synchronise
+
+        self._variable_metadata = {}
+
+    def _run_tstorms_process(
+        self,
+        command_name: str,
+        command_list: list[str],
+        input_file: str,
+        verbose: bool = False,
+    ):
+        """Run a TSTORMS command.
+
+        Parameters
+        ----------
+        command_name : str
+            The name of the command to be used in the log and error reporting.
+        command_list : list[str]
+            The list of strings that produce the command as given by
+            _make_driver_call and _make_trajectories_call.
+        input_file : str
+            Path to an input file to be passed to the command's stdin (e.g. namelist).
+            Defaults to None.
+        verbose : bool
+            Whether to print the entire TSTORMS output to screen in real-time or just
+            the start/end summary. Defaults to False.
+
+        Returns
+        -------
+        dict
+            dict of subprocess output corresponding to stdout, stderr, and returncode.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the tstorms executable from cannot be found.
+        RuntimeError
+            If tstorms executable returns a non-zero exit code.
+        """
+        try:
+            if verbose:
+                with open(input_file, "r") as stdin:
+                    # Real-time output with Popen
+                    process = subprocess.Popen(  # noqa: S603 - no shell
+                        command_list,
+                        stdin=stdin,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        shell=False,
+                        bufsize=1,  # Line-buffered output
+                    )
+
+                    # Print stdout in real-time
+                    for line in iter(process.stdout.readline, ""):  # type: ignore[union-attr]
+                        print(line, end="")
+
+                    stdout, stderr = process.communicate()
+                    returncode = process.returncode
+
+                    if returncode != 0:
+                        err_msg = (
+                            f"{command_name} failed with a non-zero exit code: "
+                            f"{returncode}:\n{stderr}"
+                        )
+                        raise RuntimeError(err_msg)
+            else:
+                # verbose=False: Concise output print start/end summary
+                with open(input_file, "r") as stdin:
+                    print(f"Executing {command_name}...")
+                    result = subprocess.run(  # noqa: S603 - no shell
+                        command_list,
+                        stdin=stdin,
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                    )
+                    stdout, stderr, returncode = (
+                        result.stdout,
+                        result.stderr,
+                        result.returncode,
+                    )
+
+                    print(f"{command_name} completed successfully.")
+                    print(
+                        f"First 12 lines of output:\n"
+                        f"{''.join(stdout.splitlines(True)[:12])}"
+                        f"\n...\n\n"
+                        f"Last 12 lines of output:\n"
+                        f"{''.join(stdout.splitlines(True)[-12:])}"
+                    )
+
+            return {
+                "stdout": stdout,
+                "stderr": stderr,
+                "returncode": returncode,
+            }
+        except FileNotFoundError as exc:
+            msg = f"{command_name} failed because the executable could not be found."
+            raise FileNotFoundError(msg) from exc
+        except subprocess.CalledProcessError as exc:
+            msg = (
+                f"{command_name} failed with a non-zero exit code:"
+                f"({exc.returncode}):\n"
+                f"{exc.stderr}"
+            )
+            raise RuntimeError(msg) from exc
+
+    def _write_driver_namelist(self) -> str:
+        """Generate the namelist file for the tstorms_driver routine.
+
+        Returns
+        -------
+        str
+            The full path to the generated namelist file.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the `tstorms_dir` does not exist.
+        """
+        # Ensure the tstorms_dir exists
+        tstorms_driver_dir = os.path.join(
+            self.tstorms_parameters.tstorms_dir, "tstorms_driver"
+        )
+        if not os.path.exists(tstorms_driver_dir):
+            err_msg = f"TSTORMS driver directory '{tstorms_driver_dir}' does not exist."
+            raise FileNotFoundError(err_msg)
+
+        # Define the namelist file path
+        namelist_path = os.path.join(tstorms_driver_dir, "nml_driver")
+
+        # Format the namelist content
+        detect_params = self.detect_parameters
+        namelist_content = textwrap.dedent(f"""
+         &nml_tstorms
+           crit_vort  =  {detect_params.vort_crit:.4E}
+           crit_twc   =  {detect_params.tm_crit:.4f}
+           crit_thick =  {detect_params.thick_crit:.4f}
+           crit_dist  =   {detect_params.dist_crit:.4f}
+          lat_bound_n =  {detect_params.lat_bound_n:.4f}
+          lat_bound_s = {detect_params.lat_bound_s:.4f}
+          do_spline   = {".true." if detect_params.do_spline else ".false."}
+          do_thickness= {".true." if detect_params.do_thickness else ".false."}
+         &end
+         &input
+           fn_u    = '{detect_params.u_in_file}'
+           fn_v    = '{detect_params.v_in_file}'
+           fn_vort = '{detect_params.vort_in_file}'
+           fn_tm   = '{detect_params.tm_in_file}'
+           fn_slp  = '{detect_params.slp_in_file}'
+           use_sfc_wnd = {".true." if detect_params.use_sfc_wind else ".false."}
+         &end
+        """)
+
+        # Write the namelist content to the file
+        with open(namelist_path, "w") as namelist_file:
+            namelist_file.write(namelist_content)
+
+        return namelist_path
+
+    def _make_driver_call(self):
+        """
+        Construct a driver call based on options set in driver_parameters.
+
+        Makes a call to write the namelist and then construct and call the driver
+        command.
+
+        Returns
+        -------
+        list[str]
+            list of strings that can be combined to form a driver command
+            based on the parameters set in self.detect_parameters
+        """
+        tstorms_driver_dir = os.path.join(
+            self.tstorms_parameters.tstorms_dir, "tstorms_driver"
+        )
+        dn_argslist = [os.path.join(tstorms_driver_dir, "tstorms_driver.exe")]
+
+        return dn_argslist
+
+    def detect(self, verbose=False):
+        """
+        Call the driver utility of TSTORMS.
+
+        This will make a system call out to the tstorms_driver code from TSTORMS
+        (provided it has been installed as an external dependency). This will be
+        run according to the parameters in the :attr:`detect_parameters` attribute
+        that were set when the :class:`TSTORMSTracker` instance was created.
+
+        The output file is a plain text file named ``cyclones`` containing each of the
+        TC candidates at each time from the input files. This will be generated
+        in the current directory before being copied over to the desired output location
+        provided in the base parameters attribute :attr:`tstorms_parameters`.
+        After this each time is listed in the format:
+
+        .. code-block:: text
+
+                <day>       <month>       <year>       <number>       <hour>
+            <i_index>     <j_index>    <lon_slpmin>      <lat_slpmin>
+           <max_wind>    <max_vort>    <min_slp>    <exist_warm_core> <exist_thickness>
+           <max_warm_core>    <max_thickness>
+                  ...
+
+        - ``number`` is the number of nodes at that time.
+        - ``i_index``, ``j_index`` are the grid indices of the node.
+        - ``lon_slpmin``, ``lat_slpmin`` are the coordinates of the slp minimum.
+        - Other values are the variable values for the cyclone output from the code.
+
+        Parameters
+        ----------
+        verbose : bool
+            Whether to print the entire TSTORMS output to screen in real-time or just
+            the start/end summary.
+            Defaults to False.
+
+        Returns
+        -------
+        dict
+            dict of subprocess output corresponding to stdout, stderr, and returncode.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the tstorms_driver executeable from TSTORMS cannot be found.
+        RuntimeError
+            If the tstorms_driver executeable from TSTORMS returns a non-zero exit code.
+
+        Examples
+        --------
+        To set the parameters, instantiate a :class:`TSTORMSTracker` instance and run
+        DetectNodes:
+
+        >>> my_params = TSTORMSDetectParameters(...)
+        >>> my_tracker = TSTORMSTracker(driver_parameters=my_params)
+        >>> result = my_tracker.detect()
+        """
+        namelist_filepath = self._write_driver_namelist()
+        driver_call_list = self._make_driver_call()
+        return self._run_tstorms_process(
+            "Detect", driver_call_list, namelist_filepath, verbose=verbose
+        )
+        # TODO Copy cyclones to output location (and namelist?)
+
+    def set_metadata(self):
+        """Create placeholder for abstract method."""
+        super().set_metadata()
+
+        tstorms_params_json = json.dumps(asdict(self.tstorms_parameters))
+        detect_params_json = json.dumps(asdict(self.detect_parameters))
+        stitch_params_json = json.dumps(asdict(self.stitch_parameters))
+        self.global_metadata["tstorms_parameters"] = tstorms_params_json
+        self.global_metadata["detect_parameters"] = detect_params_json
+        self.global_metadata["stitch_parameters"] = stitch_params_json
+
+    def run_tracker(self):
+        """Create placeholder for abstract method."""
+
+    def trajectories(self):
+        """Create placeholder for abstract method."""
