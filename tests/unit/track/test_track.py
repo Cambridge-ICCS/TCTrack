@@ -58,20 +58,24 @@ class TestTrackTracker:
             returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
         )
 
-        # Mock the functions checking the input file
-        if mock_input_file is True:
-            mocker.patch(
-                "tctrack.track.track.lat_lon_sizes", return_value=(self.ny, self.nx)
-            )
-            mocker.patch("pathlib.Path.exists")
-
-        # Create the tracker
+        # Create the parameters
         if params_dict is None:
             params_dict = {}
         params_dict.setdefault("base_dir", "dir")
         params_dict.setdefault("input_file", "input")
         params = TRACKParameters(**params_dict)
-        tracker = TRACKTracker(params)
+
+        # Create the tracker, optionally mocking the reading of the input file
+        if mock_input_file is False:
+            tracker = TRACKTracker(params)
+        else:
+            with (
+                mock.patch(
+                    "tctrack.track.track.lat_lon_sizes", return_value=(self.ny, self.nx)
+                ),
+                mock.patch("pathlib.Path.exists"),
+            ):
+                tracker = TRACKTracker(params)
 
         if clear_copy:
             self.mock_copy.reset_mock()
