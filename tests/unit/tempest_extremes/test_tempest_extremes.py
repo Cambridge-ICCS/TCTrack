@@ -192,13 +192,14 @@ class TestTETracker:
         metadata = tracker.variable_metadata
         assert "psl" in metadata
         for key, value in properties.items():
-            assert metadata["psl"][key] == value
+            assert metadata["psl"].properties[key] == value
         expected_cell_method = cf.CellMethod(
             "area",
             "minimum",
             qualifiers={"comment": "great circle of radius 1 degrees"},
         )
-        assert metadata["psl"]["cell_method"] == expected_cell_method
+        assert metadata["psl"].constructs == [expected_cell_method]
+        assert metadata["psl"].construct_kwargs is None
 
     def test_te_tracker_variable_metadata_failure(self, netcdf_psl_file) -> None:
         """Check read_variable_metadata raises ValueError for invalid inputs."""
@@ -225,15 +226,16 @@ class TestTETracker:
         tracker.read_variable_metadata()
         metadata = tracker.variable_metadata
         assert "psl" in metadata
-        assert metadata["psl"]["standard_name"] == "psl"
-        assert metadata["psl"]["long_name"] == "psl"
-        assert metadata["psl"]["units"] == "unknown"
+        assert metadata["psl"].properties["standard_name"] == "psl"
+        assert metadata["psl"].properties["long_name"] == "psl"
+        assert metadata["psl"].properties["units"] == "unknown"
         expected_cell_method = cf.CellMethod(
             "area",
             "minimum",
             qualifiers={"comment": "great circle of radius 1 degrees"},
         )
-        assert metadata["psl"]["cell_method"] == expected_cell_method
+        assert metadata["psl"].constructs == [expected_cell_method]
+        assert metadata["psl"].construct_kwargs is None
 
     def _mock_trajectories_data(self):
         """Generate expected track data for a given track index and variable names."""
