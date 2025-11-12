@@ -15,7 +15,7 @@ from typing import TypedDict
 
 import cf
 
-from tctrack.core import TCTracker, TCTrackerParameters, Trajectory
+from tctrack.core import TCTracker, TCTrackerMetadata, TCTrackerParameters, Trajectory
 
 
 def lod_to_te(inputs: list[dict]) -> str:
@@ -1000,8 +1000,8 @@ class TETracker(TCTracker):
         :attr:`detect_nodes_parameters.output_commands` from the input NetCDF files
         defined in :attr:`detect_nodes_parameters.in_data` (matching the NetCDF variable
         name). These will be stored in the :attr:`variable_metadata` attribute as a
-        dictionary of dictionaries. This will be called from the :meth:`to_netcdf`
-        method.
+        dictionary of :class:`TCTrackerMetadata` objects. This will be called from the
+        :meth:`to_netcdf` method.
 
         Raises
         ------
@@ -1020,12 +1020,14 @@ class TETracker(TCTracker):
         >>> tracker.read_variable_metadata()
         >>> tracker.variable_metadata
         {
-            "psl": {
-                "standard_name": "air_pressure_at_sea_level",
-                "long_name": "Sea Level Pressure",
-                "units": "Pa",
-                "cell_method": <CF CellMethod: area: point>,
-            },
+            "psl": TCTrackerMetadata(
+                properties={
+                    "standard_name": "air_pressure_at_sea_level",
+                    "long_name": "Sea Level Pressure",
+                    "units": "Pa",
+                },
+                constructs=[<CF CellMethod: area: point>],
+            ),
         }
         """
         self._variable_metadata = {}
@@ -1046,11 +1048,13 @@ class TETracker(TCTracker):
             field = fields[0]
 
             # Read and store the relevant metadata
-            self._variable_metadata[var_name] = {
-                "standard_name": field.get_property("standard_name", var_name),
-                "long_name": field.get_property("long_name", var_name),
-                "units": field.get_property("units", "unknown"),
-            }
+            self._variable_metadata[var_name] = TCTrackerMetadata(
+                {
+                    "standard_name": field.get_property("standard_name", var_name),
+                    "long_name": field.get_property("long_name", var_name),
+                    "units": field.get_property("units", "unknown"),
+                }
+            )
 
             # Add information about how the value is determined using `output_commands`
             methods = {
@@ -1066,7 +1070,7 @@ class TETracker(TCTracker):
                 else:
                     qualifier = {"comment": f"great circle of radius {dist} degrees"}
                     cell_method = cf.CellMethod("area", method, qualifiers=qualifier)
-                self._variable_metadata[var_name]["cell_method"] = cell_method
+                self._variable_metadata[var_name].constructs = [cell_method]
 
     def run_tracker(self, output_file: str):
         """Run TempestExtremes tracker to obtain tropical cyclone track trajectories.

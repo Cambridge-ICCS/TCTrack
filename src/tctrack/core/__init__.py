@@ -5,11 +5,13 @@ from .core import (
 )
 from .tracker import (
     TCTracker,
+    TCTrackerMetadata,
     TCTrackerParameters,
 )
 
 __all__ = [
     "TCTracker",
+    "TCTrackerMetadata",
     "TCTrackerParameters",
     "Trajectory",
 ]

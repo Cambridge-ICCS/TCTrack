@@ -6,7 +6,7 @@ import cf
 import numpy as np
 import pytest
 
-from tctrack.core import TCTracker, TCTrackerParameters, Trajectory
+from tctrack.core import TCTracker, TCTrackerMetadata, TCTrackerParameters, Trajectory
 
 
 class TestTCTrackerParameters:
@@ -48,13 +48,19 @@ class TestTCTracker:
         def read_variable_metadata(self) -> None:
             """Implement a dummy of the read_variable_metadata abstractmethod."""
             self._variable_metadata = {
-                "test_var": {
-                    "standard_name": "test_standard_name",
-                    "long_name": "Test Long Name",
-                    "units": "test_units",
-                },
-                "lat": {"long_name": "latitude", "units": "degrees_north"},
-                "lon": {"long_name": "longitude", "units": "degrees_east"},
+                "test_var": TCTrackerMetadata(
+                    properties={
+                        "standard_name": "test_standard_name",
+                        "long_name": "Test Long Name",
+                        "units": "test_units",
+                    }
+                ),
+                "lat": TCTrackerMetadata(
+                    {"long_name": "latitude", "units": "degrees_north"}
+                ),
+                "lon": TCTrackerMetadata(
+                    {"long_name": "longitude", "units": "degrees_east"}
+                ),
             }
 
         def trajectories(self) -> list[Trajectory]:
@@ -85,13 +91,19 @@ class TestTCTracker:
         tracker = self.ExampleTracker(example_trajectories=None)
         tracker.read_variable_metadata()
         expected_metadata = {
-            "test_var": {
-                "standard_name": "test_standard_name",
-                "long_name": "Test Long Name",
-                "units": "test_units",
-            },
-            "lat": {"long_name": "latitude", "units": "degrees_north"},
-            "lon": {"long_name": "longitude", "units": "degrees_east"},
+            "test_var": TCTrackerMetadata(
+                {
+                    "standard_name": "test_standard_name",
+                    "long_name": "Test Long Name",
+                    "units": "test_units",
+                }
+            ),
+            "lat": TCTrackerMetadata(
+                {"long_name": "latitude", "units": "degrees_north"}
+            ),
+            "lon": TCTrackerMetadata(
+                {"long_name": "longitude", "units": "degrees_east"}
+            ),
         }
         assert tracker.variable_metadata == expected_metadata
 
@@ -180,12 +192,12 @@ class TestTCTracker:
             if variable in {"lat", "lon", "time"}:  # Coordinate constructs
                 construct = field.construct(variable)
                 assert construct is not None, f"Construct for {variable} is missing"
-                for key, value in metadata.items():
+                for key, value in metadata.properties.items():
                     assert construct.get_property(key) == value, (
                         f"Metadata mismatch for {variable}: {key}"
                     )
             else:  # Field data (variables)
-                for key, value in metadata.items():
+                for key, value in metadata.properties.items():
                     assert field.get_property(key) == value, (
                         f"Metadata mismatch for field data: {variable} - {key}"
                     )
