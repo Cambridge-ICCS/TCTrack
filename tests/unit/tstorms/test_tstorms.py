@@ -8,7 +8,9 @@ pytest-mock to mock the results of subprocess calls to the system.
 import importlib.metadata
 import json
 import os
+import subprocess
 from dataclasses import asdict
+from typing import Tuple
 
 import pytest
 
@@ -30,6 +32,34 @@ def tstorms_filenames() -> dict[str, str]:
         "tm_in_file": "tm.nc",
         "slp_in_file": "slp.nc",
     }
+
+
+@pytest.fixture
+def tstorms_tracker(tmp_path, tstorms_filenames) -> Tuple[TSTORMSTracker, str]:
+    """Provide a TSTORMSTracker instance with basic values."""
+    # Create a tempdir for tstorms_dir and tstorms_driver (assumed to exist)
+    tstorms_dir = tmp_path / "tstorms"
+    tstorms_driver_dir = tstorms_dir / "tstorms_driver"
+    tstorms_driver_dir.mkdir(parents=True)
+
+    # Create mock parameters
+    tstorms_params = TSTORMSBaseParameters(
+        tstorms_dir=str(tstorms_dir),
+        output_dir=str(tmp_path / "output"),
+    )
+    detect_params = TSTORMSDetectParameters(
+        **tstorms_filenames,
+        vort_crit=3.5e-5,
+        tm_crit=0.0,
+        thick_crit=50.0,
+        dist_crit=4.0,
+        lat_bound_n=70.0,
+        lat_bound_s=-70.0,
+        do_spline=False,
+        do_thickness=False,
+        use_sfc_wind=True,
+    )
+    return TSTORMSTracker(tstorms_params, detect_params), tstorms_dir
 
 
 class TestTSTORMSTypes:
@@ -134,30 +164,9 @@ class TestTSTORMSTypes:
 class TestTSTORMSTracker:
     """Tests for the TSTORMS Tracker class."""
 
-    def test_tstorms_tracker_global_metadata(self, tmp_path, tstorms_filenames) -> None:
+    def test_tstorms_tracker_global_metadata(self, tstorms_tracker) -> None:
         """Check set_metadata correctly sets _global_metadata."""
-        # Create mock parameters
-        tstorms_dir = tmp_path / "tstorms"
-        tstorms_driver_dir = tstorms_dir / "tstorms_driver"
-        tstorms_driver_dir.mkdir(parents=True)
-
-        tstorms_params = TSTORMSBaseParameters(
-            tstorms_dir=str(tstorms_dir),
-            output_dir=str(tmp_path / "output"),
-        )
-        detect_params = TSTORMSDetectParameters(
-            **tstorms_filenames,
-            vort_crit=3.5e-5,
-            tm_crit=0.0,
-            thick_crit=50.0,
-            dist_crit=4.0,
-            lat_bound_n=70.0,
-            lat_bound_s=-70.0,
-            do_spline=False,
-            do_thickness=False,
-            use_sfc_wind=True,
-        )
-        tracker = TSTORMSTracker(tstorms_params, detect_params)
+        tracker = tstorms_tracker[0]
 
         tracker.set_metadata()
 
@@ -170,38 +179,17 @@ class TestTSTORMSTracker:
             "stitch_parameters": json.dumps(asdict(tracker.stitch_parameters)),
         }
 
-    def test_write_driver_namelist(self, tmp_path, tstorms_filenames):
+    def test_write_driver_namelist(self, tstorms_tracker):
         """Test the generation of the driver namelist inside tstorms_driver/."""
-        # Create a tempdir for tstorms_dir and tstorms_driver (assumed to exist)
-        tstorms_dir = tmp_path / "tstorms"
-        tstorms_driver_dir = tstorms_dir / "tstorms_driver"
-        tstorms_driver_dir.mkdir(parents=True)
-
-        # Create mock parameters
-        tstorms_params = TSTORMSBaseParameters(
-            tstorms_dir=str(tstorms_dir),
-            output_dir=str(tmp_path / "output"),
-        )
-        detect_params = TSTORMSDetectParameters(
-            **tstorms_filenames,
-            vort_crit=3.5e-5,
-            tm_crit=0.0,
-            thick_crit=50.0,
-            dist_crit=4.0,
-            lat_bound_n=70.0,
-            lat_bound_s=-70.0,
-            do_spline=False,
-            do_thickness=False,
-            use_sfc_wind=True,
-        )
-        tracker = TSTORMSTracker(tstorms_params, detect_params)
+        tracker = tstorms_tracker[0]
+        tstorms_dir = tstorms_tracker[1]
 
         # Call the method
         namelist_path = tracker._write_driver_namelist()  # noqa: SLF001 - Private member access
 
         # Verify the file was created inside tstorms_driver/
         assert os.path.exists(namelist_path)
-        assert namelist_path == str(tstorms_driver_dir / "nml_driver")
+        assert namelist_path == str(tstorms_dir / "tstorms_driver/nml_driver")
 
         # Verify the content of the file
         with open(namelist_path, "r") as namelist_file:
@@ -238,3 +226,147 @@ class TestTSTORMSTracker:
             FileNotFoundError, match=r"TSTORMS driver directory .* does not exist"
         ):
             tracker._write_driver_namelist()  # noqa: SLF001 - Private member access
+
+
+class TestTSTORMSTrackerDetect:
+    """Tests for the detect functionality of TSTORMSTracker."""
+
+    def test_tstorms_tracker_detect(self, mocker, tstorms_tracker) -> None:
+        """Checks the correct tstorms_driver call is made."""
+        # Mock subprocess.run to simulate successful execution
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.return_value = mocker.MagicMock(
+            returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
+        )
+
+        tracker = tstorms_tracker[0]
+        tstorms_dir = tstorms_tracker[1]
+        result = tracker.detect()
+
+        # Check subprocess call made as expected and returned outputs are passed back up
+        mock_subprocess_run.assert_called_once_with(
+            [f"{tstorms_dir}/tstorms_driver/tstorms_driver.exe"],
+            stdin=mocker.ANY,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        stdin_file = mock_subprocess_run.call_args[1]["stdin"]
+        assert stdin_file.name == f"{tstorms_dir}/tstorms_driver/nml_driver"
+        assert result["stdout"] == "Mocked stdout output"
+        assert result["stderr"] == "Mocked stderr output"
+        assert result["returncode"] == 0
+
+    def test_tstorms_tracker_detect_verbose(
+        self, mocker, tstorms_tracker, capsys
+    ) -> None:
+        """Checks the correct tstorms_driver call is made with verbose=True."""
+        # Mock subprocess.Popen to simulate real-time output
+        mock_popen = mocker.patch("subprocess.Popen")
+        mock_stdout = mocker.MagicMock()
+        mock_stdout.readline.side_effect = ["Line 1\n", "Line 2\n", ""]
+        mock_process = mocker.MagicMock(
+            stdout=mock_stdout,
+            stderr="Mocked stderr output",
+            returncode=0,
+        )
+        # Ensure communicate returns a tuple with stdout and stderr
+        mock_process.communicate.return_value = ("", "Mocked stderr output")
+        mock_popen.return_value = mock_process
+
+        tracker = tstorms_tracker[0]
+        tstorms_dir = tstorms_tracker[1]
+        result = tracker.detect(verbose=True)
+
+        # Check subprocess.Popen call
+        mock_popen.assert_called_once_with(
+            [f"{tstorms_dir}/tstorms_driver/tstorms_driver.exe"],
+            stdin=mocker.ANY,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            shell=False,
+            bufsize=1,
+        )
+
+        # Verify stdin file path
+        stdin_file = mock_popen.call_args[1]["stdin"]
+        assert stdin_file.name == f"{tstorms_dir}/tstorms_driver/nml_driver"
+
+        # Verify returned outputs - using capsys to get the stderr feed
+        captured = capsys.readouterr()
+        assert captured.out == "Line 1\nLine 2\n"
+        assert result["stderr"] == "Mocked stderr output"
+        assert result["returncode"] == 0
+
+    def test_tstorms_tracker_detect_file_not_found(
+        self, mocker, tstorms_tracker
+    ) -> None:
+        """Check detect raises FileNotFoundError when executable is missing."""
+        # Mock subprocess.run to simulate a FileNotFoundError
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.side_effect = FileNotFoundError("Executable not found")
+
+        # Create a TSTORMSTracker instance
+        tracker = tstorms_tracker[0]
+
+        # Assert that detect_nodes raises FileNotFoundError
+        with pytest.raises(
+            FileNotFoundError,
+            match="Detect failed because the executable could not be found",
+        ):
+            tracker.detect()
+
+    def test_tstorms_tracker_detect_verbose_file_not_found(
+        self, mocker, tstorms_tracker
+    ) -> None:
+        """Check detect raises FileNotFoundError verbose=True."""
+        # Mock subprocess.Popen to simulate a FileNotFoundError
+        mock_popen = mocker.patch("subprocess.Popen")
+        mock_popen.side_effect = FileNotFoundError("Executable not found")
+
+        tracker = tstorms_tracker[0]
+
+        # Assert that detect raises FileNotFoundError
+        with pytest.raises(
+            FileNotFoundError,
+            match="Detect failed because the executable could not be found",
+        ):
+            tracker.detect(verbose=True)
+
+    def test_tstorms_tracker_detect_failure(self, mocker, tstorms_tracker) -> None:
+        """Check detect_nodes raises RuntimeError on subprocess failure."""
+        # Mock subprocess.run to simulate a failure
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.side_effect = subprocess.CalledProcessError(
+            returncode=1, cmd="tstorms_driver", stderr="Error occurred"
+        )
+
+        # Create a TSTORMSTracker instance
+        tracker = tstorms_tracker[0]
+
+        # Assert that detect_nodes raises RuntimeError
+        with pytest.raises(
+            RuntimeError, match="Detect failed with a non-zero exit code"
+        ):
+            tracker.detect()
+
+    def test_tstorms_tracker_detect_verbose_failure(
+        self,
+        mocker,
+        tstorms_tracker,
+    ) -> None:
+        """Check detect raises RuntimeError on with verbose=True."""
+        # Mock subprocess.Popen to simulate a failure
+        mock_popen = mocker.patch("subprocess.Popen")
+        mock_popen.side_effect = subprocess.CalledProcessError(
+            returncode=1, cmd="tstorms_driver", stderr="Error occurred"
+        )
+
+        tracker = tstorms_tracker[0]
+
+        # Assert that detect raises RuntimeError
+        with pytest.raises(
+            RuntimeError, match="Detect failed with a non-zero exit code"
+        ):
+            tracker.detect(verbose=True)
