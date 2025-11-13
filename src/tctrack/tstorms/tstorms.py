@@ -524,7 +524,7 @@ class TSTORMSTracker(TCTracker):
 
         Examples
         --------
-        To set the parameters, instantiate a :class:`TETracker` instance and run
+        To set the parameters, instantiate a :class:`TSTORMSTracker` instance and run
         DetectNodes:
 
         >>> my_params = DriverParameters(...)
