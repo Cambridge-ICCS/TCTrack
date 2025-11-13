@@ -430,21 +430,21 @@ class TSTORMSTracker(TCTracker):
         detect_params = self.detect_parameters
         namelist_content = textwrap.dedent(f"""
          &nml_tstorms
-           crit_vort  =  {detect_params.vort_crit:.4E},
-           crit_twc   =  {detect_params.tm_crit:.4f},
-           crit_thick =  {detect_params.thick_crit:.4f},
-           crit_dist  =   {detect_params.dist_crit:.4f},
+           crit_vort  =  {detect_params.vort_crit:.4E}
+           crit_twc   =  {detect_params.tm_crit:.4f}
+           crit_thick =  {detect_params.thick_crit:.4f}
+           crit_dist  =   {detect_params.dist_crit:.4f}
           lat_bound_n =  {detect_params.lat_bound_n:.4f}
           lat_bound_s = {detect_params.lat_bound_s:.4f}
           do_spline   = {".true." if detect_params.do_spline else ".false."}
           do_thickness= {".true." if detect_params.do_thickness else ".false."}
          &end
          &input
-           fn_u    = '{os.path.join(input_dir, detect_params.u_in_file)}',
-           fn_v    = '{os.path.join(input_dir, detect_params.v_in_file)}',
-           fn_vort = '{os.path.join(input_dir, detect_params.vort_in_file)}',
-           fn_tm   = '{os.path.join(input_dir, detect_params.tm_in_file)}',
-           fn_slp  = '{os.path.join(input_dir, detect_params.slp_in_file)}',
+           fn_u    = '{os.path.join(input_dir, detect_params.u_in_file)}'
+           fn_v    = '{os.path.join(input_dir, detect_params.v_in_file)}'
+           fn_vort = '{os.path.join(input_dir, detect_params.vort_in_file)}'
+           fn_tm   = '{os.path.join(input_dir, detect_params.tm_in_file)}'
+           fn_slp  = '{os.path.join(input_dir, detect_params.slp_in_file)}'
            use_sfc_wnd = {".true." if detect_params.use_sfc_wind else ".false."}
          &end
         """)
