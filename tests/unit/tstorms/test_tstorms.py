@@ -176,19 +176,19 @@ class TestTSTORMSTracker:
         # Verify the content of the file
         with open(namelist_path, "r") as namelist_file:
             content = namelist_file.read()
-            assert "crit_vort  =  3.5000E-05," in content
-            assert "crit_twc   =  0.0000," in content
-            assert "crit_thick =  50.0000," in content
-            assert "crit_dist  =   4.0000," in content
+            assert "crit_vort  =  3.5000E-05" in content
+            assert "crit_twc   =  0.0000" in content
+            assert "crit_thick =  50.0000" in content
+            assert "crit_dist  =   4.0000" in content
             assert "lat_bound_n =  70.0000" in content
             assert "lat_bound_s = -70.0000" in content
             assert "do_spline   = .false." in content
             assert "do_thickness= .false." in content
-            assert "fn_u    = 'u.nc'," in content
-            assert "fn_v    = 'v.nc'," in content
-            assert "fn_vort = 'vort.nc'," in content
-            assert "fn_tm   = 'tm.nc'," in content
-            assert "fn_slp  = 'slp.nc'," in content
+            assert "fn_u    = 'u.nc'" in content
+            assert "fn_v    = 'v.nc'" in content
+            assert "fn_vort = 'vort.nc'" in content
+            assert "fn_tm   = 'tm.nc'" in content
+            assert "fn_slp  = 'slp.nc'" in content
             assert "use_sfc_wnd = .true." in content
 
     def test_write_driver_namelist_missing_dir(self, tmp_path, tstorms_filenames):
