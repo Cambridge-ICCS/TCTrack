@@ -38,6 +38,18 @@ class TestTSTORMSTypes:
             tstorms_dir="/path/to/tstorms", output_dir="/path/to/output"
         )
         assert params.tstorms_dir == "/path/to/tstorms"
+        assert params.input_dir is None
+        assert params.output_dir == "/path/to/output"
+
+    def test_base_parameters_initialization_input_dir(self):
+        """Check TSTORMSBaseParameters initializes correctly with input_dir."""
+        params = TSTORMSBaseParameters(
+            tstorms_dir="/path/to/tstorms",
+            input_dir="/path/to/input",
+            output_dir="/path/to/output",
+        )
+        assert params.tstorms_dir == "/path/to/tstorms"
+        assert params.input_dir == "/path/to/input"
         assert params.output_dir == "/path/to/output"
 
     def test_base_parameters_missing_values(self):
