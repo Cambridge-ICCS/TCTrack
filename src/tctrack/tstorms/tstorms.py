@@ -66,6 +66,8 @@ class TSTORMSDetectParameters(TCTrackerParameters):
     Filename of the u (zonal) velocity input file.
     This should be a NetCDF file containing a single lat-lon slice of the u field named
     ``u_ref`` (if :attr:`use_sfc_wind` is ``True``) or ``u850``.
+    This should be the full path unless the location of input files was specified in
+    :class:`TSTORMSBaseParameters`' ``input_dir``.
     """
 
     v_in_file: str
@@ -73,6 +75,8 @@ class TSTORMSDetectParameters(TCTrackerParameters):
     Filename of the v (meridional) velocity input file.
     This should be a NetCDF file containing a single lat-lon slice of the v field named
     ``v_ref`` (if :attr:`use_sfc_wind` is ``True``) or ``v850``.
+    This should be the full path unless the location of input files was specified in
+    :class:`TSTORMSBaseParameters`' ``input_dir``.
     """
 
     vort_in_file: str
@@ -80,6 +84,8 @@ class TSTORMSDetectParameters(TCTrackerParameters):
     Filename of the vorticity input file.
     This should be a NetCDF file containing a single lat-lon slice of the vorticity
     field named ``vort850`` at the 850 hPa level.
+    This should be the full path unless the location of input files was specified in
+    :class:`TSTORMSBaseParameters`' ``input_dir``.
     """
 
     tm_in_file: str
@@ -87,6 +93,8 @@ class TSTORMSDetectParameters(TCTrackerParameters):
     Filename of the temperature input file.
     This should be a NetCDF file containing a single lat-lon slice of the mean
     temperature of the warm-core layer named ``tm``.
+    This should be the full path unless the location of input files was specified in
+    :class:`TSTORMSBaseParameters`' ``input_dir``.
     """
 
     slp_in_file: str
@@ -94,6 +102,8 @@ class TSTORMSDetectParameters(TCTrackerParameters):
     Filename of the sea-level pressure input file.
     This should be a NetCDF file containing a single lat-lon slice of sea-level pressure
     named ``slp``.
+    This should be the full path unless the location of input files was specified in
+    :class:`TSTORMSBaseParameters`' ``input_dir``.
     """
 
     use_sfc_wind: bool = True
@@ -413,6 +423,10 @@ class TSTORMSTracker(TCTracker):
         namelist_path = os.path.join(tstorms_driver_dir, "nml_driver")
 
         # Format the namelist content
+        if self.tstorms_parameters.input_dir:
+            input_dir = self.tstorms_parameters.input_dir
+        else:
+            input_dir = ""
         detect_params = self.detect_parameters
         namelist_content = textwrap.dedent(f"""
          &nml_tstorms
@@ -426,11 +440,11 @@ class TSTORMSTracker(TCTracker):
           do_thickness= {".true." if detect_params.do_thickness else ".false."}
          &end
          &input
-           fn_u    = '{detect_params.u_in_file}'
-           fn_v    = '{detect_params.v_in_file}'
-           fn_vort = '{detect_params.vort_in_file}'
-           fn_tm   = '{detect_params.tm_in_file}'
-           fn_slp  = '{detect_params.slp_in_file}'
+           fn_u    = '{os.path.join(input_dir, detect_params.u_in_file)}'
+           fn_v    = '{os.path.join(input_dir, detect_params.v_in_file)}'
+           fn_vort = '{os.path.join(input_dir, detect_params.vort_in_file)}'
+           fn_tm   = '{os.path.join(input_dir, detect_params.tm_in_file)}'
+           fn_slp  = '{os.path.join(input_dir, detect_params.slp_in_file)}'
            use_sfc_wnd = {".true." if detect_params.use_sfc_wind else ".false."}
          &end
         """)
