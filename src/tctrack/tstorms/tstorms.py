@@ -20,10 +20,10 @@ class TSTORMSBaseParameters(TCTrackerParameters):
     """
     Dataclass containing values used in configuring the TSTORMS install.
 
-    This class is intended to configure the install to that executables can be run
+    This class is intended to configure the install so that executables can be run
     correctly and data stored in a desired location.
     Configuration of the actual cyclone detection algorithm is done using
-    :class:`DriverParameters` and :class:`TrajectoryParameters`.
+    :class:`TSTORMSDetectParameters` and :class:`TSTORMSStitchParameters`.
     """
 
     tstorms_dir: str
@@ -40,7 +40,7 @@ class TSTORMSBaseParameters(TCTrackerParameters):
 
     input_dir: str | None = None
     """
-    Full path to trhe directory where TSTORMS input files can be found.
+    Full path to the directory where TSTORMS input files can be found.
     Defaults to None.
     """
 
@@ -251,9 +251,9 @@ class TSTORMSTracker(TCTracker):
 
     Attributes
     ----------
-    driver_parameters : DriverParameters | None
+    driver_parameters : TSTORMSDetectParameters | None
         Class containing the parameters for the driver detection algorithm
-    trajectory_parameters : TrajectoryParameters | None
+    trajectory_parameters : TSTORMSStitchParameters | None
         Class containing the parameters for the trajectory stitching algorithm
     """
 
@@ -527,7 +527,7 @@ class TSTORMSTracker(TCTracker):
         To set the parameters, instantiate a :class:`TSTORMSTracker` instance and run
         DetectNodes:
 
-        >>> my_params = DriverParameters(...)
+        >>> my_params = TSTORMSDetectParameters(...)
         >>> my_tracker = TSTORMSTracker(driver_parameters=my_params)
         >>> result = my_tracker.detect()
         """
