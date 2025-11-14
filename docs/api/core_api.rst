@@ -20,3 +20,7 @@ They are generic, and not tied to any particular tracking code or algorithm.
    :members:
    :undoc-members:
    :show-inheritance:
+
+.. autoclass:: TCTrackerMetadata
+   :members:
+   :undoc-members:
