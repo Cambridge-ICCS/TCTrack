@@ -50,7 +50,7 @@ class TCTrackerParameters:
 
 @dataclass
 class TCTrackerMetadata:
-    """Dataclass containing the metadata for a variable."""
+    """Dataclass containing the metadata for a single variable in variable_metadata."""
 
     properties: dict[str, str]
     """The basic metadata properties for the variable."""
@@ -60,8 +60,9 @@ class TCTrackerMetadata:
 
     construct_kwargs: list[dict] | None = None
     """
-    A list of kwargs (as dicts) to pass to ``set_construct``. If provided, this must be
-    the same length as :attr:`constructs`.
+    A list of kwargs (as dicts) to use when the :meth:`cf.Field.set_construct` method
+    is called in :meth:`TCTracker.to_netcdf`. This can be left as ``None``, otherwise it
+    must be the same length as :attr:`constructs`.
     """
 
     def __post_init__(self):
