@@ -5,14 +5,23 @@ Note that these do not require a TSTORMS installation to run and make use of
 pytest-mock to mock the results of subprocess calls to the system.
 """
 
+import os
+import subprocess
+from typing import Tuple
+
 import pytest
 
-from tctrack.tstorms import DriverParameters, TrajectoryParameters
+from tctrack.tstorms import (
+    TSTORMSBaseParameters,
+    TSTORMSDetectParameters,
+    TSTORMSStitchParameters,
+    TSTORMSTracker,
+)
 
 
 @pytest.fixture
 def tstorms_filenames() -> dict[str, str]:
-    """Provide filenames for DriverParameters as non-optional/no default."""
+    """Provide filenames for TSTORMSDetectParameters as non-optional/no default."""
     return {
         "u_in_file": "u.nc",
         "v_in_file": "v.nc",
@@ -22,12 +31,71 @@ def tstorms_filenames() -> dict[str, str]:
     }
 
 
+@pytest.fixture
+def tstorms_tracker(tmp_path, tstorms_filenames) -> Tuple[TSTORMSTracker, str]:
+    """Provide a TSTORMSTracker instance with basic values."""
+    # Create a tempdir for tstorms_dir and tstorms_driver (assumed to exist)
+    tstorms_dir = tmp_path / "tstorms"
+    tstorms_driver_dir = tstorms_dir / "tstorms_driver"
+    tstorms_driver_dir.mkdir(parents=True)
+
+    # Create mock parameters
+    tstorms_params = TSTORMSBaseParameters(
+        tstorms_dir=str(tstorms_dir),
+        output_dir=str(tmp_path / "tstorms/output"),
+    )
+    detect_params = TSTORMSDetectParameters(
+        **tstorms_filenames,
+        vort_crit=3.5e-5,
+        tm_crit=0.0,
+        thick_crit=50.0,
+        dist_crit=4.0,
+        lat_bound_n=70.0,
+        lat_bound_s=-70.0,
+        do_spline=False,
+        do_thickness=False,
+        use_sfc_wind=True,
+    )
+    return TSTORMSTracker(tstorms_params, detect_params), tstorms_dir
+
+
 class TestTSTORMSTypes:
     """Tests for the different Classes and Types defined for TSTORMS."""
 
-    def test_driver_parameters_defaults(self, tstorms_filenames: dict) -> None:
-        """Check the default values for DriverParameters."""
-        params = DriverParameters(**tstorms_filenames)
+    def test_base_parameters_initialization(self):
+        """Check TSTORMSBaseParameters initializes correctly with valid arguments."""
+        params = TSTORMSBaseParameters(
+            tstorms_dir="/path/to/tstorms", output_dir="/path/to/output"
+        )
+        assert params.tstorms_dir == "/path/to/tstorms"
+        assert params.input_dir is None
+        assert params.output_dir == "/path/to/output"
+
+    def test_base_parameters_initialization_input_dir(self):
+        """Check TSTORMSBaseParameters initializes correctly with input_dir."""
+        params = TSTORMSBaseParameters(
+            tstorms_dir="/path/to/tstorms",
+            input_dir="/path/to/input",
+            output_dir="/path/to/output",
+        )
+        assert params.tstorms_dir == "/path/to/tstorms"
+        assert params.input_dir == "/path/to/input"
+        assert params.output_dir == "/path/to/output"
+
+    def test_base_parameters_missing_values(self):
+        """Check that TypeError is raised when required arguments are missing."""
+        with pytest.raises(
+            TypeError,
+            match=(
+                "missing 2 required positional arguments: "
+                "'tstorms_dir' and 'output_dir'"
+            ),
+        ):
+            TSTORMSBaseParameters()
+
+    def test_detect_parameters_defaults(self, tstorms_filenames: dict) -> None:
+        """Check the default values for TSTORMSDetectParameters."""
+        params = TSTORMSDetectParameters(**tstorms_filenames)
         # Check values of all defaults except filenames
         assert params.use_sfc_wind is True
         assert params.vort_crit == 3.5e-5
@@ -39,26 +107,28 @@ class TestTSTORMSTypes:
         assert params.do_spline is False
         assert params.do_thickness is False
 
-    def test_driver_parameters_lat_bounds_error(self, tstorms_filenames: dict) -> None:
+    def test_detect_parameters_lat_bounds_error(self, tstorms_filenames: dict) -> None:
         """Check ValueError when northern lat bound is less than southern lat bound."""
         with pytest.raises(
             ValueError,
             match=r"Northern latitude bound.*is less than.*Southern latitude bound",
         ):
-            DriverParameters(**tstorms_filenames, lat_bound_n=-10.0, lat_bound_s=10.0)
+            TSTORMSDetectParameters(
+                **tstorms_filenames, lat_bound_n=-10.0, lat_bound_s=10.0
+            )
 
-    def test_driver_parameters_do_thickness_warning(
+    def test_detect_parameters_do_thickness_warning(
         self, tstorms_filenames: dict
     ) -> None:
         """Check UserWarning when do_thickness is set to True."""
         with pytest.warns(
             UserWarning, match="`do_thickness` is set, but will have no effect.*"
         ):
-            DriverParameters(**tstorms_filenames, do_thickness=True)
+            TSTORMSDetectParameters(**tstorms_filenames, do_thickness=True)
 
-    def test_trajectory_parameters_defaults(self) -> None:
-        """Check the default values for TrajectoryParameters."""
-        params = TrajectoryParameters()
+    def test_stitch_parameters_defaults(self) -> None:
+        """Check the default values for TSTORMSStitchParameters."""
+        params = TSTORMSStitchParameters()
         # Check values of all defaults
         assert params.r_crit == 900.0
         assert params.wind_crit == 17.0
@@ -72,17 +142,264 @@ class TestTSTORMSTypes:
         assert params.do_spline is False
         assert params.do_thickness is False
 
-    def test_trajectory_parameters_lat_bounds_error(self) -> None:
+    def test_stitch_parameters_lat_bounds_error(self) -> None:
         """Check ValueError when northern lat bound is less than southern lat bound."""
         with pytest.raises(
             ValueError,
             match=r"Northern latitude bound.*is less than.*Southern latitude bound",
         ):
-            TrajectoryParameters(lat_bound_n=-10.0, lat_bound_s=10.0)
+            TSTORMSStitchParameters(lat_bound_n=-10.0, lat_bound_s=10.0)
 
-    def test_trajectory_parameters_do_thickness_warning(self) -> None:
+    def test_stitch_parameters_do_thickness_warning(self) -> None:
         """Check UserWarning when do_thickness is set to True."""
         with pytest.warns(
             UserWarning, match="`do_thickness` is set, but will have no effect.*"
         ):
-            TrajectoryParameters(do_thickness=True)
+            TSTORMSStitchParameters(do_thickness=True)
+
+
+class TestTSTORMSTracker:
+    """Tests for the TSTORMS Tracker class."""
+
+    def test_write_driver_namelist(self, tstorms_tracker):
+        """Test the generation of the driver namelist inside tstorms_driver/."""
+        tracker = tstorms_tracker[0]
+        tstorms_dir = tstorms_tracker[1]
+
+        # Call the method
+        namelist_path = tracker._write_driver_namelist()  # noqa: SLF001 - Private member access
+
+        # Verify the file was created inside tstorms_driver/
+        assert os.path.exists(namelist_path)
+        assert namelist_path == str(tstorms_dir / "tstorms_driver/nml_driver")
+
+        # Verify the content of the file
+        with open(namelist_path, "r") as namelist_file:
+            content = namelist_file.read()
+            assert "crit_vort  =  3.5000E-05" in content
+            assert "crit_twc   =  0.0000" in content
+            assert "crit_thick =  50.0000" in content
+            assert "crit_dist  =   4.0000" in content
+            assert "lat_bound_n =  70.0000" in content
+            assert "lat_bound_s = -70.0000" in content
+            assert "do_spline   = .false." in content
+            assert "do_thickness= .false." in content
+            assert "fn_u    = 'u.nc'" in content
+            assert "fn_v    = 'v.nc'" in content
+            assert "fn_vort = 'vort.nc'" in content
+            assert "fn_tm   = 'tm.nc'" in content
+            assert "fn_slp  = 'slp.nc'" in content
+            assert "use_sfc_wnd = .true." in content
+
+    def test_write_driver_namelist_missing_dir(self, tmp_path, tstorms_filenames):
+        """Test that FileNotFoundError is raised when tstorms_driver/ does not exist."""
+        # Create a temporary directory for tstorms_dir but not tstorms_driver
+        tstorms_dir = tmp_path / "tstorms"
+        tstorms_dir.mkdir()
+
+        tstorms_params = TSTORMSBaseParameters(
+            tstorms_dir=str(tstorms_dir),
+            output_dir=str(tmp_path / "output"),
+        )
+        detect_params = TSTORMSDetectParameters(**tstorms_filenames)
+        tracker = TSTORMSTracker(tstorms_params, detect_params)
+
+        with pytest.raises(
+            FileNotFoundError, match=r"TSTORMS driver directory .* does not exist"
+        ):
+            tracker._write_driver_namelist()  # noqa: SLF001 - Private member access
+
+
+class TestTSTORMSTrackerDetect:
+    """Tests for the detect functionality of TSTORMSTracker."""
+
+    def test_tstorms_tracker_detect(self, mocker, tstorms_tracker) -> None:
+        """Checks the correct tstorms_driver call is made."""
+        # Mock subprocess.run to simulate successful execution
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.return_value = mocker.MagicMock(
+            returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
+        )
+        # Mock warning for no cyclones file being generated.
+        mocker.patch("warnings.warn")
+
+        tracker = tstorms_tracker[0]
+        tstorms_dir = tstorms_tracker[1]
+        result = tracker.detect()
+
+        # Check subprocess call made as expected and returned outputs are passed back up
+        mock_subprocess_run.assert_called_once_with(
+            [f"{tstorms_dir}/tstorms_driver/tstorms_driver.exe"],
+            stdin=mocker.ANY,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        stdin_file = mock_subprocess_run.call_args[1]["stdin"]
+        assert stdin_file.name == f"{tstorms_dir}/tstorms_driver/nml_driver"
+        assert result["stdout"] == "Mocked stdout output"
+        assert result["stderr"] == "Mocked stderr output"
+        assert result["returncode"] == 0
+
+    def test_tstorms_tracker_detect_verbose(
+        self, mocker, tstorms_tracker, capsys
+    ) -> None:
+        """Checks the correct tstorms_driver call is made with verbose=True."""
+        # Mock subprocess.Popen to simulate real-time output
+        mock_popen = mocker.patch("subprocess.Popen")
+        mock_stdout = mocker.MagicMock()
+        mock_stdout.readline.side_effect = ["Line 1\n", "Line 2\n", ""]
+        mock_process = mocker.MagicMock(
+            stdout=mock_stdout,
+            stderr="Mocked stderr output",
+            returncode=0,
+        )
+        # Ensure communicate returns a tuple with stdout and stderr
+        mock_process.communicate.return_value = ("", "Mocked stderr output")
+        mock_popen.return_value = mock_process
+        # Mock warning for no cyclones file being generated.
+        mocker.patch("warnings.warn")
+
+        tracker = tstorms_tracker[0]
+        tstorms_dir = tstorms_tracker[1]
+        result = tracker.detect(verbose=True)
+
+        # Check subprocess.Popen call
+        mock_popen.assert_called_once_with(
+            [f"{tstorms_dir}/tstorms_driver/tstorms_driver.exe"],
+            stdin=mocker.ANY,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            shell=False,
+            bufsize=1,
+        )
+
+        # Verify stdin file path
+        stdin_file = mock_popen.call_args[1]["stdin"]
+        assert stdin_file.name == f"{tstorms_dir}/tstorms_driver/nml_driver"
+
+        # Verify returned outputs - using capsys to get the stderr feed
+        captured = capsys.readouterr()
+        assert captured.out == "Line 1\nLine 2\n"
+        assert result["stderr"] == "Mocked stderr output"
+        assert result["returncode"] == 0
+
+    def test_tstorms_tracker_detect_file_not_found(
+        self, mocker, tstorms_tracker
+    ) -> None:
+        """Check detect raises FileNotFoundError when executable is missing."""
+        # Mock subprocess.run to simulate a FileNotFoundError
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.side_effect = FileNotFoundError("Executable not found")
+
+        # Create a TSTORMSTracker instance
+        tracker = tstorms_tracker[0]
+
+        # Assert that detect_nodes raises FileNotFoundError
+        with pytest.raises(
+            FileNotFoundError,
+            match="Detect failed because the executable could not be found",
+        ):
+            tracker.detect()
+
+    def test_tstorms_tracker_detect_verbose_file_not_found(
+        self, mocker, tstorms_tracker
+    ) -> None:
+        """Check detect raises FileNotFoundError verbose=True."""
+        # Mock subprocess.Popen to simulate a FileNotFoundError
+        mock_popen = mocker.patch("subprocess.Popen")
+        mock_popen.side_effect = FileNotFoundError("Executable not found")
+
+        tracker = tstorms_tracker[0]
+
+        # Assert that detect raises FileNotFoundError
+        with pytest.raises(
+            FileNotFoundError,
+            match="Detect failed because the executable could not be found",
+        ):
+            tracker.detect(verbose=True)
+
+    def test_tstorms_tracker_detect_failure(self, mocker, tstorms_tracker) -> None:
+        """Check detect_nodes raises RuntimeError on subprocess failure."""
+        # Mock subprocess.run to simulate a failure
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.side_effect = subprocess.CalledProcessError(
+            returncode=1, cmd="tstorms_driver", stderr="Error occurred"
+        )
+
+        # Create a TSTORMSTracker instance
+        tracker = tstorms_tracker[0]
+
+        # Assert that detect_nodes raises RuntimeError
+        with pytest.raises(
+            RuntimeError, match="Detect failed with a non-zero exit code"
+        ):
+            tracker.detect()
+
+    def test_tstorms_tracker_detect_verbose_failure(
+        self,
+        mocker,
+        tstorms_tracker,
+    ) -> None:
+        """Check detect raises RuntimeError on with verbose=True."""
+        # Mock subprocess.Popen to simulate a failure
+        mock_popen = mocker.patch("subprocess.Popen")
+        mock_popen.side_effect = subprocess.CalledProcessError(
+            returncode=1, cmd="tstorms_driver", stderr="Error occurred"
+        )
+
+        tracker = tstorms_tracker[0]
+
+        # Assert that detect raises RuntimeError
+        with pytest.raises(
+            RuntimeError, match="Detect failed with a non-zero exit code"
+        ):
+            tracker.detect(verbose=True)
+
+    def test_tstorms_tracker_cyclones_file_copy(self, mocker, tstorms_tracker) -> None:
+        """Check that the cyclones file is copied to output_dir."""
+        # Mock subprocess.run to simulate successful execution
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.return_value = mocker.MagicMock(
+            returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
+        )
+
+        # Use the tstorms_dir from the fixture and create a dummy cyclones file
+        generated_cyclones_file = os.path.join(os.getcwd(), "cyclones")
+        with open(generated_cyclones_file, "w") as f:
+            f.write("Mock cyclones content")
+
+        tstorms_dir = tstorms_tracker[1]
+        cyclones_dest_file = tstorms_dir / "output/cyclones"
+
+        # Set up the tracker
+        tracker = tstorms_tracker[0]
+        _ = tracker.detect()
+
+        assert cyclones_dest_file.exists()
+        assert cyclones_dest_file.read_text() == "Mock cyclones content"
+
+        # clean up
+        if os.path.exists(generated_cyclones_file):
+            os.remove(generated_cyclones_file)
+
+    def test_tstorms_tracker_cyclones_file_not_generated(
+        self, mocker, tstorms_tracker
+    ) -> None:
+        """Check that the cyclones file is copied to output_dir."""
+        # Mock subprocess.run to simulate successful execution
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.return_value = mocker.MagicMock(
+            returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
+        )
+
+        # Mock warning so not raised but capture the mocked call
+        mock_warn = mocker.patch("warnings.warn")
+
+        # Set up the tracker
+        tracker = tstorms_tracker[0]
+        _ = tracker.detect()
+
+        # Assert warning issued
+        mock_warn.assert_called_once_with("cyclones file not found.", stacklevel=2)
