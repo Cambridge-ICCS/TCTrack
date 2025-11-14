@@ -8,6 +8,7 @@ pytest-mock to mock the results of subprocess calls to the system.
 from pathlib import Path
 from unittest import mock
 
+import cf
 import cftime
 import pytest
 from netCDF4 import Dataset
@@ -391,10 +392,20 @@ class TestTrackTracker:
 
         # Intensity
         assert "intensity" in metadata
-        properties = metadata["intensity"]
+        plev = tracker.parameters.pressure_level
         expected_properties = {
             "standard_name": "atmosphere_upward_relative_vorticity",
-            "long_name": "Relative vorticity at 85000 Pa",
+            "long_name": f"Relative vorticity at {plev} Pa",
             "units": "s-1",
         }
-        assert properties == expected_properties
+        expected_constructs = [
+            cf.DomainAxis(size=1),
+            cf.AuxiliaryCoordinate(
+                data=cf.Data(plev, units="Pa"),
+                properties={"standard_name": "air_pressure", "long_name": "pressure"},
+            ),
+        ]
+        expected_construct_kwargs = [{"key": "plev"}, {"axes": "plev"}]
+        assert metadata["intensity"].properties == expected_properties
+        assert metadata["intensity"].constructs == expected_constructs
+        assert metadata["intensity"].construct_kwargs == expected_construct_kwargs
