@@ -45,7 +45,7 @@ def tstorms_tracker(tmp_path, tstorms_filenames) -> Tuple[TSTORMSTracker, str]:
     # Create mock parameters
     tstorms_params = TSTORMSBaseParameters(
         tstorms_dir=str(tstorms_dir),
-        output_dir=str(tmp_path / "output"),
+        output_dir=str(tmp_path / "tstorms/output"),
     )
     detect_params = TSTORMSDetectParameters(
         **tstorms_filenames,
@@ -238,6 +238,8 @@ class TestTSTORMSTrackerDetect:
         mock_subprocess_run.return_value = mocker.MagicMock(
             returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
         )
+        # Mock warning for no cyclones file being generated.
+        mocker.patch("warnings.warn")
 
         tracker = tstorms_tracker[0]
         tstorms_dir = tstorms_tracker[1]
@@ -273,6 +275,8 @@ class TestTSTORMSTrackerDetect:
         # Ensure communicate returns a tuple with stdout and stderr
         mock_process.communicate.return_value = ("", "Mocked stderr output")
         mock_popen.return_value = mock_process
+        # Mock warning for no cyclones file being generated.
+        mocker.patch("warnings.warn")
 
         tracker = tstorms_tracker[0]
         tstorms_dir = tstorms_tracker[1]
@@ -370,3 +374,50 @@ class TestTSTORMSTrackerDetect:
             RuntimeError, match="Detect failed with a non-zero exit code"
         ):
             tracker.detect(verbose=True)
+
+    def test_tstorms_tracker_cyclones_file_copy(self, mocker, tstorms_tracker) -> None:
+        """Check that the cyclones file is copied to output_dir."""
+        # Mock subprocess.run to simulate successful execution
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.return_value = mocker.MagicMock(
+            returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
+        )
+
+        # Use the tstorms_dir from the fixture and create a dummy cyclones file
+        generated_cyclones_file = os.path.join(os.getcwd(), "cyclones")
+        with open(generated_cyclones_file, "w") as f:
+            f.write("Mock cyclones content")
+
+        tstorms_dir = tstorms_tracker[1]
+        cyclones_dest_file = tstorms_dir / "output/cyclones"
+
+        # Set up the tracker
+        tracker = tstorms_tracker[0]
+        _ = tracker.detect()
+
+        assert cyclones_dest_file.exists()
+        assert cyclones_dest_file.read_text() == "Mock cyclones content"
+
+        # clean up
+        if os.path.exists(generated_cyclones_file):
+            os.remove(generated_cyclones_file)
+
+    def test_tstorms_tracker_cyclones_file_not_generated(
+        self, mocker, tstorms_tracker
+    ) -> None:
+        """Check that the cyclones file is copied to output_dir."""
+        # Mock subprocess.run to simulate successful execution
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.return_value = mocker.MagicMock(
+            returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
+        )
+
+        # Mock warning so not raised but capture the mocked call
+        mock_warn = mocker.patch("warnings.warn")
+
+        # Set up the tracker
+        tracker = tstorms_tracker[0]
+        _ = tracker.detect()
+
+        # Assert warning issued
+        mock_warn.assert_called_once_with("cyclones file not found.", stacklevel=2)
