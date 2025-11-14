@@ -36,6 +36,23 @@ class TestTCTrackerParameters:
         assert repr(params) == expected_output
 
 
+def example_metadata():
+    """Provide metadata for initialising and comparing variable_metadata."""
+    return {
+        "test_var": TCTrackerMetadata(
+            properties={
+                "standard_name": "test_standard_name",
+                "long_name": "Test Long Name",
+                "units": "test_units",
+            },
+            constructs=[cf.CellMethod("area", "point")],
+            construct_kwargs=[{"key": "cellmethod0"}],
+        ),
+        "lat": TCTrackerMetadata({"long_name": "latitude", "units": "degrees_north"}),
+        "lon": TCTrackerMetadata({"long_name": "longitude", "units": "degrees_east"}),
+    }
+
+
 class TestTCTracker:
     """Tests for the TCTracker abstract base class."""
 
@@ -47,21 +64,7 @@ class TestTCTracker:
 
         def read_variable_metadata(self) -> None:
             """Implement a dummy of the read_variable_metadata abstractmethod."""
-            self._variable_metadata = {
-                "test_var": TCTrackerMetadata(
-                    properties={
-                        "standard_name": "test_standard_name",
-                        "long_name": "Test Long Name",
-                        "units": "test_units",
-                    }
-                ),
-                "lat": TCTrackerMetadata(
-                    {"long_name": "latitude", "units": "degrees_north"}
-                ),
-                "lon": TCTrackerMetadata(
-                    {"long_name": "longitude", "units": "degrees_east"}
-                ),
-            }
+            self._variable_metadata = example_metadata()
 
         def trajectories(self) -> list[Trajectory]:
             """Implement a dummy of the trajectories abstractmethod."""
@@ -90,21 +93,7 @@ class TestTCTracker:
         """Test that `variable_metadata` is correctly initialized by the subclass."""
         tracker = self.ExampleTracker(example_trajectories=None)
         tracker.read_variable_metadata()
-        expected_metadata = {
-            "test_var": TCTrackerMetadata(
-                {
-                    "standard_name": "test_standard_name",
-                    "long_name": "Test Long Name",
-                    "units": "test_units",
-                }
-            ),
-            "lat": TCTrackerMetadata(
-                {"long_name": "latitude", "units": "degrees_north"}
-            ),
-            "lon": TCTrackerMetadata(
-                {"long_name": "longitude", "units": "degrees_east"}
-            ),
-        }
+        expected_metadata = example_metadata()
         assert tracker.variable_metadata == expected_metadata
 
     def test_to_netcdf(self, tmp_path):
@@ -197,10 +186,14 @@ class TestTCTracker:
                         f"Metadata mismatch for {variable}: {key}"
                     )
             else:  # Field data (variables)
+                # Properties
                 for key, value in metadata.properties.items():
                     assert field.get_property(key) == value, (
                         f"Metadata mismatch for field data: {variable} - {key}"
                     )
+                # Constructs
+                if variable == "test_var":
+                    assert "cellmethod0" in field.constructs()
 
         # Validate data in arrays
         # Note that the first trajectory has a nan appended due to observation mismatch
