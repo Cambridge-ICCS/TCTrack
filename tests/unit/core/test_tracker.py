@@ -1,5 +1,6 @@
 """Unit tests for tracker.py of the TCTrack Core Python package."""
 
+import re
 from dataclasses import dataclass
 
 import cf
@@ -34,6 +35,38 @@ class TestTCTrackerParameters:
             "ExampleParameters(\n\tparam_a \t = 42\n\tparam_b \t = test\n)"
         )
         assert repr(params) == expected_output
+
+
+class TestTCTrackerMetadata:
+    """Tests for TCTrackerMetadata dataclass."""
+
+    @pytest.mark.parametrize(
+        "constructs,construct_kwargs",
+        [
+            (None, None),
+            (["construct1", "construct2"], None),
+            (["construct1", "construct2"], []),
+            (["construct1", "construct2"], [{"k1": "v1"}, {}]),
+        ],
+    )
+    def test_constructs_allowed(self, constructs, construct_kwargs):
+        """Test valid combinations of construct and construct_kwargs values."""
+        TCTrackerMetadata(
+            properties={},
+            constructs=constructs,
+            construct_kwargs=construct_kwargs,
+        )
+
+    def test_constructs_mismatch(self):
+        """Check for error if constructs and construct_kwargs have different lengths."""
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "'constructs' and 'construct_kwargs' have mismatched lengths "
+                "(got 2 and 1)"
+            ),
+        ):
+            TCTrackerMetadata({}, ["construct1", "construct2"], [{"key1": "value1"}])
 
 
 def example_metadata():
