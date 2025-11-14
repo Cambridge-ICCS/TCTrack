@@ -6,6 +6,7 @@ References
 """
 
 import os
+import shutil
 import subprocess
 import tempfile
 import textwrap
@@ -288,6 +289,10 @@ class TSTORMSTracker(TCTracker):
         else:
             self.stitch_parameters = TSTORMSStitchParameters()
 
+        # Ensure the output directory exists, create if not.
+        output_dir = self.tstorms_parameters.output_dir
+        os.makedirs(output_dir, exist_ok=True)
+
         # Check TSTORMSStitchParameters input arguments according to
         # TSTORMSDetectParameters
         # TODO: Decide which parameters we want to synchronise
@@ -488,7 +493,7 @@ class TSTORMSTracker(TCTracker):
         TC candidates at each time from the input files. This will be generated
         in the current directory before being copied over to the desired output location
         provided in the base parameters attribute :attr:`tstorms_parameters`.
-        After this each time is listed in the format:
+        Cyclones in the file are listed for each time in the format:
 
         .. code-block:: text
 
@@ -533,10 +538,22 @@ class TSTORMSTracker(TCTracker):
         """
         namelist_filepath = self._write_driver_namelist()
         driver_call_list = self._make_driver_call()
-        return self._run_tstorms_process(
+        process_output = self._run_tstorms_process(
             "Detect", driver_call_list, namelist_filepath, verbose=verbose
         )
-        # TODO Copy cyclones to output location (and namelist?)
+
+        # Copy the cyclones file to the output directory
+        output_dir = self.tstorms_parameters.output_dir
+        cyclones_file = "cyclones"
+        destination_file = os.path.join(output_dir, cyclones_file)
+        if os.path.exists(cyclones_file):
+            # Copy to output_dir if not cwd
+            if os.path.abspath(cyclones_file) != os.path.abspath(destination_file):
+                shutil.copy(cyclones_file, destination_file)
+        else:
+            warnings.warn("cyclones file not found.", stacklevel=2)
+
+        return process_output
 
     def read_variable_metadata(self):
         """Create placeholder for abstract method."""
