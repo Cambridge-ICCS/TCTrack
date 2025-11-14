@@ -48,20 +48,51 @@ class TCTrackerParameters:
         return self.__repr__()
 
 
+@dataclass
+class TCTrackerMetadata:
+    """Dataclass containing the metadata for a single variable in variable_metadata."""
+
+    properties: dict[str, str]
+    """The basic metadata properties for the variable."""
+
+    constructs: list | None = None
+    """A list of any CF constructs to add, such as :class:`cf.CellMethod` constructs."""
+
+    construct_kwargs: list[dict] | None = None
+    """
+    A list of kwargs (as dicts) to use when the :meth:`cf.Field.set_construct` method
+    is called in :meth:`TCTracker.to_netcdf`. This can be left as ``None``, otherwise it
+    must be the same length as :attr:`constructs`.
+    """
+
+    def __post_init__(self):
+        """Ensure both constructs and construct_kwargs are the same length."""
+        if (
+            self.constructs
+            and self.construct_kwargs
+            and len(self.constructs) != len(self.construct_kwargs)
+        ):
+            msg = (
+                "'constructs' and 'construct_kwargs' have mismatched lengths "
+                f"(got {len(self.constructs)} and {len(self.construct_kwargs)})"
+            )
+            raise ValueError(msg)
+
+
 class TCTracker(ABC):
     """
     Abstract Base Class representing a generic TCTracker class.
 
     Attributes
     ----------
-    _variable_metadata : dict
+    _variable_metadata : dict[str, TCTrackerMetadata]
         A dictionary containing metadata for variables.
         This attribute must be initialized by the subclass through the
         :meth:`read_variable_metadata` method.
     """
 
     # Private attributes
-    _variable_metadata: dict
+    _variable_metadata: dict[str, TCTrackerMetadata]
 
     @property
     def variable_metadata(self) -> dict:
@@ -85,28 +116,31 @@ class TCTracker(ABC):
 
         Reads and sets metadata for each variable used in tracking to be written out.
         These will be stored in the :attr:`variable_metadata` attribute as a
-        dictionary of dictionaries. This will be called from the :meth:`to_netcdf`
-        method.
+        dictionary of :class:`TCTrackerMetadata` objects. This will be called from the
+        :meth:`to_netcdf` method.
 
         This method must be implemented by subclasses to populate the
         :attr:`_variable_metadata` attribute with relevant metadata for variables.
 
         Notes
         -----
-        The :attr:`_variable_metadata` attribute is expected to be a dictionary
-        where keys are variable names and values are dictionaries containing
-        metadata (e.g., `standard_name`, `long_name`, `units`, `cell_method`).
+        The :attr:`_variable_metadata` attribute is expected to be a dictionary where
+        keys are variable names and values are instances of :class:`TCTrackerMetadata`
+        containing the metadata for that variable (e.g., `standard_name`, `long_name`,
+        `units`).
 
         Examples
         --------
         >>> class MyTracker(TCTracker):
         ...     def read_variable_metadata(self):
         ...         self._variable_metadata = {
-        ...             "example_variable": {
-        ...                 "standard_name": "example_standard_name",
-        ...                 "long_name": "Example Long Name",
-        ...                 "units": "example_units",
-        ...                 "cell_method": <CF CellMethod>,
+        ...             "example_variable": TCTrackerMetadata(
+        ...                 properties={
+        ...                     "standard_name": "example_standard_name",
+        ...                     "long_name": "Example Long Name",
+        ...                     "units": "example_units",
+        ...                 },
+        ...                 constructs=[<CF CellMethod>],
         ...             }
         ...         }
         """
@@ -255,16 +289,20 @@ class TCTracker(ABC):
                 continue
 
             # Define the variable metadata
-            properties = self.variable_metadata.get(variable, {})
-            properties["featureType"] = "trajectory"
-            # Remove the cell method (if there is one) to add separately
-            cell_method = properties.pop("cell_method", None)
+            metadata = self.variable_metadata.get(variable, TCTrackerMetadata({}))
+            metadata.properties["featureType"] = "trajectory"
 
-            field = cf.Field(properties=properties)
+            field = cf.Field(properties=metadata.properties)
 
-            if cell_method is not None:
-                field.set_construct(cell_method)
+            # Add any metadata constructs
+            if metadata.constructs:
+                for ic, construct in enumerate(metadata.constructs):
+                    kwargs = {}
+                    if metadata.construct_kwargs:
+                        kwargs = metadata.construct_kwargs[ic]
+                    field.set_construct(construct, **kwargs)
 
+            # Add the axes / coordinates
             axis_traj = field.set_construct(domain_axis_traj)
             axis_obs = field.set_construct(domain_axis_obs)
             field.set_construct(dim_traj, axes=(axis_traj,))

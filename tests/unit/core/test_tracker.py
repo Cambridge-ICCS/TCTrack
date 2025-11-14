@@ -1,12 +1,13 @@
 """Unit tests for tracker.py of the TCTrack Core Python package."""
 
+import re
 from dataclasses import dataclass
 
 import cf
 import numpy as np
 import pytest
 
-from tctrack.core import TCTracker, TCTrackerParameters, Trajectory
+from tctrack.core import TCTracker, TCTrackerMetadata, TCTrackerParameters, Trajectory
 
 
 class TestTCTrackerParameters:
@@ -36,6 +37,55 @@ class TestTCTrackerParameters:
         assert repr(params) == expected_output
 
 
+class TestTCTrackerMetadata:
+    """Tests for TCTrackerMetadata dataclass."""
+
+    @pytest.mark.parametrize(
+        "constructs,construct_kwargs",
+        [
+            (None, None),
+            (["construct1", "construct2"], None),
+            (["construct1", "construct2"], []),
+            (["construct1", "construct2"], [{"k1": "v1"}, {}]),
+        ],
+    )
+    def test_constructs_allowed(self, constructs, construct_kwargs):
+        """Test valid combinations of construct and construct_kwargs values."""
+        TCTrackerMetadata(
+            properties={},
+            constructs=constructs,
+            construct_kwargs=construct_kwargs,
+        )
+
+    def test_constructs_mismatch(self):
+        """Check for error if constructs and construct_kwargs have different lengths."""
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "'constructs' and 'construct_kwargs' have mismatched lengths "
+                "(got 2 and 1)"
+            ),
+        ):
+            TCTrackerMetadata({}, ["construct1", "construct2"], [{"key1": "value1"}])
+
+
+def example_metadata():
+    """Provide metadata for initialising and comparing variable_metadata."""
+    return {
+        "test_var": TCTrackerMetadata(
+            properties={
+                "standard_name": "test_standard_name",
+                "long_name": "Test Long Name",
+                "units": "test_units",
+            },
+            constructs=[cf.CellMethod("area", "point")],
+            construct_kwargs=[{"key": "cellmethod0"}],
+        ),
+        "lat": TCTrackerMetadata({"long_name": "latitude", "units": "degrees_north"}),
+        "lon": TCTrackerMetadata({"long_name": "longitude", "units": "degrees_east"}),
+    }
+
+
 class TestTCTracker:
     """Tests for the TCTracker abstract base class."""
 
@@ -47,15 +97,7 @@ class TestTCTracker:
 
         def read_variable_metadata(self) -> None:
             """Implement a dummy of the read_variable_metadata abstractmethod."""
-            self._variable_metadata = {
-                "test_var": {
-                    "standard_name": "test_standard_name",
-                    "long_name": "Test Long Name",
-                    "units": "test_units",
-                },
-                "lat": {"long_name": "latitude", "units": "degrees_north"},
-                "lon": {"long_name": "longitude", "units": "degrees_east"},
-            }
+            self._variable_metadata = example_metadata()
 
         def trajectories(self) -> list[Trajectory]:
             """Implement a dummy of the trajectories abstractmethod."""
@@ -84,15 +126,7 @@ class TestTCTracker:
         """Test that `variable_metadata` is correctly initialized by the subclass."""
         tracker = self.ExampleTracker(example_trajectories=None)
         tracker.read_variable_metadata()
-        expected_metadata = {
-            "test_var": {
-                "standard_name": "test_standard_name",
-                "long_name": "Test Long Name",
-                "units": "test_units",
-            },
-            "lat": {"long_name": "latitude", "units": "degrees_north"},
-            "lon": {"long_name": "longitude", "units": "degrees_east"},
-        }
+        expected_metadata = example_metadata()
         assert tracker.variable_metadata == expected_metadata
 
     def test_to_netcdf(self, tmp_path):
@@ -180,15 +214,19 @@ class TestTCTracker:
             if variable in {"lat", "lon", "time"}:  # Coordinate constructs
                 construct = field.construct(variable)
                 assert construct is not None, f"Construct for {variable} is missing"
-                for key, value in metadata.items():
+                for key, value in metadata.properties.items():
                     assert construct.get_property(key) == value, (
                         f"Metadata mismatch for {variable}: {key}"
                     )
             else:  # Field data (variables)
-                for key, value in metadata.items():
+                # Properties
+                for key, value in metadata.properties.items():
                     assert field.get_property(key) == value, (
                         f"Metadata mismatch for field data: {variable} - {key}"
                     )
+                # Constructs
+                if variable == "test_var":
+                    assert "cellmethod0" in field.constructs()
 
         # Validate data in arrays
         # Note that the first trajectory has a nan appended due to observation mismatch
