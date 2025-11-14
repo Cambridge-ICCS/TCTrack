@@ -16,7 +16,7 @@ from pathlib import Path
 
 import cf
 
-from tctrack.core import TCTracker, TCTrackerParameters, Trajectory
+from tctrack.core import TCTracker, TCTrackerMetadata, TCTrackerParameters, Trajectory
 from tctrack.utils import lat_lon_sizes
 
 
@@ -708,12 +708,25 @@ class TRACKTracker(TCTracker):
         """Read in the metadata from the input files for each variable."""
         self._variable_metadata = {}
 
-        plev = f"{self.parameters.pressure_level} Pa"
-        self._variable_metadata["intensity"] = {
-            "standard_name": "atmosphere_upward_relative_vorticity",
-            "long_name": f"Relative vorticity at {plev}",
-            "units": "s-1",
-        }
+        plev_domain = cf.DomainAxis(size=1)
+        plev = cf.Data(self.parameters.pressure_level, units="Pa")
+        plev_coord = cf.AuxiliaryCoordinate(
+            data=plev,
+            properties={
+                "standard_name": "air_pressure",
+                "long_name": "pressure",
+            },
+        )
+
+        self._variable_metadata["intensity"] = TCTrackerMetadata(
+            properties={
+                "standard_name": "atmosphere_upward_relative_vorticity",
+                "long_name": f"Relative vorticity at {plev}",
+                "units": "s-1",
+            },
+            constructs=[plev_domain, plev_coord],
+            construct_kwargs=[{"key": "plev"}, {"axes": "plev"}],
+        )
 
     def run_tracker(self, output_file: str):
         """Run the TRACK tracker to obtain the tropical cyclone track trajectories.
