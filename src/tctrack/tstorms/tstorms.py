@@ -531,7 +531,7 @@ class TSTORMSTracker(TCTracker):
         Examples
         --------
         To set the parameters, instantiate a :class:`TSTORMSTracker` instance and run
-        DetectNodes:
+        detect:
 
         >>> my_params = TSTORMSDetectParameters(...)
         >>> my_tracker = TSTORMSTracker(driver_parameters=my_params)
@@ -553,6 +553,167 @@ class TSTORMSTracker(TCTracker):
                 shutil.copy(cyclones_file, destination_file)
         else:
             warnings.warn("cyclones file not found.", stacklevel=2)
+
+        return process_output
+
+    def _write_trajectory_analysis_namelist(self) -> str:
+        """Generate the namelist file for the trajectory_analysis routine.
+
+        Returns
+        -------
+        str
+            The full path to the generated namelist file.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the `trajectory_analysis` directory does not exist.
+        """
+        # Ensure the tstorms_dir exists
+        tstorms_trajectory_dir = os.path.join(
+            self.tstorms_parameters.tstorms_dir, "trajectory_analysis"
+        )
+        if not os.path.exists(tstorms_trajectory_dir):
+            err_msg = (
+                f"TSTORMS trajectory directory '{tstorms_trajectory_dir}' "
+                "does not exist."
+            )
+            raise FileNotFoundError(err_msg)
+
+        # Define the namelist file path
+        namelist_path = os.path.join(tstorms_trajectory_dir, "nml_traj")
+
+        # Format the namelist content
+        stitch_params = self.stitch_parameters
+        namelist_content = textwrap.dedent(f"""
+         &input
+            rcrit      = {stitch_params.r_crit:.4E}
+            wcrit      = {stitch_params.wind_crit:.4f}
+            vcrit      = {stitch_params.vort_crit:.4f}
+            twc_crit   = {stitch_params.tm_crit:.4f}
+            thick_crit =   {stitch_params.thick_crit:.4f}
+            nwcrit     = {stitch_params.n_day_crit:.4f}
+            do_filt    = {".true." if stitch_params.do_filter else ".false."}
+            nlat = {stitch_params.lat_bound_n:.4f}
+            slat = {stitch_params.lat_bound_s:.4f}
+            do_spline    = {".true." if stitch_params.do_spline else ".false."}
+            do_thickness = {".true." if stitch_params.do_thickness else ".false."}
+         &end
+        """)
+
+        # Write the namelist content to the file
+        with open(namelist_path, "w") as namelist_file:
+            namelist_file.write(namelist_content)
+
+        return namelist_path
+
+    def _make_trajectory_analysis_call(self):
+        """
+        Construct a trajectory_analysis call based on options set in stitch_parameters.
+
+        Makes a call to write the namelist and then construct and call the
+        trajectory_analysis command.
+
+        Returns
+        -------
+        list[str]
+            list of strings that can be combined to form a trajectory_analysis command
+            based on the parameters set in self.stitch_parameters
+        """
+        tstorms_trajectory_analysis_dir = os.path.join(
+            self.tstorms_parameters.tstorms_dir, "trajectory_analysis"
+        )
+        stitch_argslist = [
+            os.path.join(tstorms_trajectory_analysis_dir, "trajectory_analysis_csc.exe")
+        ]
+
+        return stitch_argslist
+
+    def stitch(self, verbose=False):
+        """
+        Call the trajectory analysis utility of TSTORMS to stitch candidate storms.
+
+        This will make a system call out to the trajectory_analysis code from TSTORMS
+        (provided it has been installed as an external dependency). This will be
+        run according to the parameters in the :attr:`stitch_parameters` attribute
+        that were set when the :class:`TSTORMSTracker` instance was created.
+        It assumes that the candidate storms are contained in the current working
+        directory in a file ``cyclones`` text file.
+
+        The outputs are plain text files named:
+            - ``ori`` containing the origins of each storm in the form
+              ``lon, lat, YY, MM, DD, HH``,
+            - ``traj`` containing trajectory point data in the form
+              ``lon, lat, wind, psl, YY, MM, DD, HH`` for each trajectory,
+            - ``trav`` containing trajectory point data and vorticity in the form
+              ``lon, lat, wind, psl, vort_max, YY, MM, DD, HH`` for each trajectory,
+            - ``stats`` containing information about the number of storms per month/year
+              in each basin.
+        If filtering is applied (:attr:`stitch_parameters` ``do_filter``) there will be
+        additional files ``ori_filt``, ``traj_filt``, and ``trav_filt`` from after this
+        takes place.
+        These will be generated in the current directory before being copied over to
+        the desired output location provided in the base parameters attribute
+        :attr:`tstorms_parameters`.
+
+        Parameters
+        ----------
+        verbose : bool
+            Whether to print the entire TSTORMS output to screen in real-time or just
+            the start/end summary.
+            Defaults to False.
+
+        Returns
+        -------
+        dict
+            dict of subprocess output corresponding to stdout, stderr, and returncode.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the trajectory_analysis executeable from TSTORMS cannot be found.
+        RuntimeError
+            If the trajectory_analysis executeable from TSTORMS returns a non-zero
+            exit code.
+
+        Examples
+        --------
+        To set the parameters, instantiate a :class:`TSTORMSTracker` instance and run
+        stitch:
+
+        >>> my_params = TSTORMSStitchParameters(...)
+        >>> my_tracker = TSTORMSTracker(stitch_parameters=my_params)
+        >>> result = my_tracker.stitch()
+        """
+        # Check if the cyclones file exists before proceeding
+        cyclones_file = "cyclones"
+        if not os.path.exists(cyclones_file):
+            err_msg = (
+                "No cyclones file found in the current directory. "
+                "Did you run `detect` or remember to place the file locally?"
+            )
+            raise FileNotFoundError(err_msg)
+
+        namelist_filepath = self._write_trajectory_analysis_namelist()
+        trajectory_call_list = self._make_trajectory_analysis_call()
+        process_output = self._run_tstorms_process(
+            "Stitch", trajectory_call_list, namelist_filepath, verbose=verbose
+        )
+
+        # Copy the cyclones file to the output directory
+        output_dir = self.tstorms_parameters.output_dir
+        output_files = ["ori", "trav", "traj", "stats"]
+        if self.stitch_parameters.do_filter:
+            output_files.extend(["ori_filt", "trav_filt", "traj_filt"])
+
+        for output_file in output_files:
+            destination_file = os.path.join(output_dir, output_file)
+            if os.path.exists(output_file):
+                # Copy to output_dir if not cwd
+                if os.path.abspath(output_file) != os.path.abspath(destination_file):
+                    shutil.copy(output_file, destination_file)
+            else:
+                warnings.warn(f"output file `{output_file}` not found.", stacklevel=2)
 
         return process_output
 
