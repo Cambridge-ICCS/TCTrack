@@ -45,7 +45,7 @@ def tstorms_tracker(tmp_path, tstorms_filenames) -> Tuple[TSTORMSTracker, str]:
     tstorms_trajectory_dir.mkdir(parents=True)
 
     # Create mock parameters
-    tstorms_params = TSTORMSBaseParameters(
+    tstorms_parameters = TSTORMSBaseParameters(
         tstorms_dir=str(tstorms_dir),
         output_dir=str(tmp_path / "tstorms/output"),
     )
@@ -61,7 +61,7 @@ def tstorms_tracker(tmp_path, tstorms_filenames) -> Tuple[TSTORMSTracker, str]:
         do_thickness=False,
         use_sfc_wind=True,
     )
-    return TSTORMSTracker(tstorms_params, detect_params), tstorms_dir
+    return TSTORMSTracker(tstorms_parameters, detect_params), tstorms_dir
 
 
 class TestTSTORMSTypes:
@@ -182,16 +182,17 @@ class TestTSTORMSTracker:
         }
 
     def test_write_driver_namelist(self, tstorms_tracker):
-        """Test the generation of the driver namelist inside tstorms_driver/."""
+        """Test the generation of the driver namelist."""
         tracker = tstorms_tracker[0]
-        tstorms_dir = tstorms_tracker[1]
 
         # Call the method
         namelist_path = tracker._write_driver_namelist()  # noqa: SLF001 - Private member access
 
         # Verify the file was created inside tstorms_driver/
         assert os.path.exists(namelist_path)
-        assert namelist_path == str(tstorms_dir / "tstorms_driver/nml_driver")
+        assert namelist_path == os.path.join(
+            tracker.tstorms_parameters.output_dir, "nml_driver"
+        )
 
         # Verify the content of the file
         with open(namelist_path, "r") as namelist_file:
@@ -211,23 +212,33 @@ class TestTSTORMSTracker:
             assert "fn_slp  = 'slp.nc'" in content
             assert "use_sfc_wnd = .true." in content
 
-    def test_write_driver_namelist_missing_dir(self, tmp_path, tstorms_filenames):
-        """Test that FileNotFoundError is raised when tstorms_driver/ does not exist."""
-        # Create a temporary directory for tstorms_dir but not tstorms_driver
-        tstorms_dir = tmp_path / "tstorms"
-        tstorms_dir.mkdir()
+    def test_write_trajectory_namelist(self, tstorms_tracker):
+        """Test the generation of the trajectory namelist."""
+        tracker = tstorms_tracker[0]
 
-        tstorms_params = TSTORMSBaseParameters(
-            tstorms_dir=str(tstorms_dir),
-            output_dir=str(tmp_path / "output"),
+        # Call the method
+        namelist_path = tracker._write_trajectory_analysis_namelist()  # noqa: SLF001 - Private member access
+
+        # Verify the file was created inside tstorms_driver/
+        assert os.path.exists(namelist_path)
+        assert namelist_path == os.path.join(
+            tracker.tstorms_parameters.output_dir, "nml_traj"
         )
-        detect_params = TSTORMSDetectParameters(**tstorms_filenames)
-        tracker = TSTORMSTracker(tstorms_params, detect_params)
 
-        with pytest.raises(
-            FileNotFoundError, match=r"TSTORMS driver directory .* does not exist"
-        ):
-            tracker._write_driver_namelist()  # noqa: SLF001 - Private member access
+        # Verify the content of the file
+        with open(namelist_path, "r") as namelist_file:
+            content = namelist_file.read()
+            assert "rcrit      = 900.0000" in content
+            assert "wcrit      = 17.0000" in content
+            assert "vcrit      = 3.5000E-05" in content
+            assert "twc_crit   = 0.5000" in content
+            assert "thick_crit = 50.0000" in content
+            assert "nwcrit     = 2.0000" in content
+            assert "do_filt    = .true." in content
+            assert "nlat = 40.0000" in content
+            assert "slat = -40.0000" in content
+            assert "do_spline    = .false." in content
+            assert "do_thickness = .false." in content
 
 
 class TestTSTORMSTrackerDetect:
@@ -245,6 +256,7 @@ class TestTSTORMSTrackerDetect:
 
         tracker = tstorms_tracker[0]
         tstorms_dir = tstorms_tracker[1]
+        output_dir = tracker.tstorms_parameters.output_dir
         result = tracker.detect()
 
         # Check subprocess call made as expected and returned outputs are passed back up
@@ -254,9 +266,10 @@ class TestTSTORMSTrackerDetect:
             check=True,
             capture_output=True,
             text=True,
+            cwd=str(output_dir),
         )
         stdin_file = mock_subprocess_run.call_args[1]["stdin"]
-        assert stdin_file.name == f"{tstorms_dir}/tstorms_driver/nml_driver"
+        assert stdin_file.name == f"{output_dir}/nml_driver"
         assert result["stdout"] == "Mocked stdout output"
         assert result["stderr"] == "Mocked stderr output"
         assert result["returncode"] == 0
@@ -282,6 +295,7 @@ class TestTSTORMSTrackerDetect:
 
         tracker = tstorms_tracker[0]
         tstorms_dir = tstorms_tracker[1]
+        output_dir = tracker.tstorms_parameters.output_dir
         result = tracker.detect(verbose=True)
 
         # Check subprocess.Popen call
@@ -293,11 +307,12 @@ class TestTSTORMSTrackerDetect:
             text=True,
             shell=False,
             bufsize=1,
+            cwd=str(output_dir),
         )
 
         # Verify stdin file path
         stdin_file = mock_popen.call_args[1]["stdin"]
-        assert stdin_file.name == f"{tstorms_dir}/tstorms_driver/nml_driver"
+        assert stdin_file.name == f"{output_dir}/nml_driver"
 
         # Verify returned outputs - using capsys to get the stderr feed
         captured = capsys.readouterr()
@@ -377,53 +392,6 @@ class TestTSTORMSTrackerDetect:
         ):
             tracker.detect(verbose=True)
 
-    def test_tstorms_tracker_cyclones_file_copy(self, mocker, tstorms_tracker) -> None:
-        """Check that the cyclones file is copied to output_dir."""
-        # Mock subprocess.run to simulate successful execution
-        mock_subprocess_run = mocker.patch("subprocess.run")
-        mock_subprocess_run.return_value = mocker.MagicMock(
-            returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
-        )
-
-        # Use the tstorms_dir from the fixture and create a dummy cyclones file
-        generated_cyclones_file = os.path.join(os.getcwd(), "cyclones")
-        with open(generated_cyclones_file, "w") as f:
-            f.write("Mock cyclones content")
-
-        tstorms_dir = tstorms_tracker[1]
-        cyclones_dest_file = tstorms_dir / "output/cyclones"
-
-        # Set up the tracker
-        tracker = tstorms_tracker[0]
-        _ = tracker.detect()
-
-        assert cyclones_dest_file.exists()
-        assert cyclones_dest_file.read_text() == "Mock cyclones content"
-
-        # clean up
-        if os.path.exists(generated_cyclones_file):
-            os.remove(generated_cyclones_file)
-
-    def test_tstorms_tracker_cyclones_file_not_generated(
-        self, mocker, tstorms_tracker
-    ) -> None:
-        """Check that the cyclones file is copied to output_dir."""
-        # Mock subprocess.run to simulate successful execution
-        mock_subprocess_run = mocker.patch("subprocess.run")
-        mock_subprocess_run.return_value = mocker.MagicMock(
-            returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
-        )
-
-        # Mock warning so not raised but capture the mocked call
-        mock_warn = mocker.patch("warnings.warn")
-
-        # Set up the tracker
-        tracker = tstorms_tracker[0]
-        _ = tracker.detect()
-
-        # Assert warning issued
-        mock_warn.assert_called_once_with("cyclones file not found.", stacklevel=2)
-
 
 class TestTSTORMSTrackerStitch:
     """Tests for the stitch functionality of TSTORMSTracker."""
@@ -438,13 +406,16 @@ class TestTSTORMSTrackerStitch:
         # Mock warning for no output file being generated.
         mocker.patch("warnings.warn")
 
+        # Set up tracker
+        tracker = tstorms_tracker[0]
+        tstorms_dir = tstorms_tracker[1]
+        output_dir = tracker.tstorms_parameters.output_dir
+
         # Create a dummy cyclones file
-        generated_cyclones_file = os.path.join(os.getcwd(), "cyclones")
+        generated_cyclones_file = os.path.join(output_dir, "cyclones")
         with open(generated_cyclones_file, "w") as f:
             f.write("Mock cyclones content")
 
-        tracker = tstorms_tracker[0]
-        tstorms_dir = tstorms_tracker[1]
         result = tracker.stitch()
 
         # Check subprocess call made as expected and returned outputs are passed back up
@@ -454,9 +425,10 @@ class TestTSTORMSTrackerStitch:
             check=True,
             capture_output=True,
             text=True,
+            cwd=str(output_dir),
         )
         stdin_file = mock_subprocess_run.call_args[1]["stdin"]
-        assert stdin_file.name == f"{tstorms_dir}/trajectory_analysis/nml_traj"
+        assert stdin_file.name == f"{output_dir}/nml_traj"
         assert result["stdout"] == "Mocked stdout output"
         assert result["stderr"] == "Mocked stderr output"
         assert result["returncode"] == 0
@@ -480,13 +452,16 @@ class TestTSTORMSTrackerStitch:
         # Mock warning for no output file being generated.
         mocker.patch("warnings.warn")
 
+        # Set up tracker
+        tracker = tstorms_tracker[0]
+        tstorms_dir = tstorms_tracker[1]
+        output_dir = tracker.tstorms_parameters.output_dir
+
         # Create a dummy cyclones file
-        generated_cyclones_file = os.path.join(os.getcwd(), "cyclones")
+        generated_cyclones_file = os.path.join(output_dir, "cyclones")
         with open(generated_cyclones_file, "w") as f:
             f.write("Mock cyclones content")
 
-        tracker = tstorms_tracker[0]
-        tstorms_dir = tstorms_tracker[1]
         result = tracker.stitch(verbose=True)
 
         # Check subprocess.Popen call
@@ -498,11 +473,12 @@ class TestTSTORMSTrackerStitch:
             text=True,
             shell=False,
             bufsize=1,
+            cwd=str(output_dir),
         )
 
         # Verify stdin file path
         stdin_file = mock_popen.call_args[1]["stdin"]
-        assert stdin_file.name == f"{tstorms_dir}/trajectory_analysis/nml_traj"
+        assert stdin_file.name == f"{output_dir}/nml_traj"
 
         # Verify returned outputs - using capsys to get the stderr feed
         captured = capsys.readouterr()
@@ -522,7 +498,8 @@ class TestTSTORMSTrackerStitch:
         tracker = tstorms_tracker[0]
 
         # Create a dummy cyclones file
-        generated_cyclones_file = os.path.join(os.getcwd(), "cyclones")
+        output_dir = tracker.tstorms_parameters.output_dir
+        generated_cyclones_file = os.path.join(output_dir, "cyclones")
         with open(generated_cyclones_file, "w") as f:
             f.write("Mock cyclones content")
 
@@ -544,7 +521,8 @@ class TestTSTORMSTrackerStitch:
         tracker = tstorms_tracker[0]
 
         # Create a dummy cyclones file
-        generated_cyclones_file = os.path.join(os.getcwd(), "cyclones")
+        output_dir = tracker.tstorms_parameters.output_dir
+        generated_cyclones_file = os.path.join(output_dir, "cyclones")
         with open(generated_cyclones_file, "w") as f:
             f.write("Mock cyclones content")
 
@@ -567,7 +545,8 @@ class TestTSTORMSTrackerStitch:
         tracker = tstorms_tracker[0]
 
         # Create a dummy cyclones file
-        generated_cyclones_file = os.path.join(os.getcwd(), "cyclones")
+        output_dir = tracker.tstorms_parameters.output_dir
+        generated_cyclones_file = os.path.join(output_dir, "cyclones")
         with open(generated_cyclones_file, "w") as f:
             f.write("Mock cyclones content")
 
@@ -592,7 +571,8 @@ class TestTSTORMSTrackerStitch:
         tracker = tstorms_tracker[0]
 
         # Create a dummy cyclones file
-        generated_cyclones_file = os.path.join(os.getcwd(), "cyclones")
+        output_dir = tracker.tstorms_parameters.output_dir
+        generated_cyclones_file = os.path.join(output_dir, "cyclones")
         with open(generated_cyclones_file, "w") as f:
             f.write("Mock cyclones content")
 
@@ -601,39 +581,3 @@ class TestTSTORMSTrackerStitch:
             RuntimeError, match="Stitch failed with a non-zero exit code"
         ):
             tracker.stitch(verbose=True)
-
-    def test_tstorms_tracker_traj_files_copy(self, mocker, tstorms_tracker) -> None:
-        """Check that the output files are copied to output_dir."""
-        # Mock subprocess.run to simulate successful execution
-        mock_subprocess_run = mocker.patch("subprocess.run")
-        mock_subprocess_run.return_value = mocker.MagicMock(
-            returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
-        )
-
-        # Use the tstorms_dir from the fixture and create dummy files
-        tstorms_dir = tstorms_tracker[1]
-
-        generated_cyclones_file = os.path.join(os.getcwd(), "cyclones")
-        with open(generated_cyclones_file, "w") as f:
-            f.write("Mock cyclones content")
-
-        outputs = ["ori", "traj", "trav", "stats", "ori_filt", "traj_filt", "trav_filt"]
-        destinations = []
-        for filename in outputs:
-            generated_file = os.path.join(os.getcwd(), filename)
-            with open(generated_file, "w") as f:
-                f.write(f"Mock {filename} content")
-            destinations.append(tstorms_dir / f"output/{filename}")
-
-        # Set up and run the tracker stitch command
-        tracker = tstorms_tracker[0]
-        _ = tracker.stitch()
-
-        for origin_file, destination_file in zip(outputs, destinations, strict=True):
-            assert destination_file.exists()
-            assert destination_file.read_text() == f"Mock {origin_file} content"
-
-        # clean up
-        for filename in outputs:
-            if os.path.exists(filename):
-                os.remove(filename)

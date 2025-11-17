@@ -7,7 +7,6 @@ References
 
 import json
 import os
-import shutil
 import subprocess
 import tempfile
 import textwrap
@@ -335,6 +334,8 @@ class TSTORMSTracker(TCTracker):
         RuntimeError
             If tstorms executable returns a non-zero exit code.
         """
+        # Execute subproces commands from output_dir so outputs appear there.
+        output_dir = self.tstorms_parameters.output_dir
         try:
             if verbose:
                 with open(input_file, "r") as stdin:
@@ -347,6 +348,7 @@ class TSTORMSTracker(TCTracker):
                         text=True,
                         shell=False,
                         bufsize=1,  # Line-buffered output
+                        cwd=output_dir,
                     )
 
                     # Print stdout in real-time
@@ -372,6 +374,7 @@ class TSTORMSTracker(TCTracker):
                         check=True,
                         capture_output=True,
                         text=True,
+                        cwd=output_dir,
                     )
                     stdout, stderr, returncode = (
                         result.stdout,
@@ -405,7 +408,11 @@ class TSTORMSTracker(TCTracker):
             raise RuntimeError(msg) from exc
 
     def _write_driver_namelist(self) -> str:
-        """Generate the namelist file for the tstorms_driver routine.
+        """
+        Generate the namelist file for the tstorms_driver routine.
+
+        The namelist file will be written to the ``output_dir`` specified in
+        :attr:`tstorms_parameters`.
 
         Returns
         -------
@@ -417,16 +424,13 @@ class TSTORMSTracker(TCTracker):
         FileNotFoundError
             If the `tstorms_dir` does not exist.
         """
-        # Ensure the tstorms_dir exists
-        tstorms_driver_dir = os.path.join(
-            self.tstorms_parameters.tstorms_dir, "tstorms_driver"
-        )
-        if not os.path.exists(tstorms_driver_dir):
-            err_msg = f"TSTORMS driver directory '{tstorms_driver_dir}' does not exist."
+        # Ensure the output_dir exists to place namelist in
+        output_dir = self.tstorms_parameters.output_dir
+        if not os.path.exists(output_dir):
+            err_msg = f"TSTORMS output directory '{output_dir}' does not exist."
             raise FileNotFoundError(err_msg)
 
-        # Define the namelist file path
-        namelist_path = os.path.join(tstorms_driver_dir, "nml_driver")
+        namelist_path = os.path.join(output_dir, "nml_driver")
 
         # Format the namelist content
         if self.tstorms_parameters.input_dir:
@@ -492,8 +496,8 @@ class TSTORMSTracker(TCTracker):
 
         The output file is a plain text file named ``cyclones`` containing each of the
         TC candidates at each time from the input files. This will be generated
-        in the current directory before being copied over to the desired output location
-        provided in the base parameters attribute :attr:`tstorms_parameters`.
+        in the desired output location provided in the base parameters attribute
+        :attr:`tstorms_parameters`.
         Cyclones in the file are listed for each time in the format:
 
         .. code-block:: text
@@ -533,8 +537,12 @@ class TSTORMSTracker(TCTracker):
         To set the parameters, instantiate a :class:`TSTORMSTracker` instance and run
         detect:
 
-        >>> my_params = TSTORMSDetectParameters(...)
-        >>> my_tracker = TSTORMSTracker(driver_parameters=my_params)
+        >>> base_params = TSTORMSBaseParameters(...)
+        >>> detect_params = TSTORMSDetectParameters(...)
+        >>> my_tracker = TSTORMSTracker(
+                tstorms_parameters=base_params,
+                detect_parameters=detect_params
+            )
         >>> result = my_tracker.detect()
         """
         namelist_filepath = self._write_driver_namelist()
@@ -543,21 +551,13 @@ class TSTORMSTracker(TCTracker):
             "Detect", driver_call_list, namelist_filepath, verbose=verbose
         )
 
-        # Copy the cyclones file to the output directory
-        output_dir = self.tstorms_parameters.output_dir
-        cyclones_file = "cyclones"
-        destination_file = os.path.join(output_dir, cyclones_file)
-        if os.path.exists(cyclones_file):
-            # Copy to output_dir if not cwd
-            if os.path.abspath(cyclones_file) != os.path.abspath(destination_file):
-                shutil.copy(cyclones_file, destination_file)
-        else:
-            warnings.warn("cyclones file not found.", stacklevel=2)
-
         return process_output
 
     def _write_trajectory_analysis_namelist(self) -> str:
         """Generate the namelist file for the trajectory_analysis routine.
+
+        The namelist file will be written to the ``output_dir`` specified in
+        :attr:`tstorms_parameters`.
 
         Returns
         -------
@@ -569,29 +569,24 @@ class TSTORMSTracker(TCTracker):
         FileNotFoundError
             If the `trajectory_analysis` directory does not exist.
         """
-        # Ensure the tstorms_dir exists
-        tstorms_trajectory_dir = os.path.join(
-            self.tstorms_parameters.tstorms_dir, "trajectory_analysis"
-        )
-        if not os.path.exists(tstorms_trajectory_dir):
-            err_msg = (
-                f"TSTORMS trajectory directory '{tstorms_trajectory_dir}' "
-                "does not exist."
-            )
+        # Ensure the output_dir exists to place namelist in
+        output_dir = self.tstorms_parameters.output_dir
+        if not os.path.exists(output_dir):
+            err_msg = f"TSTORMS output directory '{output_dir}' does not exist."
             raise FileNotFoundError(err_msg)
 
         # Define the namelist file path
-        namelist_path = os.path.join(tstorms_trajectory_dir, "nml_traj")
+        namelist_path = os.path.join(output_dir, "nml_traj")
 
         # Format the namelist content
         stitch_params = self.stitch_parameters
         namelist_content = textwrap.dedent(f"""
          &input
-            rcrit      = {stitch_params.r_crit:.4E}
+            rcrit      = {stitch_params.r_crit:.4f}
             wcrit      = {stitch_params.wind_crit:.4f}
-            vcrit      = {stitch_params.vort_crit:.4f}
+            vcrit      = {stitch_params.vort_crit:.4E}
             twc_crit   = {stitch_params.tm_crit:.4f}
-            thick_crit =   {stitch_params.thick_crit:.4f}
+            thick_crit = {stitch_params.thick_crit:.4f}
             nwcrit     = {stitch_params.n_day_crit:.4f}
             do_filt    = {".true." if stitch_params.do_filter else ".false."}
             nlat = {stitch_params.lat_bound_n:.4f}
@@ -637,7 +632,7 @@ class TSTORMSTracker(TCTracker):
         (provided it has been installed as an external dependency). This will be
         run according to the parameters in the :attr:`stitch_parameters` attribute
         that were set when the :class:`TSTORMSTracker` instance was created.
-        It assumes that the candidate storms are contained in the current working
+        It assumes that the candidate storms are contained in the output_dir
         directory in a file ``cyclones`` text file.
 
         The outputs are plain text files named:
@@ -652,9 +647,8 @@ class TSTORMSTracker(TCTracker):
         If filtering is applied (:attr:`stitch_parameters` ``do_filter``) there will be
         additional files ``ori_filt``, ``traj_filt``, and ``trav_filt`` from after this
         takes place.
-        These will be generated in the current directory before being copied over to
-        the desired output location provided in the base parameters attribute
-        :attr:`tstorms_parameters`.
+        These files will be generated in the desired output location provided in the
+        base parameters attribute :attr:`tstorms_parameters`.
 
         Parameters
         ----------
@@ -681,16 +675,20 @@ class TSTORMSTracker(TCTracker):
         To set the parameters, instantiate a :class:`TSTORMSTracker` instance and run
         stitch:
 
-        >>> my_params = TSTORMSStitchParameters(...)
-        >>> my_tracker = TSTORMSTracker(stitch_parameters=my_params)
+        >>> base_params = TSTORMSBaseParameters(...)
+        >>> stitch_params = TSTORMSStitchParameters(...)
+        >>> stitch_params = TSTORMSTracker(
+                tstorms_parameters=base_params,
+                stitch_parameters=stitch_params
+            )
         >>> result = my_tracker.stitch()
         """
         # Check if the cyclones file exists before proceeding
-        cyclones_file = "cyclones"
+        cyclones_file = os.path.join(self.tstorms_parameters.output_dir, "cyclones")
         if not os.path.exists(cyclones_file):
             err_msg = (
-                "No cyclones file found in the current directory. "
-                "Did you run `detect` or remember to place the file locally?"
+                "No cyclones file found in the output directory. "
+                "Did you forget to run `detect` or delete the file?"
             )
             raise FileNotFoundError(err_msg)
 
@@ -699,21 +697,6 @@ class TSTORMSTracker(TCTracker):
         process_output = self._run_tstorms_process(
             "Stitch", trajectory_call_list, namelist_filepath, verbose=verbose
         )
-
-        # Copy the cyclones file to the output directory
-        output_dir = self.tstorms_parameters.output_dir
-        output_files = ["ori", "trav", "traj", "stats"]
-        if self.stitch_parameters.do_filter:
-            output_files.extend(["ori_filt", "trav_filt", "traj_filt"])
-
-        for output_file in output_files:
-            destination_file = os.path.join(output_dir, output_file)
-            if os.path.exists(output_file):
-                # Copy to output_dir if not cwd
-                if os.path.abspath(output_file) != os.path.abspath(destination_file):
-                    shutil.copy(output_file, destination_file)
-            else:
-                warnings.warn(f"output file `{output_file}` not found.", stacklevel=2)
 
         return process_output
 
