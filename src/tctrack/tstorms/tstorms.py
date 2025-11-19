@@ -569,6 +569,7 @@ class TSTORMSTracker(TCTracker):
         FileNotFoundError
             If the `trajectory_analysis` directory does not exist.
         """
+        tstorms_dir = self.tstorms_parameters.tstorms_dir
         # Ensure the output_dir exists to place namelist in
         output_dir = self.tstorms_parameters.output_dir
         if not os.path.exists(output_dir):
@@ -593,6 +594,8 @@ class TSTORMSTracker(TCTracker):
             slat = {stitch_params.lat_bound_s:.4f}
             do_spline    = {".true." if stitch_params.do_spline else ".false."}
             do_thickness = {".true." if stitch_params.do_thickness else ".false."}
+            landmask = '{os.path.join(tstorms_dir, "trajectory_analysis/landsea.map")}'
+            cmask = '{os.path.join(tstorms_dir, "trajectory_analysis/imask_2")}'
          &end
         """)
 
