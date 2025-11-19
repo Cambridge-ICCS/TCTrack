@@ -197,6 +197,7 @@ class TestTSTORMSTracker:
     def test_write_trajectory_namelist(self, tstorms_tracker):
         """Test the generation of the trajectory namelist."""
         tracker = tstorms_tracker[0]
+        tstorms_dir = tracker.tstorms_parameters.tstorms_dir
 
         # Call the method
         namelist_path = tracker._write_trajectory_analysis_namelist()  # noqa: SLF001 - Private member access
@@ -221,6 +222,10 @@ class TestTSTORMSTracker:
             assert "slat = -40.0000" in content
             assert "do_spline    = .false." in content
             assert "do_thickness = .false." in content
+            assert (
+                f"landmask = '{tstorms_dir}/trajectory_analysis/landsea.map'" in content
+            )
+            assert f"cmask = '{tstorms_dir}/trajectory_analysis/imask_2'" in content
 
 
 class TestTSTORMSTrackerDetect:
