@@ -9,9 +9,12 @@ import importlib.metadata
 import json
 import os
 import subprocess
+import warnings
 from dataclasses import asdict
 from typing import Tuple
 
+import cf
+import numpy as np
 import pytest
 
 from tctrack.tstorms import (
@@ -43,11 +46,14 @@ def tstorms_tracker(tmp_path, tstorms_filenames) -> Tuple[TSTORMSTracker, str]:
     tstorms_driver_dir.mkdir(parents=True)
     tstorms_trajectory_dir = tstorms_dir / "trajectory_analysis"
     tstorms_trajectory_dir.mkdir(parents=True)
+    tstorms_input_dir = tmp_path / "tstorms/input"
+    tstorms_input_dir.mkdir(parents=True)
 
     # Create mock parameters
     tstorms_parameters = TSTORMSBaseParameters(
         tstorms_dir=str(tstorms_dir),
         output_dir=str(tmp_path / "tstorms/output"),
+        input_dir=str(tstorms_input_dir),
     )
     detect_params = TSTORMSDetectParameters(
         **tstorms_filenames,
@@ -73,7 +79,7 @@ class TestTSTORMSTypes:
             tstorms_dir="/path/to/tstorms", output_dir="/path/to/output"
         )
         assert params.tstorms_dir == "/path/to/tstorms"
-        assert params.input_dir is None
+        assert params.input_dir == ""
         assert params.output_dir == "/path/to/output"
 
     def test_base_parameters_initialization_input_dir(self):
@@ -195,6 +201,7 @@ class TestTSTORMSTracker:
         )
 
         # Verify the content of the file
+        input_dir = tracker.tstorms_parameters.input_dir
         with open(namelist_path, "r") as namelist_file:
             content = namelist_file.read()
             assert "crit_vort  =  3.5000E-05" in content
@@ -205,11 +212,11 @@ class TestTSTORMSTracker:
             assert "lat_bound_s = -70.0000" in content
             assert "do_spline   = .false." in content
             assert "do_thickness= .false." in content
-            assert "fn_u    = 'u.nc'" in content
-            assert "fn_v    = 'v.nc'" in content
-            assert "fn_vort = 'vort.nc'" in content
-            assert "fn_tm   = 'tm.nc'" in content
-            assert "fn_slp  = 'slp.nc'" in content
+            assert f"fn_u    = '{input_dir}/u.nc'" in content
+            assert f"fn_v    = '{input_dir}/v.nc'" in content
+            assert f"fn_vort = '{input_dir}/vort.nc'" in content
+            assert f"fn_tm   = '{input_dir}/tm.nc'" in content
+            assert f"fn_slp  = '{input_dir}/slp.nc'" in content
             assert "use_sfc_wnd = .true." in content
 
     def test_write_trajectory_namelist(self, tstorms_tracker):
@@ -244,6 +251,135 @@ class TestTSTORMSTracker:
                 f"landmask = '{tstorms_dir}/trajectory_analysis/landsea.map'" in content
             )
             assert f"cmask = '{tstorms_dir}/trajectory_analysis/imask_2'" in content
+
+    def test_extract_calendar_metadata_valid(self, tstorms_tracker):
+        """Test extracting valid calendar metadata from a NetCDF file."""
+        tracker = tstorms_tracker[0]
+
+        # Create a temporary NetCDF file as expected by the tracker fixture
+        netcdf_file = os.path.join(tracker.tstorms_parameters.input_dir, "u.nc")
+        u_field = cf.Field(properties={"standard_name": "velocity"})
+        u_field.nc_set_variable("u_ref")
+        domain_axis_time = cf.DomainAxis(10)
+        domain_axis_time.nc_set_unlimited(True)
+        _ = u_field.set_construct(domain_axis_time)
+        u_data = cf.Data(np.arange(10.0))
+        u_field.set_data(u_data)
+        dimension_T = cf.DimensionCoordinate(
+            properties={
+                "standard_name": "time",
+                "calendar": "360_day",
+                "units": "days since 1950-01-01",
+            },
+            data=cf.Data(np.arange(10.0)),
+        )
+        u_field.set_construct(dimension_T)
+        cf.write(u_field, netcdf_file)
+
+        # Call the method
+        tracker._extract_calendar_metadata()  # noqa: SLF001 - Private member access
+
+        # Assert the metadata was extracted correctly
+        assert tracker._calendar_metadata == {  # noqa: SLF001 - Private member access
+            "calendar_type": "360_day",
+            "units": "days since 1950-01-01",
+        }
+
+    def test_extract_calendar_metadata_file_not_found(self, tstorms_tracker):
+        """Test behavior when the NetCDF file is not found."""
+        tracker = tstorms_tracker[0]
+
+        # Do not create the file expected by the tracker fixture (u.nc)
+
+        with pytest.warns(
+            UserWarning, match="No input file for u_ref found to set calendar metadata"
+        ):
+            tracker._extract_calendar_metadata()  # noqa: SLF001 - Private member access
+        assert tracker._calendar_metadata == {"calendar_type": "julian", "units": None}  # noqa: SLF001 - Private member access
+
+    def test_extract_calendar_metadata_no_unlimited_dim(self, tstorms_tracker):
+        """Test behavior when no unlimited dimension is found in the NetCDF file."""
+        tracker = tstorms_tracker[0]
+
+        # Create a temporary NetCDF file as expected by the tracker fixture, time not ul
+        netcdf_file = os.path.join(tracker.tstorms_parameters.input_dir, "u.nc")
+        u_field = cf.Field(properties={"standard_name": "velocity"})
+        u_field.nc_set_variable("u_ref")
+        domain_axis_time = cf.DomainAxis(10)
+        _ = u_field.set_construct(domain_axis_time)
+        u_data = cf.Data(np.arange(10.0))
+        u_field.set_data(u_data)
+        dimension_T = cf.DimensionCoordinate(
+            properties={
+                "standard_name": "time",
+                "calendar": "360_day",
+                "units": "days since 1950-01-01",
+            },
+            data=cf.Data(np.arange(10.0)),
+        )
+        u_field.set_construct(dimension_T)
+        cf.write(u_field, netcdf_file)
+
+        # Call the method and assert the default metadata is set
+        with pytest.warns(
+            UserWarning, match="No input file for u_ref found to set calendar metadata"
+        ):
+            tracker._extract_calendar_metadata()  # noqa: SLF001 - Private member access
+        assert tracker._calendar_metadata == {"calendar_type": "julian", "units": None}  # noqa: SLF001 - Private member access
+
+    def test_extract_calendar_metadata_no_coord_var(self, tstorms_tracker):
+        """Test behavior when missing unlimited dimension coordinate data."""
+        tracker = tstorms_tracker[0]
+
+        # Create a temporary NetCDF file as expected by the tracker fixture
+        netcdf_file = os.path.join(tracker.tstorms_parameters.input_dir, "u.nc")
+        u_field = cf.Field(properties={"standard_name": "velocity"})
+        u_field.nc_set_variable("u_ref")
+        domain_axis_time = cf.DomainAxis(10)
+        domain_axis_time.nc_set_unlimited(True)
+        _ = u_field.set_construct(domain_axis_time)
+        u_data = cf.Data(np.arange(10.0))
+        u_field.set_data(u_data)
+        cf.write(u_field, netcdf_file)
+
+        # Call the method and assert the default metadata is set
+        with pytest.warns(
+            UserWarning, match="No input file for u_ref found to set calendar metadata"
+        ):
+            tracker._extract_calendar_metadata()  # noqa: SLF001 - Private member access
+        assert tracker._calendar_metadata == {"calendar_type": "julian", "units": None}  # noqa: SLF001 - Private member access
+
+    def test_extract_calendar_metadata_missing_attributes(self, tstorms_tracker):
+        """Test behavior when missing 'units' or 'calendar' attributes from coord."""
+        tracker = tstorms_tracker[0]
+
+        # Create a temporary NetCDF file as expected by the tracker fixture
+        netcdf_file = os.path.join(tracker.tstorms_parameters.input_dir, "u.nc")
+        u_field = cf.Field(properties={"standard_name": "velocity"})
+        u_field.nc_set_variable("u_ref")
+        domain_axis_time = cf.DomainAxis(10)
+        domain_axis_time.nc_set_unlimited(True)
+        _ = u_field.set_construct(domain_axis_time)
+        u_data = cf.Data(np.arange(10.0))
+        u_field.set_data(u_data)
+        dimension_T = cf.DimensionCoordinate(
+            properties={
+                "standard_name": "time",
+            },
+            data=cf.Data(np.arange(10.0)),
+        )
+        u_field.set_construct(dimension_T)
+        cf.write(u_field, netcdf_file)
+
+        # Ensure that code runs with no warnings for missing files raised
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            # Call the method and assert the default metadata is set
+            tracker._extract_calendar_metadata()  # noqa: SLF001 - Private member access
+            assert tracker._calendar_metadata == {  # noqa: SLF001 - Private member access
+                "calendar_type": "julian",
+                "units": None,
+            }
 
 
 class TestTSTORMSTrackerDetect:
