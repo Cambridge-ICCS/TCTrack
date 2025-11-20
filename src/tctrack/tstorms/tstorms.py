@@ -12,6 +12,8 @@ import textwrap
 import warnings
 from dataclasses import dataclass
 
+from netCDF4 import Dataset
+
 from tctrack.core import TCTracker, TCTrackerParameters
 
 
@@ -38,10 +40,10 @@ class TSTORMSBaseParameters(TCTrackerParameters):
     Full path to the directory where TSTORMS outputs should be deposited.
     """
 
-    input_dir: str | None = None
+    input_dir: str = ""
     """
     Full path to the directory where TSTORMS input files can be found.
-    Defaults to None.
+    Defaults to empty string which will load from current directory.
     """
 
 
@@ -432,10 +434,7 @@ class TSTORMSTracker(TCTracker):
         namelist_path = os.path.join(output_dir, "nml_driver")
 
         # Format the namelist content
-        if self.tstorms_parameters.input_dir:
-            input_dir = self.tstorms_parameters.input_dir
-        else:
-            input_dir = ""
+        input_dir = self.tstorms_parameters.input_dir
         detect_params = self.detect_parameters
         namelist_content = textwrap.dedent(f"""
          &nml_tstorms
@@ -704,6 +703,62 @@ class TSTORMSTracker(TCTracker):
 
     def read_variable_metadata(self):
         """Create placeholder for abstract method."""
+
+    def _extract_calendar_metadata(self):
+        """
+        Extract calendar metadata from u_ref input file and store as class attribute.
+
+        Calendar type and units extracted from u_ref as for TSTORMS by identifying the
+        unlimited dimension and fetching coordinate attributes. Assumes other files
+        match coordinates.
+        If file not found or metadata cannot be extracted, a warning is printed and the
+        calendar defaults to {'calendar_type': 'julian', 'units': None} as for TSTORMS.
+
+        Warnings
+        --------
+        Prints a warning message if the file is not found, the unlimited dimension is
+        missing, or metadata is unavailable.
+        """
+        input_u_file = os.path.join(
+            self.tstorms_parameters.input_dir, self.detect_parameters.u_in_file
+        )
+
+        try:
+            with Dataset(input_u_file, "r") as nc_file:
+                unlimited_dims = [
+                    dim
+                    for dim in nc_file.dimensions
+                    if nc_file.dimensions[dim].isunlimited()
+                ]
+                if not unlimited_dims:
+                    errmsg = (
+                        "No unlimited dimension found in the u_ref NetCDF file "
+                        "to set calendar."
+                    )
+                    raise KeyError(errmsg)
+
+                unlimited_dim = unlimited_dims[0]
+                if unlimited_dim not in nc_file.variables:
+                    errmsg = (
+                        "Coordinate variable for unlimited dimension "
+                        f"'{unlimited_dim}' not found."
+                    )
+                    raise KeyError(errmsg)
+
+                coord_var = nc_file.variables[unlimited_dim]
+                units = getattr(coord_var, "units", None)
+                calendar = getattr(coord_var, "calendar", "julian")
+                self._calendar_metadata = {"calendar_type": calendar, "units": units}
+        except (FileNotFoundError, KeyError) as e:
+            warnings.warn(
+                "No input file for u_ref found to set calendar metadata, "
+                "defaulting to Julian. "
+                "Did you provide input files in the driver_parameters attribute?"
+                f"({e})",
+                category=UserWarning,
+                stacklevel=3,
+            )
+            self._calendar_metadata = {"calendar_type": "julian", "units": None}
 
     def run_tracker(self):
         """Create placeholder for abstract method."""
