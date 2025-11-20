@@ -1,11 +1,15 @@
 """Package bindings to the TSTORMS tracking code."""
 
 from .tstorms import (
-    DriverParameters,
-    TrajectoryParameters,
+    TSTORMSBaseParameters,
+    TSTORMSDetectParameters,
+    TSTORMSStitchParameters,
+    TSTORMSTracker,
 )
 
 __all__ = [
-    "DriverParameters",
-    "TrajectoryParameters",
+    "TSTORMSBaseParameters",
+    "TSTORMSDetectParameters",
+    "TSTORMSStitchParameters",
+    "TSTORMSTracker",
 ]
