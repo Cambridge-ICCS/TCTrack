@@ -29,7 +29,8 @@ class TRACKParameters(TCTrackerParameters):
 
     input_file: str
     """
-    NetCDF input file containing the north and easterly wind speeds on a Gaussian grid.
+    NetCDF input file containing the north and easterly wind speeds on a Gaussian grid
+    in m/s.
     """
 
     filter_distance: float | None = None
@@ -721,7 +722,7 @@ class TRACKTracker(TCTracker):
             properties={
                 "standard_name": "atmosphere_relative_vorticity",
                 "long_name": f"Relative vorticity at {plev}",
-                "units": "s-1",  # TODO: check if TRACK will always output these units
+                "units": "s-1",
             },
             constructs=[plev_domain, plev_coord],
             construct_kwargs=[{"key": "plev"}, {"axes": "plev"}],
