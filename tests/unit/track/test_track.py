@@ -387,11 +387,11 @@ class TestTrackTracker:
         ):
             tracker.trajectories()
 
-    def test_variable_metadata(self, mocker):
-        """Test variable_metadata is defined correctly by read_variable_metadata."""
+    def test_set_metadata(self, mocker):
+        """Test metadata is defined correctly by set_metadata."""
         tracker = self._setup_tracker(mocker)
 
-        tracker.read_variable_metadata()
+        tracker.set_metadata()
         metadata = tracker.variable_metadata
 
         # Intensity

@@ -704,8 +704,8 @@ class TRACKTracker(TCTracker):
 
         return trajectories
 
-    def read_variable_metadata(self) -> None:
-        """Read in the metadata from the input files for each variable."""
+    def set_metadata(self) -> None:
+        """Set the global and variable metadata attributes."""
         self._variable_metadata = {}
 
         plev_domain = cf.DomainAxis(size=1)
