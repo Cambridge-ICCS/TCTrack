@@ -8,6 +8,7 @@ pytest-mock to mock the results of subprocess calls to the system.
 from pathlib import Path
 from unittest import mock
 
+import cf
 import cftime
 import pytest
 from netCDF4 import Dataset
@@ -26,6 +27,7 @@ class TestTrackParameters:
         assert params.input_file == "input"
         assert params.filter_distance is None
         assert params.wind_var_names == ("ua", "va")
+        assert params.pressure_level == 85000
         assert params.binary == "bin/track.run"
         assert params.file_extension == "track_out"
         assert params.vorticity_file == "vor.dat"
@@ -91,8 +93,8 @@ class TestTrackTracker:
 
         # Check calls to shutil.copy are as expected
         copy_calls = [
-            mock.call("dir/data/zone.dat", "dir/data/zone.dat0"),
-            mock.call("dir/data/adapt.dat", "dir/data/adapt.dat0"),
+            mocker.call("dir/data/zone.dat", "dir/data/zone.dat0"),
+            mocker.call("dir/data/adapt.dat", "dir/data/adapt.dat0"),
         ]
         self.mock_copy.assert_has_calls(copy_calls)
 
@@ -380,3 +382,30 @@ class TestTrackTracker:
             FileNotFoundError, match="TRACK output trajectory file does not exist"
         ):
             tracker.trajectories()
+
+    def test_variable_metadata(self, mocker):
+        """Test variable_metadata is defined correctly by read_variable_metadata."""
+        tracker = self._setup_tracker(mocker)
+
+        tracker.read_variable_metadata()
+        metadata = tracker.variable_metadata
+
+        # Intensity
+        assert "intensity" in metadata
+        plev = tracker.parameters.pressure_level
+        expected_properties = {
+            "standard_name": "atmosphere_relative_vorticity",
+            "long_name": f"Relative vorticity at {plev} Pa",
+            "units": "s-1",
+        }
+        expected_constructs = [
+            cf.DomainAxis(size=1),
+            cf.AuxiliaryCoordinate(
+                data=cf.Data(plev, units="Pa"),
+                properties={"standard_name": "air_pressure", "long_name": "pressure"},
+            ),
+        ]
+        expected_construct_kwargs = [{"key": "plev"}, {"axes": "plev"}]
+        assert metadata["intensity"].properties == expected_properties
+        assert metadata["intensity"].constructs == expected_constructs
+        assert metadata["intensity"].construct_kwargs == expected_construct_kwargs

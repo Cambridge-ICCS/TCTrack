@@ -16,7 +16,7 @@ from pathlib import Path
 
 import cf
 
-from tctrack.core import TCTracker, TCTrackerParameters, Trajectory
+from tctrack.core import TCTracker, TCTrackerMetadata, TCTrackerParameters, Trajectory
 from tctrack.utils import lat_lon_sizes
 
 
@@ -29,7 +29,8 @@ class TRACKParameters(TCTrackerParameters):
 
     input_file: str
     """
-    NetCDF input file containing the north and easterly wind speeds on a Gaussian grid.
+    NetCDF input file containing the north and easterly wind speeds on a Gaussian grid
+    in m/s.
     """
 
     filter_distance: float | None = None
@@ -37,6 +38,9 @@ class TRACKParameters(TCTrackerParameters):
 
     wind_var_names: tuple[str, str] = ("ua", "va")
     """The variable names for the Eastward and Northward Wind in the input file."""
+
+    pressure_level: int = 85000
+    """The pressure level at which to calculate the vorticity. In Pa."""
 
     binary: str = "bin/track.run"
     """The filepath of the main TRACK compiled binary relative to :attr:`base_dir`."""
@@ -180,7 +184,7 @@ class TRACKTracker(TCTracker):
         inputs.append("y")  # Uses COARDS convention
         inputs.append(params.wind_var_names[0])  # Variable to use
         inputs.append("n")  # Translate the grid?
-        inputs.append("85000")  # Pressure level to use (in Pa)
+        inputs.append(str(params.pressure_level))  # Pressure level to use (in Pa)
         inputs.append("n")  # Make periodic? (Only needed for tracking)
         inputs.append("g")  # Geodesic distance metric
         inputs.append("n")  # Don't change projection
@@ -196,9 +200,9 @@ class TRACKTracker(TCTracker):
         inputs.append("2")  # Vorticity from winds
         inputs.append("y")  # File has both u and v
         inputs.append(params.wind_var_names[0])  # Field for u
-        inputs.append("85000")  # Pressure level
+        inputs.append(str(params.pressure_level))  # Pressure level
         inputs.append(params.wind_var_names[1])  # Field for v
-        inputs.append("85000")  # Pressure level
+        inputs.append(str(params.pressure_level))  # Pressure level
         inputs.append("1")  # U start frame id
         inputs.append("1")  # U frame step(?)
         inputs.append("10000")  # U end frame id
@@ -704,7 +708,25 @@ class TRACKTracker(TCTracker):
         """Read in the metadata from the input files for each variable."""
         self._variable_metadata = {}
 
-        # TODO: Complete this method based on input data files and TRACK code
+        plev_domain = cf.DomainAxis(size=1)
+        plev = cf.Data(self.parameters.pressure_level, units="Pa")
+        plev_coord = cf.AuxiliaryCoordinate(
+            data=plev,
+            properties={
+                "standard_name": "air_pressure",
+                "long_name": "pressure",
+            },
+        )
+
+        self._variable_metadata["intensity"] = TCTrackerMetadata(
+            properties={
+                "standard_name": "atmosphere_relative_vorticity",
+                "long_name": f"Relative vorticity at {plev}",
+                "units": "s-1",
+            },
+            constructs=[plev_domain, plev_coord],
+            construct_kwargs=[{"key": "plev"}, {"axes": "plev"}],
+        )
 
     def run_tracker(self, output_file: str):
         """Run the TRACK tracker to obtain the tropical cyclone track trajectories.
