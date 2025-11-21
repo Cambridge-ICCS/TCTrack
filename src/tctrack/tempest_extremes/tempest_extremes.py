@@ -992,9 +992,9 @@ class TETracker(TCTracker):
 
         return list(trajectories.values())
 
-    def read_variable_metadata(self) -> None:
+    def set_metadata(self) -> None:
         """
-        Read in the metadata from the input files for each variable.
+        Set the global and variable (reading from input files) metadata attributes.
 
         Reads metadata for each variable listed in
         :attr:`detect_nodes_parameters.output_commands` from the input NetCDF files
@@ -1017,7 +1017,7 @@ class TETracker(TCTracker):
         >>>     output_commands=[TEOutputCommand(var="psl", operator="min", dist=0)],
         >>> )
         >>> tracker = TETracker(dn_params, sn_params)
-        >>> tracker.read_variable_metadata()
+        >>> tracker.set_metadata()
         >>> tracker.variable_metadata
         {
             "psl": TCTrackerMetadata(

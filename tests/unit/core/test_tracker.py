@@ -10,19 +10,20 @@ import pytest
 from tctrack.core import TCTracker, TCTrackerMetadata, TCTrackerParameters, Trajectory
 
 
+@dataclass(repr=False)
+class ExampleParameters(TCTrackerParameters):
+    """Concrete implementation of TCTrackerParameters for testing purposes."""
+
+    param_a: int
+    param_b: str
+
+
 class TestTCTrackerParameters:
     """Tests for the TCTrackerParameters base class."""
 
-    @dataclass(repr=False)
-    class ExampleParameters(TCTrackerParameters):
-        """Concrete implementation of TCTrackerParameters for testing purposes."""
-
-        param_a: int
-        param_b: str
-
     def test_str_representation(self):
         """Test the string representation of TCTrackerParameters."""
-        params = self.ExampleParameters(param_a=42, param_b="test")
+        params = ExampleParameters(param_a=42, param_b="test")
         expected_output = (
             "ExampleParameters(\n\tparam_a \t = 42\n\tparam_b \t = test\n)"
         )
@@ -30,7 +31,7 @@ class TestTCTrackerParameters:
 
     def test_repr_representation(self):
         """Test the repr representation of TCTrackerParameters."""
-        params = self.ExampleParameters(param_a=42, param_b="test")
+        params = ExampleParameters(param_a=42, param_b="test")
         expected_output = (
             "ExampleParameters(\n\tparam_a \t = 42\n\tparam_b \t = test\n)"
         )
@@ -95,9 +96,12 @@ class TestTCTracker:
         def __init__(self, example_trajectories):
             self._example_trajectories = example_trajectories
 
-        def read_variable_metadata(self) -> None:
-            """Implement a dummy of the read_variable_metadata abstractmethod."""
+        def set_metadata(self) -> None:
+            """Implement a dummy of the set_metadata abstractmethod."""
             self._variable_metadata = example_metadata()
+            self._global_metadata = {
+                "TCTrack_parameters": repr(ExampleParameters(42, "test")),
+            }
 
         def trajectories(self) -> list[Trajectory]:
             """Implement a dummy of the trajectories abstractmethod."""
@@ -125,17 +129,29 @@ class TestTCTracker:
     def test_variable_metadata_initialized(self):
         """Test that `variable_metadata` is correctly initialized by the subclass."""
         tracker = self.ExampleTracker(example_trajectories=None)
-        tracker.read_variable_metadata()
+        tracker.set_metadata()
         expected_metadata = example_metadata()
         assert tracker.variable_metadata == expected_metadata
+
+    def test_global_metadata_uninitialized(self):
+        """Test that `_global_metadata` is None if not initialised."""
+        tracker = self.ExampleTracker(example_trajectories=None)
+        assert tracker._global_metadata is None  # noqa: SLF001
+
+    def test_global_metadata_initialized(self):
+        """Test that `_global_metadata` is correctly initialized by the subclass."""
+        tracker = self.ExampleTracker(example_trajectories=None)
+        tracker.set_metadata()
+        expected_metadata = {"TCTrack_parameters": repr(ExampleParameters(42, "test"))}
+        assert tracker._global_metadata == expected_metadata  # noqa: SLF001
 
     def test_to_netcdf(self, tmp_path):
         """
         Test writing trajectories to NetCDF.
 
-        We will take some predefined Trajectories (matching the variable_metadata of
-        ExampleTracker), write to NetCDF, then read teh resulting file back in to
-        confirm it matches what was expected.
+        We will take some predefined Trajectories (matching the variable_metadata and
+        global_metadata of ExampleTracker), write to NetCDF, then read the resulting
+        file back in to confirm it matches what was expected.
         """
         # Simple example trajectories matching variable_metadata of ExampleTracker
         trajectory1 = Trajectory(
@@ -185,7 +201,7 @@ class TestTCTracker:
 
         # Write to NetCDF
         output_file = tmp_path / "trajectories.nc"
-        tracker.read_variable_metadata()
+        tracker.set_metadata()
         tracker.to_netcdf(str(output_file))
 
         # Read back with cf.read
@@ -227,6 +243,14 @@ class TestTCTracker:
                 # Constructs
                 if variable == "test_var":
                     assert "cellmethod0" in field.constructs()
+
+        # Check the global metadata is written correctly
+        global_metadata = field.nc_global_attributes(values=True)
+        expected_global_metadata = {
+            "TCTrack_parameters": repr(ExampleParameters(42, "test")),
+        }
+        for key, expected_value in expected_global_metadata.items():
+            assert global_metadata[key] == expected_value
 
         # Validate data in arrays
         # Note that the first trajectory has a nan appended due to observation mismatch
