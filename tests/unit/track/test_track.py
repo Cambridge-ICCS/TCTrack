@@ -147,7 +147,11 @@ class TestTrackTracker:
         inputs_file = tmp_path / f"{command_name}.in"
         inputs_file.write_text(input_commands)
 
-        result = tracker._prepare_inputs(command_name, ["ignored"])  # noqa: SLF001
+        with pytest.warns(
+            UserWarning,
+            match="TRACK inputs are being read from file for 'read'",
+        ):
+            result = tracker._prepare_inputs(command_name, ["ignored"])  # noqa: SLF001
 
         assert result == input_commands
 
@@ -159,7 +163,7 @@ class TestTrackTracker:
         inputs = ["param1", "param2"]
         with pytest.warns(
             UserWarning,
-            match="Exported TRACK inputs file for missing_file does not exist",
+            match="Exported TRACK inputs file for 'missing_file' does not exist",
         ):
             result = tracker._prepare_inputs("missing_file", inputs)  # noqa: SLF001
 
