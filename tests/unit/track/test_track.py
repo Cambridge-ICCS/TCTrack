@@ -93,8 +93,8 @@ class TestTrackTracker:
 
         # Check calls to shutil.copy are as expected
         copy_calls = [
-            mock.call("dir/data/zone.dat", "dir/data/zone.dat0"),
-            mock.call("dir/data/adapt.dat", "dir/data/adapt.dat0"),
+            mocker.call("dir/data/zone.dat", "dir/data/zone.dat0"),
+            mocker.call("dir/data/adapt.dat", "dir/data/adapt.dat0"),
         ]
         self.mock_copy.assert_has_calls(copy_calls)
 
