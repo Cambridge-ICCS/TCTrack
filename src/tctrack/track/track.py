@@ -426,13 +426,13 @@ class TRACKTracker(TCTracker):
                 with open(inputs_file, "r") as f:
                     input_commands = f.read()
                 warnings.warn(
-                    f"TRACK inputs are being read from file for {command_name}. "
+                    f"TRACK inputs are being read from file for '{command_name}'. "
                     "TRACKParameter values will be ignored.",
                     stacklevel=4,
                 )
             except FileNotFoundError:
                 warnings.warn(
-                    f"Exported TRACK inputs file for {command_name} does not exist "
+                    f"Exported TRACK inputs file for '{command_name}' does not exist "
                     "despite read_inputs=True. Continuing with generated inputs.",
                     stacklevel=4,
                 )
