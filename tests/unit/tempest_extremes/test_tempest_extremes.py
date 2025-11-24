@@ -237,6 +237,19 @@ class TestTETracker:
         assert metadata["psl"].constructs == [expected_cell_method]
         assert metadata["psl"].construct_kwargs is None
 
+    def test_te_tracker_global_metadata(self) -> None:
+        """Check set_metadata correctly sets _global_metadata."""
+        tracker = TETracker()
+        tracker.set_metadata()
+        metadata = tracker._global_metadata  # noqa: SLF001
+        assert metadata is not None
+        assert "TCTrack_parameters" in metadata
+        assert metadata["TCTrack_parameters"] == (
+            repr(tracker.detect_nodes_parameters)
+            + "\n"
+            + repr(tracker.stitch_nodes_parameters)
+        )
+
     def _mock_trajectories_data(self):
         """Generate expected track data for a given track index and variable names."""
         return {

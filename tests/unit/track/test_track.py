@@ -387,8 +387,8 @@ class TestTrackTracker:
         ):
             tracker.trajectories()
 
-    def test_set_metadata(self, mocker):
-        """Test metadata is defined correctly by set_metadata."""
+    def test_variable_metadata(self, mocker):
+        """Test variable_metadata is defined correctly by set_metadata."""
         tracker = self._setup_tracker(mocker)
 
         tracker.set_metadata()
@@ -413,3 +413,14 @@ class TestTrackTracker:
         assert metadata["intensity"].properties == expected_properties
         assert metadata["intensity"].constructs == expected_constructs
         assert metadata["intensity"].construct_kwargs == expected_construct_kwargs
+
+    def test_global_metadata(self, mocker):
+        """Test _global_metadata is defined correctly by set_metadata."""
+        tracker = self._setup_tracker(mocker)
+
+        tracker.set_metadata()
+        metadata = tracker._global_metadata  # noqa: SLF001
+
+        assert metadata is not None
+        assert "TCTrack_parameters" in metadata
+        assert metadata["TCTrack_parameters"] == repr(tracker.parameters)

@@ -1030,6 +1030,12 @@ class TETracker(TCTracker):
             ),
         }
         """
+        self._global_metadata = {
+            "TCTrack_parameters": repr(self.detect_nodes_parameters)
+            + "\n"
+            + repr(self.stitch_nodes_parameters),
+        }
+
         self._variable_metadata = {}
 
         input_files = self.detect_nodes_parameters.in_data

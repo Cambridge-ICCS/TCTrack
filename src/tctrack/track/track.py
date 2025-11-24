@@ -706,6 +706,8 @@ class TRACKTracker(TCTracker):
 
     def set_metadata(self) -> None:
         """Set the global and variable metadata attributes."""
+        self._global_metadata = {"TCTrack_parameters": repr(self.parameters)}
+
         self._variable_metadata = {}
 
         plev_domain = cf.DomainAxis(size=1)
