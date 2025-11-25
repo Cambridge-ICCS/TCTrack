@@ -801,13 +801,11 @@ class TSTORMSTracker(TCTracker):
                     # Start of new trajectory.
                     # Extract metadata and add Trajectory to dict
                     current_trajectory_id += 1
-                    observations = int(items[1])
                     year, month, day, hour = map(int, items[2:6])
 
                     trajectories.append(
                         Trajectory(
                             current_trajectory_id,
-                            observations,
                             year,
                             month,
                             day,
@@ -851,8 +849,8 @@ class TSTORMSTracker(TCTracker):
         """
         if not variable_names:
             variable_names = [
-                "longitude",
-                "latitude",
+                "lon",
+                "lat",
                 "wind_speed",
                 "air_pressure_at_mean_sea_level",
                 "atmosphere_upward_relative_vorticity",
