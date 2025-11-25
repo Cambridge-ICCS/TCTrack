@@ -842,8 +842,8 @@ class TSTORMSTracker(TCTracker):
         """
         if not variable_names:
             variable_names = [
-                "longitude",
-                "latitude",
+                "lon",
+                "lat",
                 "wind_speed",
                 "air_pressure_at_mean_sea_level",
                 "atmosphere_upward_relative_vorticity",
