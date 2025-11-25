@@ -4,7 +4,7 @@ import re
 
 import numpy as np
 import pytest
-from cftime import Datetime360Day, DatetimeGregorian, DatetimeNoLeap
+from cftime import datetime
 
 from tctrack.core import Trajectory
 
@@ -26,14 +26,15 @@ class TestTrajectory:
         assert trajectory.calendar == "gregorian"
 
     @pytest.mark.parametrize(
-        "calendar, expected_type",
+        "calendar",
         [
-            ("gregorian", DatetimeGregorian),
-            ("360_day", Datetime360Day),
-            ("noleap", DatetimeNoLeap),
+            ("gregorian"),
+            ("julian"),
+            ("360_day"),
+            ("noleap"),
         ],
     )
-    def test_trajectory_caltypes(self, calendar, expected_type) -> None:
+    def test_trajectory_caltypes(self, calendar) -> None:
         """Test the Trajectory class initialization with different calendar types."""
         trajectory = Trajectory(
             trajectory_id=1,
@@ -51,7 +52,7 @@ class TestTrajectory:
         assert trajectory.start_time.day == 1
         assert trajectory.start_time.hour == 3
         assert trajectory.calendar == calendar
-        assert isinstance(trajectory.start_time, expected_type)
+        assert isinstance(trajectory.start_time, datetime)
 
     def test_trajectory_invalid_calendar(self) -> None:
         """Test that Trajectory raises a ValueError for an invalid calendar type."""
