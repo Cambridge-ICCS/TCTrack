@@ -80,6 +80,38 @@ class TestTCTracker:
         ):
             _ = tracker.variable_metadata
 
+    def test_trajectory_missing_required_keys(self):
+        """Test `to_netcdf` raises error if required trajectory keys are missing."""
+        # Create a trajectory missing the 'lat' key
+        trajectory = Trajectory(
+            trajectory_id=1,
+            observations=2,
+            year=2023,
+            month=10,
+            day=1,
+            hour=0,
+            calendar="standard",
+        )
+        trajectory.add_multiple_points(
+            years=[2023, 2023],
+            months=[10, 10],
+            days=[1, 1],
+            hours=[0, 6],
+            variables={
+                "timestamp": [0, 6],
+                "lon": [20.0, 25.0],
+                # Missing 'lat'
+            },
+        )
+
+        tracker = self.ExampleTracker([trajectory])
+        tracker.read_variable_metadata()
+
+        with pytest.raises(
+            ValueError, match="Trajectory 0 is missing required keys: lat"
+        ):
+            tracker.to_netcdf("dummy_output.nc")
+
     def test_variable_metadata_initialized(self):
         """Test that `variable_metadata` is correctly initialized by the subclass."""
         tracker = self.ExampleTracker(example_trajectories=None)
