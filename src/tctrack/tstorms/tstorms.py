@@ -760,9 +760,6 @@ class TSTORMSTracker(TCTracker):
             )
             self._calendar_metadata = {"calendar_type": "julian", "units": None}
 
-    def run_tracker(self):
-        """Create placeholder for abstract method."""
-
     def trajectories(self):
         """
         Parse outputs from TSTORMS to list of :class:`tctrack.core.Trajectory`.
@@ -858,3 +855,37 @@ class TSTORMSTracker(TCTracker):
         )
         year, month, day, hour = map(int, line[-4:])
         return year, month, day, hour, return_vars
+
+    def run_tracker(self, output_file: str):
+        """Run TSTORMS tracker to obtain tropical cyclone track trajectories.
+
+        This first runs :meth:`detect` to get TC candidates at each time. Then
+        these are combined into trajectories using :meth:`stitch`.
+        The output is then saved as a CF-compliant NetCDF trajectory file.
+
+        Arguments
+        ---------
+        output_file : str
+            Filename to which the tropical cyclone trajectories are saved.
+
+        Raises
+        ------
+        FileNotFoundError
+            - If the TSTORMS executables cannot be found.
+        RuntimeError
+            If the TSTORMS commands return a non-zero exit code.
+
+        Examples
+        --------
+        To set the parameters, instantiate a :class:`TSTORMSTracker` instance and run
+        `run_tracker()`:
+
+        >>> tstorms_params = TSTORMSBaseParameters(...)
+        >>> detect_params = TSTORMSDetectParameters(...)
+        >>> stitch_params = TSTORMSStitchParameters(...)
+        >>> my_tracker = TETracker(tstorms_params, detect_params, stitch_params)
+        >>> my_tracker.run_tracker()
+        """
+        self.detect()
+        self.stitch()
+        self.to_netcdf(output_file)
