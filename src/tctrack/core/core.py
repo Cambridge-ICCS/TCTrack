@@ -23,6 +23,8 @@ class Trajectory:
     data : dict
         Dict of data for various variables along the trajectory.
         Timestamp and other variables as supplied in file.
+        For compatibility elsewhere in TCTrack trajectories are assumed to contain as
+        a minimum data for ``lat``, ``lon``, and ``timestep``.
     """
 
     def __init__(  # noqa: PLR0913 - too many arguments
