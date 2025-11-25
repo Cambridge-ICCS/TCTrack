@@ -5,6 +5,8 @@ Note that these do not require a TRACK installation to run and make use of
 pytest-mock to mock the results of subprocess calls to the system.
 """
 
+import json
+from dataclasses import asdict
 from pathlib import Path
 from unittest import mock
 
@@ -419,8 +421,10 @@ class TestTrackTracker:
         tracker = self._setup_tracker(mocker)
 
         tracker.set_metadata()
-        metadata = tracker._global_metadata  # noqa: SLF001
+        global_metadata = tracker._global_metadata  # noqa: SLF001
 
-        assert metadata is not None
-        assert "TCTrack_parameters" in metadata
-        assert metadata["TCTrack_parameters"] == repr(tracker.parameters)
+        assert global_metadata is not None
+        assert global_metadata == {
+            "tctrack_tracker": "TRACKTracker",
+            "track_parameters": json.dumps(asdict(tracker.parameters)),
+        }

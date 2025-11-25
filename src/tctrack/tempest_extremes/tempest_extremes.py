@@ -8,9 +8,10 @@ References
 """
 
 import csv
+import json
 import subprocess
 import tempfile
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import TypedDict
 
 import cf
@@ -1031,9 +1032,9 @@ class TETracker(TCTracker):
         }
         """
         self._global_metadata = {
-            "TCTrack_parameters": repr(self.detect_nodes_parameters)
-            + "\n"
-            + repr(self.stitch_nodes_parameters),
+            "tctrack_tracker": type(self).__name__,
+            "detect_nodes_parameters": json.dumps(asdict(self.detect_nodes_parameters)),
+            "stitch_nodes_parameters": json.dumps(asdict(self.stitch_nodes_parameters)),
         }
 
         self._variable_metadata = {}
