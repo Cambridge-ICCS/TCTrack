@@ -7,6 +7,7 @@ pytest-mock to mock the results of subprocess calls to the system.
 
 import os
 import subprocess
+from functools import partial
 from typing import Tuple
 
 import cf
@@ -512,6 +513,71 @@ class TestTSTORMSTracker:
         }
         for key, expected_values in expected_data_trajectory_2.items():
             assert traj2.data[key] == expected_values
+
+    def test_run_tracker_success(self, mocker, tstorms_tracker, mock_trav_file) -> None:
+        """Check run_tracker runs successfully."""
+        # Mock subprocess.run to simulate successful execution
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.side_effect = mocker.MagicMock(
+            returncode=0, stdout="Success"
+        )
+
+        # Check run_tracker runs without error and produces an output file
+        tracker = tstorms_tracker[0]
+
+        # Update the tracker to use the temporary trav file
+        # Create a dummy cyclones file
+        output_dir = os.path.dirname(mock_trav_file)
+        tracker.tstorms_parameters.output_dir = output_dir
+        generated_cyclones_file = os.path.join(output_dir, "cyclones")
+        with open(generated_cyclones_file, "w") as f:
+            f.write("Mock cyclones content")
+
+        output_file = os.path.join(output_dir, "trajectories.nc")
+        tracker.run_tracker(output_file)
+        assert os.path.exists(output_file)
+
+    def test_run_tracker_failure(self, mocker, tstorms_tracker, mock_trav_file) -> None:
+        """Check run_tracker propagates RuntimeError from detect/stitch_nodes."""
+        # Create tracker object
+        tracker = tstorms_tracker[0]
+
+        # Update the tracker to use the temporary trav file
+        # Create a dummy cyclones file
+        output_dir = str(os.path.dirname(mock_trav_file))
+        tracker.tstorms_parameters.output_dir = output_dir
+        generated_cyclones_file = os.path.join(output_dir, "cyclones")
+        with open(generated_cyclones_file, "w") as f:
+            f.write("Mock cyclones content")
+
+        # Mock subprocess.run and define a function to mock fail for a specific command
+        mock_subprocess_run = mocker.patch("subprocess.run")
+
+        def subprocess_fail_for(cmd, args, **_kwargs):
+            if cmd in args[0]:
+                raise subprocess.CalledProcessError(
+                    returncode=1, cmd=cmd, stderr="Error occurred"
+                )
+            mock_output = mocker.Mock(returncode=0, stdout="Success")
+            return mock_output
+
+        # Check a RuntimeError is correctly raised for detect (tstorms_driver)
+        mock_subprocess_run.side_effect = partial(
+            subprocess_fail_for, "tstorms_driver.exe"
+        )
+        with pytest.raises(
+            RuntimeError, match="Detect failed with a non-zero exit code"
+        ):
+            tracker.run_tracker("trajectories.nc")
+
+        # Check a RuntimeError is correctly raised for stitch (trajectory_analysis)
+        mock_subprocess_run.side_effect = partial(
+            subprocess_fail_for, "trajectory_analysis_csc.exe"
+        )
+        with pytest.raises(
+            RuntimeError, match="Stitch failed with a non-zero exit code"
+        ):
+            tracker.run_tracker("trajectories.nc")
 
 
 class TestTSTORMSTrackerDetect:
