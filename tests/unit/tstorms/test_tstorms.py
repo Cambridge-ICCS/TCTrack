@@ -369,8 +369,8 @@ class TestTSTORMSTracker:
         """Generate mock trajectory data for testing."""
         return {
             "varnames": [
-                "longitude",
-                "latitude",
+                "lon",
+                "lat",
                 "wind_speed",
                 "air_pressure_at_mean_sea_level",
                 "atmosphere_upward_relative_vorticity",
@@ -464,7 +464,7 @@ class TestTSTORMSTracker:
         # Assert the trajectories were parsed correctly
         assert len(trajectories) == 2
 
-        traj1 = trajectories[1]
+        traj1 = trajectories[0]
         assert traj1.trajectory_id == 1
         assert traj1.observations == 2
         assert traj1.start_time == datetime(
@@ -478,8 +478,8 @@ class TestTSTORMSTracker:
 
         # Validate the data attribute for the first trajectory
         expected_data_trajectory_1 = {
-            "longitude": [67.32, 67.68],
-            "latitude": [-9.26, -9.26],
+            "lon": [67.32, 67.68],
+            "lat": [-9.26, -9.26],
             "wind_speed": [17.90, 15.32],
             "air_pressure_at_mean_sea_level": [1002.11, 1003.88],
             "atmosphere_upward_relative_vorticity": [0.00065708, 0.00044106],
@@ -488,7 +488,7 @@ class TestTSTORMSTracker:
         for key, expected_values in expected_data_trajectory_1.items():
             assert traj1.data[key] == expected_values
 
-        traj2 = trajectories[2]
+        traj2 = trajectories[1]
         assert traj2.trajectory_id == 2
         assert traj2.observations == 3
         assert traj2.start_time == datetime(
@@ -500,8 +500,8 @@ class TestTSTORMSTracker:
         )
         assert traj2.observations == 3
         expected_data_trajectory_2 = {
-            "longitude": [105.29, 105.00, 104.94],
-            "latitude": [-17.23, -19.11, -16.99],
+            "lon": [105.29, 105.00, 104.94],
+            "lat": [-17.23, -19.11, -16.99],
             "wind_speed": [17.79, 17.65, 18.12],
             "air_pressure_at_mean_sea_level": [997.42, 999.99, 998.71],
             "atmosphere_upward_relative_vorticity": [

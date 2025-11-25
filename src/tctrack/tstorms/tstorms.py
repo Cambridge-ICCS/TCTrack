@@ -810,7 +810,7 @@ class TSTORMSTracker(TCTracker):
                     trajectories[current_trajectory_id].add_point(
                         *self._parse_tstorms_trav_line_to_point(items)
                     )
-        return trajectories
+        return list(trajectories.values())
 
     @staticmethod
     def _parse_tstorms_trav_line_to_point(
@@ -839,8 +839,8 @@ class TSTORMSTracker(TCTracker):
         """
         if not variable_names:
             variable_names = [
-                "longitude",
-                "latitude",
+                "lon",
+                "lat",
                 "wind_speed",
                 "air_pressure_at_mean_sea_level",
                 "atmosphere_upward_relative_vorticity",
