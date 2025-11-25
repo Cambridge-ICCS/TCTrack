@@ -8,10 +8,11 @@ References
   <https://doi.org/10.1175/JCLI-D-16-0557.1>`__
 """
 
+import json
 import shutil
 import subprocess
 import warnings
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import cf
@@ -706,7 +707,10 @@ class TRACKTracker(TCTracker):
 
     def set_metadata(self) -> None:
         """Set the global and variable metadata attributes."""
-        self._global_metadata = {"TCTrack_parameters": repr(self.parameters)}
+        self._global_metadata = {
+            "tctrack_tracker": type(self).__name__,
+            "track_parameters": json.dumps(asdict(self.parameters)),
+        }
 
         self._variable_metadata = {}
 

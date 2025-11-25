@@ -1,7 +1,8 @@
 """Unit tests for tracker.py of the TCTrack Core Python package."""
 
+import json
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 import cf
 import numpy as np
@@ -100,7 +101,8 @@ class TestTCTracker:
             """Implement a dummy of the set_metadata abstractmethod."""
             self._variable_metadata = example_metadata()
             self._global_metadata = {
-                "TCTrack_parameters": repr(ExampleParameters(42, "test")),
+                "tctrack_tracker": type(self).__name__,
+                "parameters": json.dumps(asdict(ExampleParameters(42, "test"))),
             }
 
         def trajectories(self) -> list[Trajectory]:
@@ -142,7 +144,10 @@ class TestTCTracker:
         """Test that `_global_metadata` is correctly initialized by the subclass."""
         tracker = self.ExampleTracker(example_trajectories=None)
         tracker.set_metadata()
-        expected_metadata = {"TCTrack_parameters": repr(ExampleParameters(42, "test"))}
+        expected_metadata = {
+            "tctrack_tracker": "ExampleTracker",
+            "parameters": json.dumps(asdict(ExampleParameters(42, "test"))),
+        }
         assert tracker._global_metadata == expected_metadata  # noqa: SLF001
 
     def test_to_netcdf(self, tmp_path):
@@ -247,7 +252,8 @@ class TestTCTracker:
         # Check the global metadata is written correctly
         global_metadata = field.nc_global_attributes(values=True)
         expected_global_metadata = {
-            "TCTrack_parameters": repr(ExampleParameters(42, "test")),
+            "tctrack_tracker": "ExampleTracker",
+            "parameters": json.dumps(asdict(ExampleParameters(42, "test"))),
         }
         for key, expected_value in expected_global_metadata.items():
             assert global_metadata[key] == expected_value

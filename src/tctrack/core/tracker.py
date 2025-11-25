@@ -123,7 +123,7 @@ class TCTracker(ABC):
         This method must be implemented by subclasses to populate the
         :attr:`_variable_metadata` attribute with relevant metadata for variables and
         the :attr:`_global_metadata` attribute for metadata about the TCTrack
-        parameters.
+        parameters and name of the tracker.
 
         This will be called from the :meth:`to_netcdf` method.
 
@@ -152,7 +152,8 @@ class TCTracker(ABC):
         ...             }
         ...         }
         ...         self._global_metadata = {
-        ...             "TCTrack_parameters": repr(MyTrackerParameters),
+        ...             "tctrack_tracker": type(self).__name__,
+        ...             "mytracker_parameters": json.dumps(asdict(MyTrackerParameters)),
         ...         }
         """
 
