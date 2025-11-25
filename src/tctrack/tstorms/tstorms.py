@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from netCDF4 import Dataset
 
-from tctrack.core import TCTracker, TCTrackerParameters
+from tctrack.core import TCTracker, TCTrackerParameters, Trajectory
 
 
 @dataclass(repr=False)
@@ -297,7 +297,7 @@ class TSTORMSTracker(TCTracker):
         # Check TSTORMSStitchParameters input arguments according to
         # TSTORMSDetectParameters
         # TODO: Decide which parameters we want to synchronise
-
+        self._extract_calendar_metadata()
         self._variable_metadata = {}
 
     def _run_tstorms_process(
@@ -764,4 +764,97 @@ class TSTORMSTracker(TCTracker):
         """Create placeholder for abstract method."""
 
     def trajectories(self):
-        """Create placeholder for abstract method."""
+        """
+        Parse outputs from TSTORMS to list of :class:`tctrack.core.Trajectory`.
+
+        This will read from the ``trav`` file output from trajectory stitching, or
+        ``trav_filt`` if filtering was applied (see ``do_filter`` in the
+        :attr:`tstorms_parameters` attribute).
+
+        Returns
+        -------
+        trajectories : list[Trajectory]
+            A list of :class:`tctrack.core.Trajectory` objects.
+        """
+        trajectories = []
+        current_trajectory_id = 0  # Initialize trajectory ID
+
+        # Use the trav file to get full data (including vorticity)
+        # If filtering was applied use filtered file
+        output_dir = self.tstorms_parameters.output_dir
+        trav_file = "trav_filt" if self.stitch_parameters.do_filter else "trav"
+        output_trav_filepath = os.path.join(output_dir, trav_file)
+
+        with open(output_trav_filepath, "r") as file:
+            for line in file:
+                items = line.split()
+                if items[0] == "start":
+                    # Start of new trajectory.
+                    # Extract metadata and add Trajectory to dict
+                    current_trajectory_id += 1
+                    observations = int(items[1])
+                    year, month, day, hour = map(int, items[2:6])
+
+                    trajectories.append(
+                        Trajectory(
+                            current_trajectory_id,
+                            observations,
+                            year,
+                            month,
+                            day,
+                            hour,
+                            calendar=self._calendar_metadata["calendar_type"],
+                        )
+                    )
+
+                # Continue processing ongoing trajectory
+                # Trajectories indexed from 1 so subtract when assigning
+                else:
+                    trajectories[current_trajectory_id - 1].add_point(
+                        *self._parse_tstorms_trav_line_to_point(items)
+                    )
+        return trajectories
+
+    @staticmethod
+    def _parse_tstorms_trav_line_to_point(
+        line: list[str], variable_names: list[str] | None = None
+    ) -> tuple[int, int, int, int, dict[str, int | float]]:
+        """
+        Parse line from TSTORMS trav output into a trajectory data point.
+
+        Data point format is that expected by a :class:`tctrack.core.Trajectory`.
+
+        Data from a traj file can be parsed by providing a different set of
+        ``variable_names``
+
+        Parameters
+        ----------
+        line : list[str]
+            A list of strings representing the line split into parts.
+        variable_names : list[str] | None
+            List of variable names for the data columns.
+            Defaults to None and then set to those for a trav file.
+
+        Returns
+        -------
+        tuple
+            A tuple of integer year, month, day, hour and dict of variables
+        """
+        if not variable_names:
+            variable_names = [
+                "longitude",
+                "latitude",
+                "wind_speed",
+                "air_pressure_at_mean_sea_level",
+                "atmosphere_upward_relative_vorticity",
+            ]
+
+        return_vars: dict[str, int | float] = {}
+        return_vars.update(
+            {
+                name: float(value)
+                for name, value in zip(variable_names, line[:-4], strict=True)
+            }
+        )
+        year, month, day, hour = map(int, line[-4:])
+        return year, month, day, hour, return_vars
