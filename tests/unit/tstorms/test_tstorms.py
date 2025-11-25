@@ -16,6 +16,7 @@ from typing import Tuple
 import cf
 import numpy as np
 import pytest
+from cftime import datetime
 
 from tctrack.tstorms import (
     TSTORMSBaseParameters,
@@ -67,6 +68,28 @@ def tstorms_tracker(tmp_path, tstorms_filenames) -> Tuple[TSTORMSTracker, str]:
         do_thickness=False,
         use_sfc_wind=True,
     )
+
+    # Create a valid u_ref NetCDF file with calendar metadata
+    netcdf_file = os.path.join(tstorms_parameters.input_dir, "u.nc")
+    u_field = cf.Field(properties={"standard_name": "velocity"})
+    u_field.nc_set_variable("u_ref")
+    domain_axis_time = cf.DomainAxis(10)
+    domain_axis_time.nc_set_unlimited(True)
+    _ = u_field.set_construct(domain_axis_time)
+    u_data = cf.Data(np.arange(10.0))
+    u_field.set_data(u_data)
+    dimension_T = cf.DimensionCoordinate(
+        properties={
+            "standard_name": "time",
+            "calendar": "360_day",
+            "units": "days since 1950-01-01",
+        },
+        data=cf.Data(np.arange(10.0)),
+    )
+    u_field.set_construct(dimension_T)
+    # mypy ignore cf.write raises spurious warning but used elsewhere fine.
+    cf.write(u_field, netcdf_file)  # type: ignore
+
     return TSTORMSTracker(tstorms_parameters, detect_params), tstorms_dir
 
 
@@ -256,26 +279,6 @@ class TestTSTORMSTracker:
         """Test extracting valid calendar metadata from a NetCDF file."""
         tracker = tstorms_tracker[0]
 
-        # Create a temporary NetCDF file as expected by the tracker fixture
-        netcdf_file = os.path.join(tracker.tstorms_parameters.input_dir, "u.nc")
-        u_field = cf.Field(properties={"standard_name": "velocity"})
-        u_field.nc_set_variable("u_ref")
-        domain_axis_time = cf.DomainAxis(10)
-        domain_axis_time.nc_set_unlimited(True)
-        _ = u_field.set_construct(domain_axis_time)
-        u_data = cf.Data(np.arange(10.0))
-        u_field.set_data(u_data)
-        dimension_T = cf.DimensionCoordinate(
-            properties={
-                "standard_name": "time",
-                "calendar": "360_day",
-                "units": "days since 1950-01-01",
-            },
-            data=cf.Data(np.arange(10.0)),
-        )
-        u_field.set_construct(dimension_T)
-        cf.write(u_field, netcdf_file)
-
         # Call the method
         tracker._extract_calendar_metadata()  # noqa: SLF001 - Private member access
 
@@ -289,7 +292,12 @@ class TestTSTORMSTracker:
         """Test behavior when the NetCDF file is not found."""
         tracker = tstorms_tracker[0]
 
-        # Do not create the file expected by the tracker fixture (u.nc)
+        # Remove the u_ref file to simulate file-not-found
+        u_ref_path = os.path.join(
+            tracker.tstorms_parameters.input_dir, tracker.detect_parameters.u_in_file
+        )
+        if os.path.exists(u_ref_path):
+            os.remove(u_ref_path)
 
         with pytest.warns(
             UserWarning, match="No input file for u_ref found to set calendar metadata"
@@ -301,7 +309,7 @@ class TestTSTORMSTracker:
         """Test behavior when no unlimited dimension is found in the NetCDF file."""
         tracker = tstorms_tracker[0]
 
-        # Create a temporary NetCDF file as expected by the tracker fixture, time not ul
+        # Overwrite NetCDF file in the tracker fixture, time not unlimited
         netcdf_file = os.path.join(tracker.tstorms_parameters.input_dir, "u.nc")
         u_field = cf.Field(properties={"standard_name": "velocity"})
         u_field.nc_set_variable("u_ref")
@@ -331,7 +339,7 @@ class TestTSTORMSTracker:
         """Test behavior when missing unlimited dimension coordinate data."""
         tracker = tstorms_tracker[0]
 
-        # Create a temporary NetCDF file as expected by the tracker fixture
+        # Overwrite temporary NetCDF file in the tracker fixture
         netcdf_file = os.path.join(tracker.tstorms_parameters.input_dir, "u.nc")
         u_field = cf.Field(properties={"standard_name": "velocity"})
         u_field.nc_set_variable("u_ref")
@@ -353,7 +361,7 @@ class TestTSTORMSTracker:
         """Test behavior when missing 'units' or 'calendar' attributes from coord."""
         tracker = tstorms_tracker[0]
 
-        # Create a temporary NetCDF file as expected by the tracker fixture
+        # Overwrite temporary NetCDF file in the tracker fixture
         netcdf_file = os.path.join(tracker.tstorms_parameters.input_dir, "u.nc")
         u_field = cf.Field(properties={"standard_name": "velocity"})
         u_field.nc_set_variable("u_ref")
@@ -380,6 +388,169 @@ class TestTSTORMSTracker:
                 "calendar_type": "julian",
                 "units": None,
             }
+
+    def _mock_trajectories_data(self):
+        """Generate mock trajectory data for testing."""
+        return {
+            "varnames": [
+                "lon",
+                "lat",
+                "wind_speed",
+                "air_pressure_at_mean_sea_level",
+                "atmosphere_upward_relative_vorticity",
+            ],
+            "datenames": ["year", "month", "day", "hour"],
+            "trajectories": [
+                [
+                    {
+                        "date": ["1950", "1", "6", "0"],
+                        "line": [
+                            "67.32",
+                            "-9.26",
+                            "17.90",
+                            "1002.11",
+                            "0.00065708",
+                        ],
+                    },
+                    {
+                        "date": ["1950", "1", "7", "0"],
+                        "line": [
+                            "67.68",
+                            "-9.26",
+                            "15.32",
+                            "1003.88",
+                            "0.00044106",
+                        ],
+                    },
+                ],
+                [
+                    {
+                        "date": ["1950", "1", "17", "0"],
+                        "line": [
+                            "105.29",
+                            "-17.23",
+                            "17.79",
+                            "997.42",
+                            "0.00058948",
+                        ],
+                    },
+                    {
+                        "date": ["1950", "1", "18", "0"],
+                        "line": [
+                            "105.00",
+                            "-19.11",
+                            "17.65",
+                            "999.99",
+                            "0.00052948",
+                        ],
+                    },
+                    {
+                        "date": ["1950", "1", "19", "0"],
+                        "line": [
+                            "104.94",
+                            "-16.99",
+                            "18.12",
+                            "998.71",
+                            "0.00049719",
+                        ],
+                    },
+                ],
+            ],
+        }
+
+    @pytest.fixture
+    def mock_trav_file(self, tmp_path):
+        """Fixture to create a mock TSTORMS 'trav' file with sample trajectory data."""
+        file_path = tmp_path / "trav_filt"
+        mock_data = self._mock_trajectories_data()
+
+        content = ""
+        for track in mock_data["trajectories"]:
+            content += "start\t{}\t{}\n".format(len(track), "\t".join(track[0]["date"]))
+            content += "\n".join(
+                "\t{}\t{}".format("\t".join(obs["line"]), "\t".join(obs["date"]))
+                for obs in track
+            )
+            content += "\n"
+
+        file_path.write_text(content)
+        return str(file_path)
+
+    def test_trajectories_valid(self, tstorms_tracker, mock_trav_file):
+        """Test parsing valid trajectories from a TSTORMS 'trav' file."""
+        tracker = tstorms_tracker[0]
+
+        # Update the tracker to use the temporary file
+        tracker.tstorms_parameters.output_dir = str(os.path.dirname(mock_trav_file))
+
+        trajectories = tracker.trajectories()
+
+        # Assert the trajectories were parsed correctly
+        assert len(trajectories) == 2
+
+        traj1 = trajectories[0]
+        assert traj1.trajectory_id == 1
+        assert traj1.observations == 2
+        assert traj1.start_time == datetime(
+            1950,
+            1,
+            6,
+            0,
+            calendar=tracker._calendar_metadata["calendar_type"],  # noqa: SLF001 - Private member access
+        )
+        assert traj1.observations == 2
+
+        # Validate the data attribute for the first trajectory
+        expected_data_trajectory_1 = {
+            "timestamp": [
+                datetime(
+                    1950,
+                    1,
+                    6,
+                    0,
+                    calendar=tracker._calendar_metadata["calendar_type"],  # noqa: SLF001 - Private member access
+                ),
+                datetime(
+                    1950,
+                    1,
+                    7,
+                    0,
+                    calendar=tracker._calendar_metadata["calendar_type"],  # noqa: SLF001 - Private member access
+                ),
+            ],
+            "lon": [67.32, 67.68],
+            "lat": [-9.26, -9.26],
+            "wind_speed": [17.90, 15.32],
+            "air_pressure_at_mean_sea_level": [1002.11, 1003.88],
+            "atmosphere_upward_relative_vorticity": [0.00065708, 0.00044106],
+        }
+
+        assert traj1.data == expected_data_trajectory_1
+
+        traj2 = trajectories[1]
+        assert traj2.trajectory_id == 2
+        assert traj2.observations == 3
+        assert traj2.start_time == datetime(
+            1950,
+            1,
+            17,
+            0,
+            calendar=tracker._calendar_metadata["calendar_type"],  # noqa: SLF001 - Private member access
+        )
+        assert traj2.observations == 3
+        expected_data_trajectory_2 = {
+            "lon": [105.29, 105.00, 104.94],
+            "lat": [-17.23, -19.11, -16.99],
+            "wind_speed": [17.79, 17.65, 18.12],
+            "air_pressure_at_mean_sea_level": [997.42, 999.99, 998.71],
+            "atmosphere_upward_relative_vorticity": [
+                0.00058948,
+                0.00052948,
+                0.00049719,
+            ],
+        }
+        for key, expected_values in expected_data_trajectory_2.items():
+            assert traj2.data[key] == expected_values
 
 
 class TestTSTORMSTrackerDetect:
