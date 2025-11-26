@@ -136,19 +136,22 @@ class TestTCTracker:
         assert tracker.variable_metadata == expected_metadata
 
     def test_global_metadata_uninitialized(self):
-        """Test that `_global_metadata` is None if not initialised."""
+        """Test that `global_metadata` is None if not initialised."""
         tracker = self.ExampleTracker(example_trajectories=None)
-        assert tracker._global_metadata is None  # noqa: SLF001
+        with pytest.raises(
+            AttributeError, match="_global_metadata has not been initialized"
+        ):
+            _ = tracker.global_metadata
 
     def test_global_metadata_initialized(self):
-        """Test that `_global_metadata` is correctly initialized by the subclass."""
+        """Test that `global_metadata` is correctly initialized by the subclass."""
         tracker = self.ExampleTracker(example_trajectories=None)
         tracker.set_metadata()
         expected_metadata = {
             "tctrack_tracker": "ExampleTracker",
             "parameters": json.dumps(asdict(ExampleParameters(42, "test"))),
         }
-        assert tracker._global_metadata == expected_metadata  # noqa: SLF001
+        assert tracker.global_metadata == expected_metadata
 
     def test_to_netcdf(self, tmp_path):
         """

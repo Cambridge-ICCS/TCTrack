@@ -1031,11 +1031,12 @@ class TETracker(TCTracker):
             ),
         }
         """
-        self._global_metadata = {
-            "tctrack_tracker": type(self).__name__,
-            "detect_nodes_parameters": json.dumps(asdict(self.detect_nodes_parameters)),
-            "stitch_nodes_parameters": json.dumps(asdict(self.stitch_nodes_parameters)),
-        }
+        super().set_metadata()
+
+        detect_params_json = json.dumps(asdict(self.detect_nodes_parameters))
+        stitch_params_json = json.dumps(asdict(self.stitch_nodes_parameters))
+        self.global_metadata["detect_nodes_parameters"] = detect_params_json
+        self.global_metadata["stitch_nodes_parameters"] = stitch_params_json
 
         self._variable_metadata = {}
 

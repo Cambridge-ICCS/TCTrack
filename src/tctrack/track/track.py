@@ -707,10 +707,9 @@ class TRACKTracker(TCTracker):
 
     def set_metadata(self) -> None:
         """Set the global and variable metadata attributes."""
-        self._global_metadata = {
-            "tctrack_tracker": type(self).__name__,
-            "track_parameters": json.dumps(asdict(self.parameters)),
-        }
+        super().set_metadata()
+
+        self.global_metadata["track_parameters"] = json.dumps(asdict(self.parameters))
 
         self._variable_metadata = {}
 
