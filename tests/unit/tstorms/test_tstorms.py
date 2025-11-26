@@ -522,6 +522,11 @@ class TestTSTORMSTracker:
             returncode=0, stdout="Success"
         )
 
+        # Mock read_variable_metadata method as no real files.
+        mocker.patch.object(
+            tstorms_tracker[0], "read_variable_metadata", return_value=None
+        )
+
         # Check run_tracker runs without error and produces an output file
         tracker = tstorms_tracker[0]
 

@@ -900,7 +900,7 @@ class TSTORMSTracker(TCTracker):
 
         input_dir = self.tstorms_parameters.input_dir
         detect_params = self.detect_parameters
-        var_outputs = [
+        var_outputs: list[dict] = [
             {
                 "name": "wind_speed",
                 "std_name": "wind_speed",
