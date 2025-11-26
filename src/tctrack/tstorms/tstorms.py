@@ -12,6 +12,7 @@ import textwrap
 import warnings
 from dataclasses import dataclass
 
+import cf
 from netCDF4 import Dataset
 
 from tctrack.core import TCTracker, TCTrackerParameters, Trajectory
@@ -701,9 +702,6 @@ class TSTORMSTracker(TCTracker):
 
         return process_output
 
-    def read_variable_metadata(self):
-        """Create placeholder for abstract method."""
-
     def _extract_calendar_metadata(self):
         """
         Extract calendar metadata from u_ref input file and store as class attribute.
@@ -855,6 +853,134 @@ class TSTORMSTracker(TCTracker):
         )
         year, month, day, hour = map(int, line[-4:])
         return year, month, day, hour, return_vars
+
+    def read_variable_metadata(self) -> None:
+        """
+        Read in the metadata from the input files for each variable.
+
+        Reads metadata for each variable from the input NetCDF files
+        defined in :attr:`detect_parameters`.
+        These will be stored in the :attr:`variable_metadata` attribute as a
+        dictionary of dictionaries.
+        This will be called from the :meth:`to_netcdf` method.
+
+        Raises
+        ------
+        ValueError
+            If a variable is not found in the input files.
+
+        Examples
+        --------
+        To generate in the metadata for variables from parameters and inputs:
+
+        >>> tracker = TSTORMSTracker(tstorms_params, detect_params, stitch_params)
+        >>> tracker.read_variable_metadata()
+        >>> tracker.variable_metadata
+        {
+            "wind_speed": {
+                "standard_name": "wind_speed",
+                "long_name": "Wind Speed",
+                ...
+            },
+            ...
+        }
+        """
+        self._variable_metadata = {}
+
+        # TSTORMS calculates windspeed as Euclidian norm of u and v, so read
+        # key units and attributes from u and assume they apply.
+        # Vorticity, Temperature, and Sea-level-pressure all read in directly from file.
+
+        # Note that there is some slight misdirection here in that wind, slp, and tm are
+        # detected relative to the vorticity location, but the slp location is used to
+        # provide coordinates. This means a situation could arise in which points are
+        # in fact from an area more than quoted (up to twice the radius).
+
+        input_dir = self.tstorms_parameters.input_dir
+        detect_params = self.detect_parameters
+        var_outputs: list[dict] = [
+            {
+                "std_name": "wind_speed",
+                "long_name": (
+                    "Surface Wind Speed" if detect_params.use_sfc_wind else "Wind Speed"
+                ),
+                "tstorms_name": ("u_ref" if detect_params.use_sfc_wind else "u850"),
+                "filename": os.path.join(input_dir, detect_params.u_in_file),
+                "cellmethod": cf.CellMethod(
+                    "area",
+                    "maximum",
+                    qualifiers={
+                        "comment": (
+                            f"lesser circle of radius {detect_params.dist_crit} degrees"
+                        ),
+                    },
+                ),
+            },
+            {
+                "std_name": "air_pressure_at_mean_sea_level",
+                "long_name": "Air Pressure at Mean Sea Level",
+                "tstorms_name": "slp",
+                "filename": os.path.join(input_dir, detect_params.slp_in_file),
+                "cellmethod": cf.CellMethod(
+                    "area",
+                    "maximum",
+                    qualifiers={
+                        "comment": (
+                            f"lesser circle of radius {detect_params.dist_crit} degrees"
+                        ),
+                    },
+                ),
+            },
+            {
+                "std_name": "atmosphere_upward_relative_vorticity",
+                "long_name": "Atmosphere Upward Relative Vorticity",
+                "tstorms_name": "vort850",
+                "filename": os.path.join(input_dir, detect_params.vort_in_file),
+                "cellmethod": cf.CellMethod(
+                    "area",
+                    "maximum",
+                    qualifiers={
+                        "comment": (
+                            f"lesser circle of radius {detect_params.dist_crit} degrees"
+                        ),
+                    },
+                ),
+            },
+        ]
+
+        for output in var_outputs:
+            # Check input file exists to read from
+            if not os.path.exists(output["filename"]):
+                errmsg = f"Input file '{output['filename']}' not found."
+                raise FileNotFoundError(errmsg)
+
+            var_name = output["std_name"]
+            tstorms_name = output["tstorms_name"]
+
+            # Get the variable field from the netcdf file
+            fields = cf.read(output["filename"], select=f"ncvar%{tstorms_name}")  # type: ignore[operator]
+            if not fields:
+                msg = (
+                    f"Variable '{tstorms_name}' not found "
+                    f"in input file {output['filename']}."
+                )
+                raise ValueError(msg)
+            field = fields[0]
+
+            # Read and store the relevant metadata
+            # Override wind speed as reading from u file but this is zonal velocity
+            self._variable_metadata[var_name] = {
+                "standard_name": (
+                    field.get_property("standard_name", output["std_name"])
+                ),
+                "long_name": field.get_property("long_name", output["long_name"]),
+                "units": field.get_property("units", "unknown"),
+                "cell_method": output["cellmethod"],
+            }
+            # Override wind speed as reading from u input file which is zonal velocity
+            if var_name == "wind_speed":
+                self._variable_metadata[var_name]["standard_name"] = output["std_name"]
+                self._variable_metadata[var_name]["long_name"] = output["long_name"]
 
     def run_tracker(self, output_file: str):
         """Run TSTORMS tracker to obtain tropical cyclone track trajectories.
