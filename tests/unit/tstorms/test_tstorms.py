@@ -71,7 +71,7 @@ def tstorms_tracker(tmp_path, tstorms_filenames) -> Tuple[TSTORMSTracker, str]:
 
     # Create a valid u_ref NetCDF file with calendar metadata
     netcdf_file = os.path.join(tstorms_parameters.input_dir, "u.nc")
-    u_field = cf.Field(properties={"standard_name": "velocity"})
+    u_field = cf.Field(properties={"standard_name": "velocity", "units": "m s-1"})
     u_field.nc_set_variable("u_ref")
     domain_axis_time = cf.DomainAxis(10)
     domain_axis_time.nc_set_unlimited(True)
@@ -194,21 +194,6 @@ class TestTSTORMSTypes:
 
 class TestTSTORMSTracker:
     """Tests for the TSTORMS Tracker class."""
-
-    def test_tstorms_tracker_global_metadata(self, tstorms_tracker) -> None:
-        """Check set_metadata correctly sets _global_metadata."""
-        tracker = tstorms_tracker[0]
-
-        tracker.set_metadata()
-
-        assert tracker.global_metadata is not None
-        assert tracker.global_metadata == {
-            "tctrack_version": importlib.metadata.version("tctrack"),
-            "tctrack_tracker": "TSTORMSTracker",
-            "tstorms_parameters": json.dumps(asdict(tracker.tstorms_parameters)),
-            "detect_parameters": json.dumps(asdict(tracker.detect_parameters)),
-            "stitch_parameters": json.dumps(asdict(tracker.stitch_parameters)),
-        }
 
     def test_write_driver_namelist(self, tstorms_tracker):
         """Test the generation of the driver namelist."""
@@ -389,6 +374,147 @@ class TestTSTORMSTracker:
                 "units": None,
             }
 
+    def test_set_metadata(self, tstorms_tracker):
+        """Test setting of global and variable metadata from NetCDF files."""
+        tracker = tstorms_tracker[0]
+        input_dir = tracker.tstorms_parameters.input_dir
+
+        # Create additional NetCDF files for other variables
+        # Check variables with and without a long name provided
+        variables = [
+            (
+                "slp.nc",
+                "slp",
+                "air_pressure_at_mean_sea_level",
+                "Sea Level Pressure",
+                "Pa",
+            ),
+            ("vort.nc", "vort850", "atmosphere_upward_relative_vorticity", None, "s-1"),
+        ]
+
+        for filename, var_name, std_name, long_name, units in variables:
+            netcdf_file = os.path.join(input_dir, filename)
+            properties = {"standard_name": std_name, "units": units}
+            if long_name:
+                properties["long_name"] = long_name
+            field = cf.Field(properties=properties)
+            field.nc_set_variable(var_name)
+            domain_axis = cf.DomainAxis(10)
+            _ = field.set_construct(domain_axis)
+            data = cf.Data(np.arange(10.0))
+            field.set_data(data)
+            cf.write(field, netcdf_file)
+
+        # Call the method
+        tracker.set_metadata()
+
+        # Assert the global metadata was set correctly
+        assert tracker.global_metadata is not None
+        assert tracker.global_metadata == {
+            "tctrack_version": importlib.metadata.version("tctrack"),
+            "tctrack_tracker": "TSTORMSTracker",
+            "tstorms_parameters": json.dumps(asdict(tracker.tstorms_parameters)),
+            "detect_parameters": json.dumps(asdict(tracker.detect_parameters)),
+            "stitch_parameters": json.dumps(asdict(tracker.stitch_parameters)),
+        }
+
+        # Assert the variable metadata was read correctly
+        expected_metadata = {
+            "wind_speed": {
+                "standard_name": "wind_speed",
+                "long_name": "Surface Wind Speed",
+                "units": "m s-1",
+                "cell_method": cf.CellMethod(
+                    "area",
+                    "maximum",
+                    qualifiers={"comment": "lesser circle of radius 4.0 degrees"},
+                ),
+            },
+            "air_pressure_at_mean_sea_level": {
+                "standard_name": "air_pressure_at_mean_sea_level",
+                "long_name": "Sea Level Pressure",
+                "units": "Pa",
+                "cell_method": cf.CellMethod(
+                    "area",
+                    "maximum",
+                    qualifiers={"comment": "lesser circle of radius 4.0 degrees"},
+                ),
+            },
+            "atmosphere_upward_relative_vorticity": {
+                "standard_name": "atmosphere_upward_relative_vorticity",
+                "long_name": "Atmosphere Upward Relative Vorticity",
+                "units": "s-1",
+                "cell_method": cf.CellMethod(
+                    "area",
+                    "maximum",
+                    qualifiers={"comment": "lesser circle of radius 4.0 degrees"},
+                ),
+            },
+        }
+
+        for var_name, metadata in expected_metadata.items():
+            assert var_name in tracker._variable_metadata  # noqa: SLF001 - Private member access
+            assert (
+                tracker._variable_metadata[var_name].properties["standard_name"]  # noqa: SLF001 - Private member access
+                == metadata["standard_name"]
+            )
+            assert (
+                tracker._variable_metadata[var_name].properties["long_name"]  # noqa: SLF001 - Private member access
+                == metadata["long_name"]
+            )
+            assert (
+                tracker._variable_metadata[var_name].properties["units"]  # noqa: SLF001 - Private member access
+                == metadata["units"]
+            )
+            assert (
+                tracker._variable_metadata[var_name].constructs  # noqa: SLF001 - Private member access
+                == [metadata["cell_method"]]
+            )
+
+    def test_set_metadata_missing_file(self, tstorms_tracker):
+        """Test metadata behaviour when a required NetCDF file is missing."""
+        tracker = tstorms_tracker[0]
+
+        # Ensure removal one of the input files (slp is read first)
+        missing_file = os.path.join(tracker.tstorms_parameters.input_dir, "slp.nc")
+        if os.path.exists(missing_file):
+            os.remove(missing_file)
+
+        with pytest.raises(
+            FileNotFoundError,
+            match=(
+                f"Input file '{tracker.tstorms_parameters.input_dir}/slp.nc' not found."
+            ),
+        ):
+            tracker.set_metadata()
+
+    def test_set_metadata_missing_variable(self, tstorms_tracker):
+        """Test reading variable metadata if default TSTORMS variable missing."""
+        tracker = tstorms_tracker[0]
+        input_dir = tracker.tstorms_parameters.input_dir
+
+        # Create slp file with no variable names slp
+        netcdf_file = os.path.join(input_dir, "slp.nc")
+        field = cf.Field(
+            properties={
+                "standard_name": "air_pressure_at_mean_sea_level",
+                "units": "Pa",
+                "long_name": "Sea Level Pressure",
+            }
+        )
+        field.nc_set_variable("incorrectly_named_slp_for_tstorms")
+        domain_axis = cf.DomainAxis(10)
+        _ = field.set_construct(domain_axis)
+        data = cf.Data(np.arange(10.0))
+        field.set_data(data)
+        cf.write(field, netcdf_file)
+
+        with pytest.raises(
+            ValueError,
+            match=(rf"Variable 'slp' not found in input file {input_dir}/slp.nc."),
+        ):
+            tracker.set_metadata()
+
     def _mock_trajectories_data(self):
         """Generate mock trajectory data for testing."""
         return {
@@ -562,6 +688,34 @@ class TestTSTORMSTracker:
 
         # Check run_tracker runs without error and produces an output file
         tracker = tstorms_tracker[0]
+        input_dir = tracker.tstorms_parameters.input_dir
+
+        # Create additional NetCDF files for other variables
+        # Check variables with and without a long name provided
+        variables = [
+            (
+                "slp.nc",
+                "slp",
+                "air_pressure_at_mean_sea_level",
+                "Sea Level Pressure",
+                "Pa",
+            ),
+            ("vort.nc", "vort850", "atmosphere_upward_relative_vorticity", None, "s-1"),
+        ]
+
+        for filename, var_name, std_name, long_name, units in variables:
+            netcdf_file = os.path.join(input_dir, filename)
+            properties = {"standard_name": std_name, "units": units}
+            if long_name:
+                properties["long_name"] = long_name
+            field = cf.Field(properties=properties)
+            field.nc_set_variable(var_name)
+            domain_axis = cf.DomainAxis(10)
+            _ = field.set_construct(domain_axis)
+            data = cf.Data(np.arange(10.0))
+            field.set_data(data)
+            # mypy ignore cf.write raises spurious warning but used elsewhere fine.
+            cf.write(field, netcdf_file)  # type: ignore
 
         # Update the tracker to use the temporary trav file
         # Create a dummy cyclones file
