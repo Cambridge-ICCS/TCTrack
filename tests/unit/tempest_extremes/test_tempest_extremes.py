@@ -5,6 +5,7 @@ Note that these do not require a Tempest Extremes installation to run and make u
 pytest-mock to mock the results of subprocess calls to the system.
 """
 
+import importlib.metadata
 import json
 import subprocess
 from dataclasses import asdict
@@ -243,10 +244,10 @@ class TestTETracker:
         """Check set_metadata correctly sets _global_metadata."""
         tracker = TETracker()
         tracker.set_metadata()
-        global_metadata = tracker._global_metadata  # noqa: SLF001
 
-        assert global_metadata is not None
-        assert global_metadata == {
+        assert tracker.global_metadata is not None
+        assert tracker.global_metadata == {
+            "tctrack_version": importlib.metadata.version("tctrack"),
             "tctrack_tracker": "TETracker",
             "detect_nodes_parameters": json.dumps(
                 asdict(tracker.detect_nodes_parameters)

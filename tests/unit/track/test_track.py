@@ -5,6 +5,7 @@ Note that these do not require a TRACK installation to run and make use of
 pytest-mock to mock the results of subprocess calls to the system.
 """
 
+import importlib.metadata
 import json
 from dataclasses import asdict
 from pathlib import Path
@@ -417,14 +418,14 @@ class TestTrackTracker:
         assert metadata["intensity"].construct_kwargs == expected_construct_kwargs
 
     def test_global_metadata(self, mocker):
-        """Test _global_metadata is defined correctly by set_metadata."""
+        """Test global_metadata is defined correctly by set_metadata."""
         tracker = self._setup_tracker(mocker)
 
         tracker.set_metadata()
-        global_metadata = tracker._global_metadata  # noqa: SLF001
 
-        assert global_metadata is not None
-        assert global_metadata == {
+        assert tracker.global_metadata is not None
+        assert tracker.global_metadata == {
+            "tctrack_version": importlib.metadata.version("tctrack"),
             "tctrack_tracker": "TRACKTracker",
             "track_parameters": json.dumps(asdict(tracker.parameters)),
         }
