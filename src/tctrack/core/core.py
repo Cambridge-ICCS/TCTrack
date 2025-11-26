@@ -2,7 +2,7 @@
 
 import numbers
 
-from cftime import Datetime360Day, DatetimeGregorian, DatetimeNoLeap
+from cftime import datetime
 
 
 class Trajectory:
@@ -23,6 +23,8 @@ class Trajectory:
     data : dict
         Dict of data for various variables along the trajectory.
         Timestamp and other variables as supplied in file.
+        For compatibility elsewhere in TCTrack trajectories are assumed to contain as
+        a minimum data for ``lat``, ``lon``, and ``timestep``.
     """
 
     def __init__(  # noqa: PLR0913 - too many arguments
@@ -54,7 +56,7 @@ class Trajectory:
             The starting hour of the trajectory (0-23).
         calendar : str, optional
             The calendar type to use for datetime handling. Options are
-            "gregorian", "360_day", or "noleap".
+            "gregorian", "julian", "360_day", or "noleap".
         """
         self.trajectory_id = trajectory_id
         self.observations = observations
@@ -62,7 +64,7 @@ class Trajectory:
         self.start_time = self._create_datetime(year, month, day, hour)
         self.data: dict = {}
 
-    def _create_datetime(self, year: int, month: int, day: int, hour: int):
+    def _create_datetime(self, year: int, month: int, day: int, hour: int) -> datetime:
         """
         Create a cftime object based on the specified calendar attribute.
 
@@ -79,18 +81,17 @@ class Trajectory:
 
         Returns
         -------
-        datetime : Datetime360Day | DatetimeNoLeap | DatetimeGregorian
+        datetime : datetime
+            cftime.datetime object with the appropriate calendar setting
         """
-        if self.calendar == "360_day":
-            return Datetime360Day(year, month, day, hour)
-        elif self.calendar == "noleap":
-            return DatetimeNoLeap(year, month, day, hour)
-        elif self.calendar in {"gregorian", "standard"}:
-            return DatetimeGregorian(year, month, day, hour)
+        supported_types = {"360_day", "noleap", "julian", "gregorian", "standard"}
+        if self.calendar in supported_types:
+            return datetime(year, month, day, hour, calendar=self.calendar)
         else:
             msg = (
                 f"Unsupported calendar type: {self.calendar}. "
-                "Supported types are '360_day', 'noleap', or 'gregorian'/'standard'."
+                "Supported types are "
+                f"{', '.join(f'`{caltype}`' for caltype in supported_types)}."
             )
             raise ValueError(msg)
 
