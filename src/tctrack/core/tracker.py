@@ -254,7 +254,7 @@ class TCTracker(ABC):
 
         # Create auxiliary coordinates for time, latitude, longitude
         # Convert time from cftime to num format to write out via cf
-        time_fill = -1e10
+        time_fill = -1e8
         time_data = cf.Data(
             [
                 date2num(
@@ -277,6 +277,7 @@ class TCTracker(ABC):
                 "units": cf.Units(
                     "days since 1970-01-01", calendar=trajectories[0].calendar
                 ),
+                "missing_value": time_fill,
             },
         )
 
@@ -294,6 +295,7 @@ class TCTracker(ABC):
                 "standard_name": "lat",
                 "long_name": "latitude",
                 "units": "degrees_north",
+                "missing_value": lat_lon_fill,
             },
         )
 
@@ -310,6 +312,7 @@ class TCTracker(ABC):
                 "standard_name": "lon",
                 "long_name": "longitude",
                 "units": "degrees_east",
+                "missing_value": lat_lon_fill,
             },
         )
 
@@ -355,6 +358,7 @@ class TCTracker(ABC):
 
             # Add the variable coordinate to the field
             field.set_data(variable_data, axes=(axis_traj, axis_obs))
+            field.set_property("missing_value", field_fill)
 
             # Add the global metadata
             if self.global_metadata:
