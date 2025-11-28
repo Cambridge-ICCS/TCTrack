@@ -252,7 +252,8 @@ class TestTCTracker:
         # Check the fields (variables) - just one in this test
         variable = "test_var"
         # Properties
-        expected_field_properties = example_metadata()[variable].properties
+        expected_field_properties: dict = example_metadata()[variable].properties
+        expected_field_properties["missing_value"] = -1e10
         for key, value in expected_field_properties.items():
             assert field.get_property(key) == value, (
                 f"Metadata mismatch for field data: {variable} - {key}"
@@ -267,16 +268,19 @@ class TestTCTracker:
                 "standard_name": "lat",
                 "long_name": "latitude",
                 "units": "degrees_north",
+                "missing_value": -999.9,
             },
             "lon": {
                 "standard_name": "lon",
                 "long_name": "longitude",
                 "units": "degrees_east",
+                "missing_value": -999.9,
             },
             "time": {
                 "standard_name": "time",
                 "long_name": "time",
                 "units": "days since 1970-01-01",
+                "missing_value": -1e8,
             },
         }
         for variable, metadata in expected_construct_metadata.items():
