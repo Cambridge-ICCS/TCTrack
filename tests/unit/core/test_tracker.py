@@ -1,6 +1,7 @@
 """Unit tests for tracker.py of the TCTrack Core Python package."""
 
 import json
+import pathlib
 import re
 from dataclasses import asdict, dataclass
 
@@ -83,8 +84,6 @@ def example_metadata():
             constructs=[cf.CellMethod("area", "point")],
             construct_kwargs=[{"key": "cellmethod0"}],
         ),
-        "lat": TCTrackerMetadata({"long_name": "latitude", "units": "degrees_north"}),
-        "lon": TCTrackerMetadata({"long_name": "longitude", "units": "degrees_east"}),
     }
 
 
@@ -153,13 +152,12 @@ class TestTCTracker:
         }
         assert tracker.global_metadata == expected_metadata
 
-    def test_to_netcdf(self, tmp_path):
-        """
-        Test writing trajectories to NetCDF.
+    @pytest.fixture
+    def netcdf_file(self, tmp_path) -> pathlib.Path:
+        """Output a trajectories netcdf file with to_netcdf.
 
         We will take some predefined Trajectories (matching the variable_metadata and
-        global_metadata of ExampleTracker), write to NetCDF, then read the resulting
-        file back in to confirm it matches what was expected.
+        global_metadata of ExampleTracker) and write to NetCDF. Returns the Path handle.
         """
         # Simple example trajectories matching variable_metadata of ExampleTracker
         trajectory1 = Trajectory(
@@ -212,8 +210,16 @@ class TestTCTracker:
         tracker.set_metadata()
         tracker.to_netcdf(str(output_file))
 
+        return output_file
+
+    def test_to_netcdf(self, netcdf_file):
+        """Test to_netcdf writes trajectories to a file in the netcdf_file fixture."""
+        netcdf_file.exists()
+
+    def test_to_netcdf_data(self, netcdf_file):
+        """Check to_netcdf writes trajectories with the correct data and dimensions."""
         # Read back with cf.read
-        fields = cf.read(output_file)
+        fields = cf.read(netcdf_file)
 
         # Validate the structure and content - one variable field
         assert len(fields) == 1
@@ -232,25 +238,59 @@ class TestTCTracker:
         assert time_coord.shape == (trajectory_ids, observation_count)
         assert lat_coord.shape == lon_coord.shape == (trajectory_ids, observation_count)
 
-        # Check the metadata - not we need to treat constructs (coordinates) and
-        # fields (variables) separately
-        for variable, metadata in tracker.variable_metadata.items():
-            if variable in {"lat", "lon", "time"}:  # Coordinate constructs
-                construct = field.construct(variable)
-                assert construct is not None, f"Construct for {variable} is missing"
-                for key, value in metadata.properties.items():
-                    assert construct.get_property(key) == value, (
-                        f"Metadata mismatch for {variable}: {key}"
-                    )
-            else:  # Field data (variables)
-                # Properties
-                for key, value in metadata.properties.items():
-                    assert field.get_property(key) == value, (
-                        f"Metadata mismatch for field data: {variable} - {key}"
-                    )
-                # Constructs
-                if variable == "test_var":
-                    assert "cellmethod0" in field.constructs()
+        # Validate data in arrays
+        # Note that the first trajectory has a nan appended due to observation mismatch
+        var_data = field.data.array
+        assert np.allclose(var_data[0, :], [5.0, 10.0, float("nan")], equal_nan=True)
+        assert np.allclose(var_data[1, :], [15.0, 20.0, 15.0])
+
+    def test_to_netcdf_variable_metadata(self, netcdf_file):
+        """Check to_netcdf writes trajectories with the correct variable metadata."""
+        # Read back with cf.read
+        field = cf.read(netcdf_file)[0]
+
+        # Check the fields (variables) - just one in this test
+        variable = "test_var"
+        # Properties
+        expected_field_properties = example_metadata()[variable].properties
+        for key, value in expected_field_properties.items():
+            assert field.get_property(key) == value, (
+                f"Metadata mismatch for field data: {variable} - {key}"
+            )
+        # Additional constructs, eg. CellMethods
+        if variable == "test_var":
+            assert "cellmethod0" in field.constructs()
+
+        # Check the constructs (coordinates)
+        expected_construct_metadata = {
+            "lat": {
+                "standard_name": "lat",
+                "long_name": "latitude",
+                "units": "degrees_north",
+            },
+            "lon": {
+                "standard_name": "lon",
+                "long_name": "longitude",
+                "units": "degrees_east",
+            },
+            "time": {
+                "standard_name": "time",
+                "long_name": "time",
+                "units": "days since 1970-01-01",
+            },
+        }
+        for variable, metadata in expected_construct_metadata.items():
+            construct = field.construct(variable)
+            assert construct is not None, f"Construct for {variable} is missing"
+            for key, value in metadata.items():
+                assert construct.get_property(key) == value, (
+                    f"Metadata mismatch for {variable}: {key}"
+                )
+
+    def test_to_netcdf_global_metadata(self, netcdf_file):
+        """Check to_netcdf writes trajectories with the correct global metadata."""
+        # Read back with cf.read
+        field = cf.read(netcdf_file)[0]
 
         # Check the global metadata is written correctly
         global_metadata = field.nc_global_attributes(values=True)
@@ -260,9 +300,3 @@ class TestTCTracker:
         }
         for key, expected_value in expected_global_metadata.items():
             assert global_metadata[key] == expected_value
-
-        # Validate data in arrays
-        # Note that the first trajectory has a nan appended due to observation mismatch
-        var_data = field.data.array
-        assert np.allclose(var_data[0, :], [5.0, 10.0, float("nan")], equal_nan=True)
-        assert np.allclose(var_data[1, :], [15.0, 20.0, 15.0])
