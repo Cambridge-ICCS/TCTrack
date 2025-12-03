@@ -878,6 +878,13 @@ class TSTORMSTracker(TCTracker):
                         "to set calendar."
                     )
                     raise KeyError(errmsg)
+                if len(unlimited_dims) > 1:
+                    errmsg = (
+                        "TSTORMS expects only a single unlimited variable in NetCDF "
+                        "files corresponding to the time dimension. "
+                        f"Multiple found: {unlimited_dims}."
+                    )
+                    raise ValueError(errmsg)
 
                 unlimited_dim = unlimited_dims[0]
                 if unlimited_dim not in nc_file.variables:
