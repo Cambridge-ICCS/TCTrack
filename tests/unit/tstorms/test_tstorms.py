@@ -6,6 +6,7 @@ pytest-mock to mock the results of subprocess calls to the system.
 """
 
 import os
+import re
 import subprocess
 import warnings
 from typing import Tuple
@@ -316,6 +317,52 @@ class TestTSTORMSTracker:
         ):
             tracker._extract_calendar_metadata()  # noqa: SLF001 - Private member access
         assert tracker._calendar_metadata == {"calendar_type": "julian", "units": None}  # noqa: SLF001 - Private member access
+
+    def test_extract_calendar_metadata_multiple_unlimited_dim(self, tstorms_tracker):
+        """Test for error when multiple unlimited dimensions found in NetCDF file."""
+        tracker = tstorms_tracker[0]
+
+        # Overwrite NetCDF file in the tracker fixture, time not unlimited
+        netcdf_file = os.path.join(tracker.tstorms_parameters.input_dir, "u.nc")
+        u_field = cf.Field(properties={"standard_name": "velocity"})
+        u_field.nc_set_variable("u_ref")
+        domain_axis_time = cf.DomainAxis(5)
+        domain_axis_time.nc_set_unlimited(True)
+        domain_axis_lat = cf.DomainAxis(2)
+        domain_axis_lat.nc_set_unlimited(True)
+        _ = u_field.set_construct(domain_axis_time)
+        _ = u_field.set_construct(domain_axis_lat)
+        u_data = cf.Data(np.ones([5, 2]))
+        u_field.set_data(u_data)
+        dimension_T = cf.DimensionCoordinate(
+            properties={
+                "standard_name": "time",
+                "calendar": "360_day",
+                "units": "days since 1950-01-01",
+            },
+            data=cf.Data(np.arange(5.0)),
+        )
+        dimension_lat = cf.DimensionCoordinate(
+            properties={
+                "standard_name": "latitude",
+                "units": "degree_north",
+            },
+            data=cf.Data(np.arange(2.0)),
+        )
+        u_field.set_construct(dimension_T)
+        u_field.set_construct(dimension_lat)
+        cf.write(u_field, netcdf_file)
+
+        # Call the method and assert the default metadata is set
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "TSTORMS expects only a single unlimited variable in NetCDF files "
+                "corresponding to the time dimension. "
+                "Multiple found: ['time', 'latitude']."
+            ),
+        ):
+            tracker._extract_calendar_metadata()  # noqa: SLF001 - Private member access
 
     def test_extract_calendar_metadata_no_coord_var(self, tstorms_tracker):
         """Test behavior when missing unlimited dimension coordinate data."""
