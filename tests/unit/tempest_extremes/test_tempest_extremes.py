@@ -199,7 +199,7 @@ class TestTETracker:
         expected_cell_method = cf.CellMethod(
             "area",
             "minimum",
-            qualifiers={"comment": "great circle of radius 1 degrees"},
+            qualifiers={"comment": "lesser circle of radius 1 degrees"},
         )
         assert metadata["psl"].constructs == [expected_cell_method]
         assert metadata["psl"].construct_kwargs is None
@@ -214,7 +214,7 @@ class TestTETracker:
         tracker = TETracker(dn_params)
         with pytest.raises(
             ValueError,
-            match="Variable 'invalid' not found in input files.",
+            match=r"Variable 'invalid' not found in input files.",
         ):
             tracker.set_metadata()
 
@@ -235,7 +235,7 @@ class TestTETracker:
         expected_cell_method = cf.CellMethod(
             "area",
             "minimum",
-            qualifiers={"comment": "great circle of radius 1 degrees"},
+            qualifiers={"comment": "lesser circle of radius 1 degrees"},
         )
         assert metadata["psl"].constructs == [expected_cell_method]
         assert metadata["psl"].construct_kwargs is None

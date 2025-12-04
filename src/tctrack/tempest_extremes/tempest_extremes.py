@@ -87,13 +87,13 @@ class TEContour(TypedDict):
 
     dist: float
     """
-    Great-circle distance (degrees) from the pivot within which the
+    Lesser-circle radius (degrees) from the pivot within which the
     criteria must be satisfied.
     """
 
     minmaxdist: float
     """
-    Great-circle distance away from the candidate to search for the minima/maxima.
+    Lesser-circle radius away from the candidate to search for the minima/maxima.
     If delta is positive (negative), the pivot is a local minimum (maximum).
     """
 
@@ -135,7 +135,7 @@ class TEOutputCommand(TypedDict):
 
     dist: float
     """
-    Great-circle distance (degrees) from the candidate within which the
+    Lesser-circle radius (degrees) from the candidate within which the
     operator is applied.
     """
 
@@ -233,10 +233,10 @@ class DetectNodesParameters(TCTrackerParameters):
 
     merge_dist: float = 0.0
     """
-    DetectNodes merges candidate points with a distance (in degrees
-    great-circle-distance) shorter than the specified value. Among two candidates
-    within the merge distance, only the candidate with the lowest value of the
-    search_by_min field or highest value of the search_by_max field are retained.
+    DetectNodes merges candidate points with a distance (in degrees) shorter than the
+    specified value. Among two candidates within the merge distance, only the candidate
+    with the lowest value of the search_by_min field or highest value of the
+    search_by_max field are retained.
     """
 
     time_filter: str | None = None
@@ -1076,7 +1076,7 @@ class TETracker(TCTracker):
                 if dist == 0:
                     cell_method = cf.CellMethod("area", "point")
                 else:
-                    qualifier = {"comment": f"great circle of radius {dist} degrees"}
+                    qualifier = {"comment": f"lesser circle of radius {dist} degrees"}
                     cell_method = cf.CellMethod("area", method, qualifiers=qualifier)
                 self._variable_metadata[var_name].constructs = [cell_method]
 
