@@ -9,6 +9,7 @@ import importlib.metadata
 import json
 import subprocess
 from dataclasses import asdict
+from pathlib import Path
 
 import cf
 import pytest
@@ -149,8 +150,6 @@ class TestTETracker:
 
     def test_te_tracker_tempfiles(self) -> None:
         """Test the definition of temporary files when not manually defined."""
-        from pathlib import Path
-
         tracker = TETracker()
         tempdir = tracker._tempdir.name  # noqa: SLF001
         assert Path(tempdir).exists()
