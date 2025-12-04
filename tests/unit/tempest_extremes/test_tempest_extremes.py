@@ -584,15 +584,25 @@ class TestTETracker:
 
     def test_run_tracker_failure(self, mocker) -> None:
         """Check run_tracker propagates RuntimeError from detect/stitch_nodes."""
-        from functools import partial
-
         # Create tracker object
         tracker = TETracker()
 
         # Mock subprocess.run and define a function to mock fail for a specific command
         mock_subprocess_run = mocker.patch("subprocess.run")
 
-        def subprocess_fail_for(cmd, args, **_kwargs):
+        def subprocess_failure(cmd, args, **_kwargs):
+            """
+            Set up a mocked subprocess failure if a subprocess call contains cmd string.
+
+            ``cmd`` is the first part of a subprocess call for which to generate
+            failure.
+            Can be invoked as a mocker.patch side_effect using lambdas as follows:
+
+            >>> patched_sp_run = mocker.patch("subprocess.run")
+            >>> patched_sp_run.side_effect = lambda args, **kwargs: subprocess_failure(
+            >>>     "failing command", args, **kwargs
+            >>> )
+            """
             if args[0] == cmd:
                 raise subprocess.CalledProcessError(
                     returncode=1, cmd=cmd, stderr="Error occurred"
@@ -601,14 +611,18 @@ class TestTETracker:
             return mock_output
 
         # Check a RuntimeError is correctly raised for detect_nodes
-        mock_subprocess_run.side_effect = partial(subprocess_fail_for, "DetectNodes")
+        mock_subprocess_run.side_effect = lambda args, **kwargs: subprocess_failure(
+            "DetectNodes", args, **kwargs
+        )
         with pytest.raises(
             RuntimeError, match="DetectNodes failed with a non-zero exit code"
         ):
             tracker.run_tracker("trajectories.nc")
 
         # Check a RuntimeError is correctly raised for stitch_nodes
-        mock_subprocess_run.side_effect = partial(subprocess_fail_for, "StitchNodes")
+        mock_subprocess_run.side_effect = lambda args, **kwargs: subprocess_failure(
+            "StitchNodes", args, **kwargs
+        )
         with pytest.raises(
             RuntimeError, match="StitchNodes failed with a non-zero exit code"
         ):
