@@ -10,19 +10,25 @@ For an overview of the functionalities, installation, and usage see the
 
 .. py:module:: tctrack.tstorms
 
-.. .. autoclass:: TSTORMSTracker
-..    :members:
-..    :undoc-members:
-..    :show-inheritance:
-..    :inherited-members:
-
-.. autoclass:: DriverParameters
+.. autoclass:: TSTORMSTracker
    :members:
    :undoc-members:
    :show-inheritance:
    :inherited-members:
 
-.. autoclass:: TrajectoryParameters
+.. autoclass:: TSTORMSBaseParameters
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :inherited-members:
+
+.. autoclass:: TSTORMSDetectParameters
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :inherited-members:
+
+.. autoclass:: TSTORMSStitchParameters
    :members:
    :undoc-members:
    :show-inheritance:

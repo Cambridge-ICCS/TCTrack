@@ -1030,7 +1030,7 @@ class TSTORMSTracker(TCTracker):
         >>> tstorms_params = TSTORMSBaseParameters(...)
         >>> detect_params = TSTORMSDetectParameters(...)
         >>> stitch_params = TSTORMSStitchParameters(...)
-        >>> my_tracker = TETracker(tstorms_params, detect_params, stitch_params)
+        >>> my_tracker = TSTORMSTracker(tstorms_params, detect_params, stitch_params)
         >>> my_tracker.run_tracker()
         """
         self.detect()
