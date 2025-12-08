@@ -28,7 +28,6 @@ class Trajectory:
     def __init__(  # noqa: PLR0913 - too many arguments
         self,
         trajectory_id: int,
-        observations: int,
         year: int,
         month: int,
         day: int,
@@ -42,8 +41,6 @@ class Trajectory:
         ----------
         trajectory_id : int
             The unique identifier for the trajectory.
-        observations : int
-            The number of points in the trajectory.
         year : int
             The starting year of the trajectory.
         month : int
@@ -57,7 +54,7 @@ class Trajectory:
             "gregorian", "360_day", or "noleap".
         """
         self.trajectory_id = trajectory_id
-        self.observations = observations
+        self.observations = 0
         self.calendar = calendar
         self.start_time = self._create_datetime(year, month, day, hour)
         self.data: dict = {}
@@ -105,7 +102,7 @@ class Trajectory:
 
     def add_point(self, year: int, month: int, day: int, hour: int, variables: dict):
         """
-        Add a data point to the trajectory.
+        Add a single data point to the trajectory.
 
         Parameters
         ----------
@@ -143,6 +140,8 @@ class Trajectory:
         self.data["timestamp"].append(timestamp)
         for key, value in variables.items():
             self.data[key].append(value)
+
+        self.observations += 1
 
     def add_multiple_points(
         self,

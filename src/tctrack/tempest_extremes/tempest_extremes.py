@@ -890,12 +890,10 @@ class TETracker(TCTracker):
                     # Start of new trajectory.
                     # Extract metadata and add Trajectory to dict
                     current_trajectory_id += 1
-                    observations = int(items[1])
                     year, month, day, hour = map(int, items[2:6])
 
                     trajectories[current_trajectory_id] = Trajectory(
                         current_trajectory_id,
-                        observations,
                         year,
                         month,
                         day,
@@ -978,7 +976,6 @@ class TETracker(TCTracker):
                 if trajectory_id not in trajectories:
                     trajectories[trajectory_id] = Trajectory(
                         trajectory_id=trajectory_id,
-                        observations=0,
                         year=year,
                         month=month,
                         day=day,
@@ -989,7 +986,6 @@ class TETracker(TCTracker):
                 trajectories[trajectory_id].add_point(
                     year, month, day, hour, variables_dict
                 )
-                trajectories[trajectory_id].observations += 1
 
         return list(trajectories.values())
 
