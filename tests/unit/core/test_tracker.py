@@ -162,7 +162,6 @@ class TestTCTracker:
         # Simple example trajectories matching variable_metadata of ExampleTracker
         trajectory1 = Trajectory(
             trajectory_id=1,
-            observations=2,
             year=2023,
             month=10,
             day=1,
@@ -183,7 +182,6 @@ class TestTCTracker:
 
         trajectory2 = Trajectory(
             trajectory_id=2,
-            observations=3,
             year=2023,
             month=10,
             day=2,

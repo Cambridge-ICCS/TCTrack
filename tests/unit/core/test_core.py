@@ -14,9 +14,7 @@ class TestTrajectory:
 
     def test_trajectory_init(self) -> None:
         """Test the Trajectory class initialization."""
-        trajectory = Trajectory(
-            trajectory_id=1, observations=0, year=1950, month=1, day=1, hour=3
-        )
+        trajectory = Trajectory(trajectory_id=1, year=1950, month=1, day=1, hour=3)
         assert trajectory.trajectory_id == 1
         assert trajectory.observations == 0
         assert trajectory.start_time.year == 1950
@@ -37,7 +35,6 @@ class TestTrajectory:
         """Test the Trajectory class initialization with different calendar types."""
         trajectory = Trajectory(
             trajectory_id=1,
-            observations=0,
             year=1950,
             month=1,
             day=1,
@@ -60,7 +57,6 @@ class TestTrajectory:
         ):
             Trajectory(
                 trajectory_id=1,
-                observations=0,
                 year=1950,
                 month=1,
                 day=1,
@@ -70,9 +66,7 @@ class TestTrajectory:
 
     def test_trajectory_add_point(self) -> None:
         """Test the Trajectory class add_point method."""
-        trajectory = Trajectory(
-            trajectory_id=1, observations=0, year=1950, month=1, day=1, hour=3
-        )
+        trajectory = Trajectory(trajectory_id=1, year=1950, month=1, day=1, hour=3)
         variables_dict = {"grid_i": 164, "grid_j": 332, "psl": 1.005377e05}
         trajectory.add_point(1950, 1, 1, 3, variables_dict)
         assert len(trajectory.data) == 4
@@ -115,9 +109,7 @@ class TestTrajectory:
     )
     def test_add_point_edge_cases(self, inputs, expected_error, match):
         """Test the Trajectory class add_point edge cases."""
-        trajectory = Trajectory(
-            trajectory_id=1, observations=0, year=1950, month=1, day=1, hour=3
-        )
+        trajectory = Trajectory(trajectory_id=1, year=1950, month=1, day=1, hour=3)
         with pytest.raises(expected_error, match=match):
             trajectory.add_point(*inputs)
 
@@ -125,7 +117,6 @@ class TestTrajectory:
         """Test the add_multiple_points method of the Trajectory class."""
         trajectory = Trajectory(
             trajectory_id=1,
-            observations=0,
             year=2023,
             month=1,
             day=1,

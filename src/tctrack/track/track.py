@@ -682,7 +682,6 @@ class TRACKTracker(TCTracker):
             i2 = i1 + num_pts[it]
             trajectory = Trajectory(
                 it,
-                num_pts[it],
                 years[i1],
                 months[i1],
                 days[i1],
