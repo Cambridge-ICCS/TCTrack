@@ -210,7 +210,7 @@ class TestTCTracker:
         tracker = self.ExampleTracker([trajectory1, trajectory2])
         tracker.set_metadata()
 
-        # Optionally remove the standard_name from the metadata
+        # Optionally remove the standard_name from the ExampleTracker metadata
         if delete_std_name:
             for var_metadata in tracker._variable_metadata.values():  # noqa: SLF001
                 var_metadata.properties.pop("standard_name", None)
@@ -276,8 +276,7 @@ class TestTCTracker:
                 f"Metadata mismatch for field data: {variable} - {key}"
             )
         # Additional constructs, eg. CellMethods
-        if variable == "test_var":
-            assert "cellmethod0" in field.constructs()
+        assert "cellmethod0" in field.constructs()
         # NetCDF variable name
         if delete_std_name:
             assert field.nc_get_variable() == variable

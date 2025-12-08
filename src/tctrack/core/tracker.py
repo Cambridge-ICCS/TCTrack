@@ -329,10 +329,11 @@ class TCTracker(ABC):
 
             field = cf.Field(properties=metadata.properties)
 
-            # Set the NetCDF variable name if there is no standard_name in metadata
+            # By default cf-python sets variable name as the standard name.
+            # If there is no standard name in the metadata for this variable we set
+            # it manually to something meaningful (cf-python default is `data_n`).
             if "standard_name" not in metadata.properties:
                 field.nc_set_variable(variable)
-
             # Add any metadata constructs
             if metadata.constructs:
                 for ic, construct in enumerate(metadata.constructs):
