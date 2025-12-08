@@ -14,6 +14,7 @@ from pathlib import Path
 import cf
 import pytest
 
+from tctrack.core import TCTrackerMetadata
 from tctrack.tempest_extremes import (
     DetectNodesParameters,
     StitchNodesParameters,
@@ -192,9 +193,9 @@ class TestTETracker:
         tracker = TETracker(dn_params)
         tracker.set_metadata()
         metadata = tracker.variable_metadata
-        assert "psl" in metadata
-        for key, value in properties.items():
-            assert metadata["psl"].properties[key] == value
+
+        # Check the pressure metadata is set correctly
+        assert metadata["psl"].properties == properties
         expected_cell_method = cf.CellMethod(
             "area",
             "minimum",
@@ -202,6 +203,14 @@ class TestTETracker:
         )
         assert metadata["psl"].constructs == [expected_cell_method]
         assert metadata["psl"].construct_kwargs is None
+
+        # Check the grid index metadata is set correctly
+        assert metadata["grid_i"] == TCTrackerMetadata(
+            {"long_name": "longitudinal grid index"},
+        )
+        assert metadata["grid_j"] == TCTrackerMetadata(
+            {"long_name": "latitudinal grid index"},
+        )
 
     def test_te_tracker_variable_metadata_failure(self, netcdf_psl_file) -> None:
         """Check set_metadata raises ValueError for invalid inputs."""

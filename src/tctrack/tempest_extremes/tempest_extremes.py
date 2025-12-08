@@ -1036,6 +1036,15 @@ class TETracker(TCTracker):
 
         self._variable_metadata = {}
 
+        # Set the metadata for the grid indices
+        self._variable_metadata["grid_i"] = TCTrackerMetadata(
+            {"long_name": "longitudinal grid index"}
+        )
+        self._variable_metadata["grid_j"] = TCTrackerMetadata(
+            {"long_name": "latitudinal grid index"}
+        )
+
+        # Set the metadata for the output variables
         input_files = self.detect_nodes_parameters.in_data
         var_outputs = self.detect_nodes_parameters.output_commands
         if var_outputs is None or input_files is None:
