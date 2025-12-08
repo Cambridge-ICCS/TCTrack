@@ -280,8 +280,8 @@ class TestTCTracker:
 
         # Check the fields (variables) - just one in this test
         variable = "test_var"
-        # Properties
-        expected_field_properties: dict = example_metadata()[variable].properties
+        # Properties (as a dict)
+        expected_field_properties = example_metadata()[variable].properties
         expected_field_properties["missing_value"] = -1e10
         for key, value in expected_field_properties.items():
             assert field.get_property(key) == value, (
