@@ -329,6 +329,10 @@ class TCTracker(ABC):
 
             field = cf.Field(properties=metadata.properties)
 
+            # Set the NetCDF variable name if there is no standard_name in metadata
+            if "standard_name" not in metadata.properties:
+                field.nc_set_variable(variable)
+
             # Add any metadata constructs
             if metadata.constructs:
                 for ic, construct in enumerate(metadata.constructs):

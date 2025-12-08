@@ -152,12 +152,18 @@ class TestTCTracker:
         }
         assert tracker.global_metadata == expected_metadata
 
-    @pytest.fixture
-    def netcdf_file(self, tmp_path) -> pathlib.Path:
+    def make_netcdf_file(
+        self,
+        tmp_path: pathlib.Path,
+        delete_std_name: bool = False,
+    ) -> pathlib.Path:
         """Output a trajectories netcdf file with to_netcdf.
 
         We will take some predefined Trajectories (matching the variable_metadata and
         global_metadata of ExampleTracker) and write to NetCDF. Returns the Path handle.
+
+        If the `delete_std_name` argument is True the standard_name will be removed from
+        the variable metadata.
         """
         # Simple example trajectories matching variable_metadata of ExampleTracker
         trajectory1 = Trajectory(
@@ -202,20 +208,28 @@ class TestTCTracker:
 
         # Instantiate the dummy tracker with valid trajectories
         tracker = self.ExampleTracker([trajectory1, trajectory2])
+        tracker.set_metadata()
+
+        # Optionally remove the standard_name from the metadata
+        if delete_std_name:
+            for var_metadata in tracker._variable_metadata.values():  # noqa: SLF001
+                var_metadata.properties.pop("standard_name", None)
 
         # Write to NetCDF
         output_file = tmp_path / "trajectories.nc"
-        tracker.set_metadata()
         tracker.to_netcdf(str(output_file))
 
         return output_file
 
-    def test_to_netcdf(self, netcdf_file):
+    def test_to_netcdf(self, tmp_path):
         """Test to_netcdf writes trajectories to a file in the netcdf_file fixture."""
+        netcdf_file = self.make_netcdf_file(tmp_path)
         netcdf_file.exists()
 
-    def test_to_netcdf_data(self, netcdf_file):
+    def test_to_netcdf_data(self, tmp_path):
         """Check to_netcdf writes trajectories with the correct data and dimensions."""
+        netcdf_file = self.make_netcdf_file(tmp_path)
+
         # Read back with cf.read
         fields = cf.read(netcdf_file)
 
@@ -242,8 +256,11 @@ class TestTCTracker:
         assert np.allclose(var_data[0, :], [5.0, 10.0, float("nan")], equal_nan=True)
         assert np.allclose(var_data[1, :], [15.0, 20.0, 15.0])
 
-    def test_to_netcdf_variable_metadata(self, netcdf_file):
+    @pytest.mark.parametrize("delete_std_name", [False, True])
+    def test_to_netcdf_variable_metadata(self, tmp_path, delete_std_name):
         """Check to_netcdf writes trajectories with the correct variable metadata."""
+        netcdf_file = self.make_netcdf_file(tmp_path, delete_std_name)
+
         # Read back with cf.read
         field = cf.read(netcdf_file)[0]
 
@@ -252,6 +269,8 @@ class TestTCTracker:
         # Properties
         expected_field_properties: dict = example_metadata()[variable].properties
         expected_field_properties["missing_value"] = -1e10
+        if delete_std_name:
+            expected_field_properties.pop("standard_name")
         for key, value in expected_field_properties.items():
             assert field.get_property(key) == value, (
                 f"Metadata mismatch for field data: {variable} - {key}"
@@ -259,6 +278,11 @@ class TestTCTracker:
         # Additional constructs, eg. CellMethods
         if variable == "test_var":
             assert "cellmethod0" in field.constructs()
+        # NetCDF variable name
+        if delete_std_name:
+            assert field.nc_get_variable() == variable
+        else:
+            assert field.nc_get_variable() == expected_field_properties["standard_name"]
 
         # Check the constructs (coordinates)
         expected_construct_metadata = {
@@ -289,8 +313,10 @@ class TestTCTracker:
                     f"Metadata mismatch for {variable}: {key}"
                 )
 
-    def test_to_netcdf_global_metadata(self, netcdf_file):
+    def test_to_netcdf_global_metadata(self, tmp_path):
         """Check to_netcdf writes trajectories with the correct global metadata."""
+        netcdf_file = self.make_netcdf_file(tmp_path)
+
         # Read back with cf.read
         field = cf.read(netcdf_file)[0]
 
