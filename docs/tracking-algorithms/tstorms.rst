@@ -45,8 +45,9 @@ The steps are summarised here::
 
 This will clone the TSTORMS code and then then build the two TSTORMS executables using
 Make.
-Using a different compiler requires modification to the included ``mkmf_template`` in
-both directories to set ``FC``, ``LD``, and any associated flags appropriately.
+Using a different compiler requires modification to both
+``tstorms_driver/mkmf_template`` and ``trajectory_analysis/mkmf_template``
+to set ``FC``, ``LD``, and any associated flags appropriately.
 This will be required if building with gfortran or Intel oneAPI compilers >= 2025 (ifx).
 
 Once this is complete the TSTORMS executables can then be found at
