@@ -22,7 +22,39 @@ For full details of the TSTORMS API in TCTrack see the
 Installation
 ------------
 
-TODO
+Using the TSTORMS module in TCTrack requires TSTORMS to be installed on a user's system.
+
+The original source is
+`available as an archive from NOAA GFDL via FTP <https://www.gfdl.noaa.gov/tstorms/>`_,
+but users should install from the
+`ICCS Fork on GitHub <https://github.com/Cambridge-ICCS/TSTORMS>`_ as this contains a
+number of fixes for hard-coded filepaths etc. over the original to aid usability.
+
+TSTORMS comprises two codes, one for storm detection (``tstorms_driver``) and another
+for generating trajectories (``trajectory_analysis``).
+The code is built using Make and requires a Fortran compiler (ifort default recommended)
+and an installation of NetCDF.
+The steps are summarised here::
+
+    git clone https://github.com/Cambridge-ICCS/TSTORMS.git
+    cd TSTORMS/
+    cd tstorms_driver/
+    make
+    cd ../trajectory_analysis/
+    make
+
+This will clone the TSTORMS code and then then build the two TSTORMS executables using
+Make.
+Using a different compiler requires modification to the included ``mkmf_template`` in
+both directories to set ``FC``, ``LD``, and any associated flags appropriately.
+This will be required if building with gfortran or Intel oneAPI compilers >= 2025 (ifx).
+
+Once this is complete the TSTORMS executables can then be found at
+``/path/to/TSTORMS_installation/tstorms_driver/tstorms_driver.exe`` and
+``/path/to/TSTORMS_installation/trajectory_analysis/trajectory_analysis_csc.exe``.
+To use these from TCTrack you will need to provide the path
+``/path/to/TSTORMS_installation/`` to :class:`TSTORMSBaseParameters` as ``tstorms_dir``
+so that the executables can be located at runtime.
 
 Usage
 -----
@@ -35,7 +67,7 @@ Usage of TSTORMS in TCTrack is through the ``tstorms`` module.
 
 This provides the :class:`TSTORMSTracker` class that stores algorithm parameters and provides
 access to the methods. The detection and stitching algorithms can be configured through
-the various parameters in the :class:`TSTORMSBaseParameters`, :class:`TSRTORMSDetectParameters`, and
+the various parameters in the :class:`TSTORMSBaseParameters`, :class:`TSTORMSDetectParameters`, and
 :class:`TSTORMSStitchParameters` dataclasses.
 
 In the following example we demonstrate the approach for detecting tropical cyclones
