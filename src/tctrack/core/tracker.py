@@ -7,7 +7,7 @@ from dataclasses import dataclass, fields
 import cf
 from cftime import date2num
 
-from .core import Trajectory
+from .trajectory import Trajectory
 
 
 @dataclass
