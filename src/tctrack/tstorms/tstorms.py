@@ -938,15 +938,12 @@ class TSTORMSTracker(TCTracker):
                     # Start of new trajectory.
                     # Extract metadata and add Trajectory to dict
                     current_trajectory_id += 1
-                    year, month, day, hour = map(int, items[2:6])
+                    time = list(map(int, items[2:6]))
 
                     trajectories.append(
                         Trajectory(
                             current_trajectory_id,
-                            year,
-                            month,
-                            day,
-                            hour,
+                            time,
                             calendar=self._calendar_metadata["calendar_type"],
                         )
                     )
@@ -962,7 +959,7 @@ class TSTORMSTracker(TCTracker):
     @staticmethod
     def _parse_tstorms_trav_line_to_point(
         line: list[str], variable_names: list[str] | None = None
-    ) -> tuple[int, int, int, int, dict[str, int | float]]:
+    ) -> tuple[list[int], dict[str, int | float]]:
         """
         Parse line from TSTORMS trav output into a trajectory data point.
 
@@ -982,7 +979,8 @@ class TSTORMSTracker(TCTracker):
         Returns
         -------
         tuple
-            A tuple of integer year, month, day, hour and dict of variables
+            A tuple containing the time as an integer list of [year, day, month, hour]
+            and a dict of variables.
         """
         if not variable_names:
             variable_names = [
@@ -1000,8 +998,8 @@ class TSTORMSTracker(TCTracker):
                 for name, value in zip(variable_names, line[:-4], strict=True)
             }
         )
-        year, month, day, hour = map(int, line[-4:])
-        return year, month, day, hour, return_vars
+        time = list(map(int, line[-4:]))
+        return time, return_vars
 
     def run_tracker(self, output_file: str):
         """Run TSTORMS tracker to obtain tropical cyclone track trajectories.

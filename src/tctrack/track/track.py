@@ -671,35 +671,18 @@ class TRACKTracker(TCTracker):
         # Convert the time indicies to datetimes using the input file data
         all_times = cf.read(params.input_file)[0].coordinate("time")  # type: ignore[operator]
         datetimes = all_times.datetime_array[time_idx]
-        years = [dt.year for dt in datetimes]
-        months = [dt.month for dt in datetimes]
-        days = [dt.day for dt in datetimes]
-        hours = [dt.hour for dt in datetimes]
 
         trajectories: list[Trajectory] = []
         for it in range(len(ids)):
             i1 = i_start[it]
             i2 = i1 + num_pts[it]
-            trajectory = Trajectory(
-                it,
-                years[i1],
-                months[i1],
-                days[i1],
-                hours[i1],
-                calendar=all_times.calendar,
-            )
+            trajectory = Trajectory(it, datetimes[i1], calendar=all_times.calendar)
             variables = {
                 "lon": lon[i1:i2],
                 "lat": lat[i1:i2],
                 "intensity": intensity[i1:i2],
             }
-            trajectory.add_multiple_points(
-                years[i1:i2],
-                months[i1:i2],
-                days[i1:i2],
-                hours[i1:i2],
-                variables,
-            )
+            trajectory.add_multiple_points(datetimes[i1:i2], variables)
             trajectories.append(trajectory)
 
         return trajectories
