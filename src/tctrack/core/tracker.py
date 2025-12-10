@@ -3,9 +3,10 @@
 import importlib.metadata
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields
+from typing import TypedDict
 
 import cf
-from cftime import date2num
+from cftime import date2num, datetime
 
 from .trajectory import Trajectory
 
@@ -49,6 +50,26 @@ class TCTrackerParameters:
         return self.__repr__()
 
 
+class TCTrackerTimeMetadata(TypedDict):
+    """Dataclass containing the time metadata for a dataset used by a Tracker."""
+
+    calendar: str
+    """The calendar type as a string."""
+    units: int
+    """The calendar units as a string."""
+    start_time: datetime
+    """The start time of the data processed as a ``cftime.datetime`` object."""
+    end_time: datetime
+    """The final time of the data processed as a ``cftime.datetime`` object."""
+
+
+def is_typed_dict_instance(data, typed_dict_class):
+    """Check if an object has all required keys of the TypedDict class."""
+    return isinstance(data, dict) and all(
+        key in data for key in typed_dict_class.__required_keys__
+    )
+
+
 @dataclass
 class TCTrackerMetadata:
     """Dataclass containing the metadata for a single variable in variable_metadata."""
@@ -86,10 +107,15 @@ class TCTracker(ABC):
 
     Attributes
     ----------
-    _variable_metadata : dict[str, TCTrackerMetadata]
+    _variable_metadata : dict[str, TCTrackerMetadata] | None
         A dictionary containing metadata for variables.
         This attribute must be initialized by the subclass through the
-        :meth:`set_metadata` method.
+        :meth:`set_metadata` method, prior to which it is initialised as ``None``.
+    _time_metadata : dict[str, ] | None
+        A dictionary containing metadata for times including calendar, units, and start
+        and end times of the dataset.
+        This attribute must be initialized by the subclass through the
+        :meth:`set_metadata` method, prior to which it is initialised as ``None``.
     _global_metadata : dict[str, str]
         A dictionary containing global metadata about the data and TCTrack parameters.
         This attribute should be initialized by the subclass through the
@@ -98,7 +124,8 @@ class TCTracker(ABC):
     """
 
     # Private attributes
-    _variable_metadata: dict[str, TCTrackerMetadata]
+    _variable_metadata: dict[str, TCTrackerMetadata] | None = None
+    _time_metadata: TCTrackerTimeMetadata | None = None
     _global_metadata: dict[str, str]
 
     @property
@@ -111,10 +138,34 @@ class TCTracker(ABC):
         AttributeError
             If `_variable_metadata` has not been initialized.
         """
-        if not hasattr(self, "_variable_metadata"):
+        if not self._variable_metadata:
             err_msg = "_variable_metadata has not been initialized."
             raise AttributeError(err_msg)
         return self._variable_metadata
+
+    @property
+    def time_metadata(self) -> TCTrackerTimeMetadata:
+        """
+        dict: Read-only property containing time metadata for this Tracker run.
+
+        Raises
+        ------
+        AttributeError
+            If `_time_metadata` has not been initialized.
+        """
+        if not self._time_metadata:
+            err_msg = "_time_metadata has not been initialized."
+            raise AttributeError(err_msg)
+        if self._time_metadata and not is_typed_dict_instance(
+            self._time_metadata, TCTrackerTimeMetadata
+        ):
+            err_msg = (
+                "_time_metadata does not conform to the expected format of "
+                "`TCTrackerTimeMetadata`."
+            )
+            raise TypeError(err_msg)
+
+        return self._time_metadata
 
     @property
     def global_metadata(self) -> dict:
@@ -137,7 +188,8 @@ class TCTracker(ABC):
         Abstract method to initialize the metadata attributes.
 
         This method must be implemented by subclasses to populate the
-        :attr:`_variable_metadata` attribute with relevant metadata for variables and
+        :attr:`_variable_metadata` attribute with relevant metadata for variables,
+        `:attr:`_time_metadata` with metadata about the time for the dataset, and
         the :attr:`_global_metadata` attribute for metadata about the TCTrack
         parameters and name of the tracker.
 
@@ -149,6 +201,10 @@ class TCTracker(ABC):
         keys are variable names and values are instances of :class:`TCTrackerMetadata`
         containing the metadata for that variable (e.g., `standard_name`, `long_name`,
         `units`).
+
+        The :attr:`_time_metadata` attribute is expected to be a typed dictionary of
+        the :class:`TCTrackerTimeMetadata` form containing the calendar type and units
+        of the dataset, as well as the start and end times.
 
         The :attr:`_global_metadata` should contain each parameter object in a json
         format using ``json.dumps(asdict(parameters))``.
@@ -167,6 +223,16 @@ class TCTracker(ABC):
         ...                 },
         ...                 constructs=[<CF CellMethod>],
         ...             }
+        ...         }
+        ...         self._time_metadata = {
+        ...             "calendar": "example_calendar",
+        ...             "units": "days since yyyy-mm-dd",
+        ...             "start_time": cftime.datetime(
+        ...                 yyyy, mm, dd, hh, calendar=self.example_calendar
+        ...             ),
+        ...             "end_time": cftime.datetime(
+        ...                 yyyy, mm, dd, hh, calendar=self.example_calendar
+        ...             ),
         ...         }
         ...         self.global_metadata["mytracker_parameters"] = json.dumps(
         ...             asdict(MyTrackerParameters)
@@ -223,7 +289,11 @@ class TCTracker(ABC):
         >>> my_tracker.to_netcdf("my_netcdf_file.nc")
         """
         # Set the metadata if not done already
-        if not self.variable_metadata or not self.global_metadata:
+        if (
+            not self._variable_metadata
+            or not self._global_metadata
+            or not self._time_metadata
+        ):
             self.set_metadata()
 
         # Read in the trajectories generated by the tracker implementation
@@ -275,9 +345,7 @@ class TCTracker(ABC):
                 date2num(
                     trajectory.data["timestamp"],
                     units="days since 1970-01-01",
-                    calendar=trajectories[
-                        0
-                    ].calendar,  # Assuming all trajectories use the same calendar
+                    calendar=self.time_metadata["calendar"],
                 ).tolist()
                 + [time_fill] * (max_obs - trajectory.observations)
                 for trajectory in trajectories
@@ -290,7 +358,7 @@ class TCTracker(ABC):
                 "standard_name": "time",
                 "long_name": "time",
                 "units": cf.Units(
-                    "days since 1970-01-01", calendar=trajectories[0].calendar
+                    "days since 1970-01-01", calendar=self.time_metadata["calendar"]
                 ),
                 "missing_value": time_fill,
             },
