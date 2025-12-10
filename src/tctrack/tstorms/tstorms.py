@@ -14,6 +14,7 @@ import warnings
 from dataclasses import asdict, dataclass
 
 import cf
+from cftime import num2date
 from netCDF4 import Dataset
 
 from tctrack.core import TCTracker, TCTrackerMetadata, TCTrackerParameters, Trajectory
@@ -295,12 +296,6 @@ class TSTORMSTracker(TCTracker):
         # Ensure the output directory exists, create if not.
         output_dir = self.tstorms_parameters.output_dir
         os.makedirs(output_dir, exist_ok=True)
-
-        # Check TSTORMSStitchParameters input arguments according to
-        # TSTORMSDetectParameters
-        # TODO: Decide which parameters we want to synchronise
-        self._extract_calendar_metadata()
-        self._variable_metadata = {}
 
     def _run_tstorms_process(
         self,
@@ -745,17 +740,32 @@ class TSTORMSTracker(TCTracker):
         self.global_metadata["detect_parameters"] = detect_params_json
         self.global_metadata["stitch_parameters"] = stitch_params_json
 
-        self._variable_metadata = {}
+        if not self._time_metadata:
+            self._set_time_metadata()
 
-        # TSTORMS calculates windspeed as Euclidian norm of u and v, so read
-        # key units and attributes from u and assume they apply.
-        # Vorticity, Temperature, and Sea-level-pressure all read in directly from file.
+        if not self._variable_metadata:
+            self._set_variable_metadata()
 
-        # Note that there is some slight misdirection here in that wind, slp, and tm are
-        # detected relative to the vorticity location, but the slp location is used to
-        # provide coordinates. This means a situation could arise in which points are
-        # in fact from an area more than quoted (up to twice the radius).
+    def _set_variable_metadata(self) -> None:
+        """
+        Extract variable metadata from inputs and return dict for setting.
 
+        TSTORMS calculates windspeed as Euclidian norm of u and v, so read
+        key units and attributes from u and assume they apply.
+        Vorticity, Temperature, and Sea-level-pressure all read in directly from file.
+
+        Note that there is some slight misdirection here in that wind, slp, and tm are
+        detected relative to the vorticity location, but the slp location is used to
+        provide coordinates. This means a situation could arise in which points are
+        in fact from an area more than quoted (up to twice the radius).
+
+        Raises
+        ------
+        FileNotFoundError
+            If an input file cannot be found.
+        ValueError
+            If a variable is not found in the input files.
+        """
         input_dir = self.tstorms_parameters.input_dir
         detect_params = self.detect_parameters
         var_outputs: list[dict] = [
@@ -808,6 +818,9 @@ class TSTORMSTracker(TCTracker):
             },
         ]
 
+        # Initialise variable metadata as empty dict to populate
+        self._variable_metadata = {}
+
         for output in var_outputs:
             # Check input file exists to read from
             if not os.path.exists(output["filename"]):
@@ -846,68 +859,88 @@ class TSTORMSTracker(TCTracker):
             )
             self._variable_metadata[var_name].constructs = [output["cellmethod"]]
 
-    def _extract_calendar_metadata(self):
+    def _set_time_metadata(self):
         """
-        Extract calendar metadata from u_ref input file and store as class attribute.
+        Extract time metadata from u_ref input and set attribute.
 
-        Calendar type and units extracted from u_ref as for TSTORMS by identifying the
-        unlimited dimension and fetching coordinate attributes. Assumes other files
-        match coordinates.
-        If file not found or metadata cannot be extracted, a warning is printed and the
-        calendar defaults to {'calendar_type': 'julian', 'units': None} as for TSTORMS.
+        Calendar type, units, start time, and end time extracted from u_ref as for
+        TSTORMS by identifying the unlimited dimension and fetching coordinate
+        attributes. Assumes other files match.
+        If file not found or variable cannot be identified errors are raised.
+        The calendar defaults to Julian as for TSTORMS.
+
+        Raises
+        ------
+        KeyError
+            If no unlimited dimension or corresponding coordinate is found in the u
+            input file.
+        ValueError
+            If multiple unlimited dimensions are found in the u input file.
+        ValueError
+            If the 'units' attribute is missing for the time coordinate.
 
         Warnings
         --------
-        Prints a warning message if the file is not found, the unlimited dimension is
-        missing, or metadata is unavailable.
+        UserWarning
+            If the 'calendar' attribute is missing for the coordinate variable.
+            Defaults to 'julian'.
         """
         input_u_file = os.path.join(
             self.tstorms_parameters.input_dir, self.detect_parameters.u_in_file
         )
 
-        try:
-            with Dataset(input_u_file, "r") as nc_file:
-                unlimited_dims = [
-                    dim
-                    for dim in nc_file.dimensions
-                    if nc_file.dimensions[dim].isunlimited()
-                ]
-                if not unlimited_dims:
-                    errmsg = (
-                        "No unlimited dimension found in the u_ref NetCDF file "
-                        "to set calendar."
-                    )
-                    raise KeyError(errmsg)
-                if len(unlimited_dims) > 1:
-                    errmsg = (
-                        "TSTORMS expects only a single unlimited variable in NetCDF "
-                        "files corresponding to the time dimension. "
-                        f"Multiple found: {unlimited_dims}."
-                    )
-                    raise ValueError(errmsg)
+        with Dataset(input_u_file, "r") as nc_file:
+            unlimited_dims = [
+                dim
+                for dim in nc_file.dimensions
+                if nc_file.dimensions[dim].isunlimited()
+            ]
+            if not unlimited_dims:
+                errmsg = (
+                    "No unlimited dimension found in the u_ref NetCDF file "
+                    "to set calendar."
+                )
+                raise KeyError(errmsg)
+            if len(unlimited_dims) > 1:
+                errmsg = (
+                    "TSTORMS expects only a single unlimited variable in NetCDF "
+                    "files corresponding to the time dimension. "
+                    f"Multiple found: {unlimited_dims}."
+                )
+                raise ValueError(errmsg)
 
-                unlimited_dim = unlimited_dims[0]
-                if unlimited_dim not in nc_file.variables:
-                    errmsg = (
-                        "Coordinate variable for unlimited dimension "
-                        f"'{unlimited_dim}' not found."
-                    )
-                    raise KeyError(errmsg)
+            unlimited_dim = unlimited_dims[0]
+            if unlimited_dim not in nc_file.variables:
+                errmsg = (
+                    "Coordinate variable for unlimited dimension "
+                    f"'{unlimited_dim}' not found."
+                )
+                raise KeyError(errmsg)
 
-                coord_var = nc_file.variables[unlimited_dim]
-                units = getattr(coord_var, "units", None)
-                calendar = getattr(coord_var, "calendar", "julian")
-                self._calendar_metadata = {"calendar_type": calendar, "units": units}
-        except (FileNotFoundError, KeyError) as e:
-            warnings.warn(
-                "No input file for u_ref found to set calendar metadata, "
-                "defaulting to Julian. "
-                "Did you provide input files in the driver_parameters attribute?"
-                f"({e})",
-                category=UserWarning,
-                stacklevel=3,
-            )
-            self._calendar_metadata = {"calendar_type": "julian", "units": None}
+            coord_var = nc_file.variables[unlimited_dim]
+            units = getattr(coord_var, "units", None)
+            if units is None:
+                msg = "The 'units' attribute is required for the time coordinate."
+                raise ValueError(msg)
+
+            calendar = getattr(coord_var, "calendar", None)
+            if calendar is None:
+                msg = (
+                    "The 'calendar' attribute is missing for the coordinate variable.\n"
+                    "defaulting to 'julian'"
+                )
+                warnings.warn(msg, category=UserWarning, stacklevel=2)
+                calendar = "julian"
+
+            start_time_num = coord_var[0]
+            end_time_num = coord_var[-1]
+
+            self._time_metadata = {
+                "calendar": calendar,
+                "units": units,
+                "start_time": num2date(start_time_num, units=units, calendar=calendar),
+                "end_time": num2date(end_time_num, units=units, calendar=calendar),
+            }
 
     def trajectories(self):
         """
@@ -924,6 +957,10 @@ class TSTORMSTracker(TCTracker):
         """
         trajectories = []
         current_trajectory_id = 0  # Initialize trajectory ID
+
+        # We need time metadata, so set the metadata if not done already
+        if not self._time_metadata:
+            self._set_time_metadata()
 
         # Use the trav file to get full data (including vorticity)
         # If filtering was applied use filtered file
@@ -944,7 +981,7 @@ class TSTORMSTracker(TCTracker):
                         Trajectory(
                             current_trajectory_id,
                             time,
-                            calendar=self._calendar_metadata["calendar_type"],
+                            calendar=self.time_metadata["calendar"],
                         )
                     )
 

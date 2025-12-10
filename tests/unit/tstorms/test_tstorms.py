@@ -10,7 +10,6 @@ import json
 import os
 import re
 import subprocess
-import warnings
 from dataclasses import asdict
 from typing import Tuple
 
@@ -261,21 +260,21 @@ class TestTSTORMSTracker:
             )
             assert f"cmask = '{tstorms_dir}/trajectory_analysis/imask_2'" in content
 
-    def test_extract_calendar_metadata_valid(self, tstorms_tracker):
+    def test_set_time_metadata_valid(self, tstorms_tracker):
         """Test extracting valid calendar metadata from a NetCDF file."""
         tracker = tstorms_tracker[0]
 
-        # Call the method
-        tracker._extract_calendar_metadata()  # noqa: SLF001 - Private member access
-
-        # Assert the metadata was extracted correctly
-        assert tracker._calendar_metadata == {  # noqa: SLF001 - Private member access
-            "calendar_type": "360_day",
+        # Assert the metadata extracted correctly
+        tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+        assert tracker.time_metadata == {
+            "calendar": "360_day",
             "units": "days since 1950-01-01",
+            "start_time": datetime(1950, 1, 1, 00, calendar="360_day"),
+            "end_time": datetime(1950, 1, 10, 00, calendar="360_day"),
         }
 
-    def test_extract_calendar_metadata_file_not_found(self, tstorms_tracker):
-        """Test behavior when the NetCDF file is not found."""
+    def test_set_time_metadata_file_not_found(self, tstorms_tracker):
+        """Test FileNotFoundError raised when the u NetCDF file is not found."""
         tracker = tstorms_tracker[0]
 
         # Remove the u_ref file to simulate file-not-found
@@ -285,13 +284,10 @@ class TestTSTORMSTracker:
         if os.path.exists(u_ref_path):
             os.remove(u_ref_path)
 
-        with pytest.warns(
-            UserWarning, match="No input file for u_ref found to set calendar metadata"
-        ):
-            tracker._extract_calendar_metadata()  # noqa: SLF001 - Private member access
-        assert tracker._calendar_metadata == {"calendar_type": "julian", "units": None}  # noqa: SLF001 - Private member access
+        with pytest.raises(FileNotFoundError):
+            tracker._set_time_metadata()  # noqa: SLF001 - Private member access
 
-    def test_extract_calendar_metadata_no_unlimited_dim(self, tstorms_tracker):
+    def test_set_time_metadata_no_unlimited_dim(self, tstorms_tracker):
         """Test behavior when no unlimited dimension is found in the NetCDF file."""
         tracker = tstorms_tracker[0]
 
@@ -315,13 +311,16 @@ class TestTSTORMSTracker:
         cf.write(u_field, netcdf_file)
 
         # Call the method and assert the default metadata is set
-        with pytest.warns(
-            UserWarning, match="No input file for u_ref found to set calendar metadata"
+        with pytest.raises(
+            KeyError,
+            match=(
+                r"No unlimited dimension found in the u_ref NetCDF file to set "
+                "calendar."
+            ),
         ):
-            tracker._extract_calendar_metadata()  # noqa: SLF001 - Private member access
-        assert tracker._calendar_metadata == {"calendar_type": "julian", "units": None}  # noqa: SLF001 - Private member access
+            tracker._set_time_metadata()  # noqa: SLF001 - Private member access
 
-    def test_extract_calendar_metadata_multiple_unlimited_dim(self, tstorms_tracker):
+    def test_set_time_metadata_multiple_unlimited_dim(self, tstorms_tracker):
         """Test for error when multiple unlimited dimensions found in NetCDF file."""
         tracker = tstorms_tracker[0]
 
@@ -365,9 +364,9 @@ class TestTSTORMSTracker:
                 "Multiple found: ['time', 'latitude']."
             ),
         ):
-            tracker._extract_calendar_metadata()  # noqa: SLF001 - Private member access
+            tracker._set_time_metadata()  # noqa: SLF001 - Private member access
 
-    def test_extract_calendar_metadata_no_coord_var(self, tstorms_tracker):
+    def test_set_time_metadata_no_coord_var(self, tstorms_tracker):
         """Test behavior when missing unlimited dimension coordinate data."""
         tracker = tstorms_tracker[0]
 
@@ -383,13 +382,45 @@ class TestTSTORMSTracker:
         cf.write(u_field, netcdf_file)
 
         # Call the method and assert the default metadata is set
-        with pytest.warns(
-            UserWarning, match="No input file for u_ref found to set calendar metadata"
+        with pytest.raises(
+            KeyError,
+            match=r"Coordinate variable for unlimited dimension 'dim' not found.",
         ):
-            tracker._extract_calendar_metadata()  # noqa: SLF001 - Private member access
-        assert tracker._calendar_metadata == {"calendar_type": "julian", "units": None}  # noqa: SLF001 - Private member access
+            tracker._set_time_metadata()  # noqa: SLF001 - Private member access
 
-    def test_extract_calendar_metadata_missing_attributes(self, tstorms_tracker):
+    @pytest.mark.parametrize(
+        "dimension_properties, expected_error, expected_warning, expected_metadata",
+        [
+            (
+                {"standard_name": "time"},  # Missing 'units' and 'calendar'
+                ValueError,
+                None,
+                None,
+            ),
+            (
+                {
+                    "standard_name": "time",
+                    "units": "days since 2000-01-01",
+                },  # Missing 'calendar'
+                None,
+                UserWarning,
+                {
+                    "calendar": "julian",
+                    "units": "days since 2000-01-01",
+                    "start_time": datetime(2000, 1, 1, 0, calendar="julian"),
+                    "end_time": datetime(2000, 1, 10, 0, calendar="julian"),
+                },
+            ),
+        ],
+    )
+    def test_set_time_metadata_missing_attributes(
+        self,
+        tstorms_tracker,
+        dimension_properties,
+        expected_error,
+        expected_warning,
+        expected_metadata,
+    ):
         """Test behavior when missing 'units' or 'calendar' attributes from coord."""
         tracker = tstorms_tracker[0]
 
@@ -403,23 +434,29 @@ class TestTSTORMSTracker:
         u_data = cf.Data(np.arange(10.0))
         u_field.set_data(u_data)
         dimension_T = cf.DimensionCoordinate(
-            properties={
-                "standard_name": "time",
-            },
+            properties=dimension_properties,
             data=cf.Data(np.arange(10.0)),
         )
         u_field.set_construct(dimension_T)
         cf.write(u_field, netcdf_file)
 
-        # Ensure that code runs with no warnings for missing files raised
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            # Call the method and assert the default metadata is set
-            tracker._extract_calendar_metadata()  # noqa: SLF001 - Private member access
-            assert tracker._calendar_metadata == {  # noqa: SLF001 - Private member access
-                "calendar_type": "julian",
-                "units": None,
-            }
+        # Ensure that code runs with errors/warnings raised as expected
+        if expected_error:
+            with pytest.raises(expected_error):
+                tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+        elif expected_warning:
+            with pytest.warns(
+                UserWarning,
+                match=(
+                    "The 'calendar' attribute is missing for the coordinate variable.\n"
+                    "defaulting to 'julian'"
+                ),
+            ):
+                tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+                assert tracker.time_metadata == expected_metadata
+        else:
+            tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+            assert tracker.time_metadata == expected_metadata
 
     def test_set_metadata(self, tstorms_tracker):
         """Test setting of global and variable metadata from NetCDF files."""
@@ -669,7 +706,7 @@ class TestTSTORMSTracker:
             1,
             6,
             0,
-            calendar=tracker._calendar_metadata["calendar_type"],  # noqa: SLF001 - Private member access
+            calendar=tracker.time_metadata["calendar"],
         )
         assert traj1.observations == 2
 
@@ -681,14 +718,14 @@ class TestTSTORMSTracker:
                     1,
                     6,
                     0,
-                    calendar=tracker._calendar_metadata["calendar_type"],  # noqa: SLF001 - Private member access
+                    calendar=tracker.time_metadata["calendar"],
                 ),
                 datetime(
                     1950,
                     1,
                     7,
                     0,
-                    calendar=tracker._calendar_metadata["calendar_type"],  # noqa: SLF001 - Private member access
+                    calendar=tracker.time_metadata["calendar"],
                 ),
             ],
             "lon": [67.32, 67.68],
@@ -708,7 +745,7 @@ class TestTSTORMSTracker:
             1,
             17,
             0,
-            calendar=tracker._calendar_metadata["calendar_type"],  # noqa: SLF001 - Private member access
+            calendar=tracker.time_metadata["calendar"],
         )
         assert traj2.observations == 3
         expected_data_trajectory_2 = {
