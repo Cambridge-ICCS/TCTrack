@@ -1,12 +1,12 @@
 """Package providing core utilities used throughout TCTrack."""
 
-from .core import (
-    Trajectory,
-)
 from .tracker import (
     TCTracker,
     TCTrackerMetadata,
     TCTrackerParameters,
+)
+from .trajectory import (
+    Trajectory,
 )
 
 __all__ = [
