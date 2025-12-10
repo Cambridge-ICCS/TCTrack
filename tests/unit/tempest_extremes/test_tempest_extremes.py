@@ -30,9 +30,8 @@ class TestTETypes:
 
     def test_detect_nodes_parameters_defaults(self) -> None:
         """Check the default values for DetectNodesParameters."""
-        params = DetectNodesParameters()
+        params = DetectNodesParameters(in_data=["input_file.nc"])
         # Check values of all defaults
-        assert params.in_data is None
         assert params.out_header is False
         assert params.output_file is None
         assert params.search_by_min is None
@@ -145,13 +144,17 @@ class TestTETracker:
     # Test for TETracker initialization
     def test_te_tracker_initialization(self) -> None:
         """Test initialisation of TETracker with some non-default parameters."""
-        params = DetectNodesParameters(output_file="output.txt")
+        params = DetectNodesParameters(
+            in_data=["input_file.nc"],
+            output_file="output.txt",
+        )
         tracker = TETracker(detect_nodes_parameters=params)
         assert tracker.detect_nodes_parameters.output_file == "output.txt"
 
     def test_te_tracker_tempfiles(self) -> None:
         """Test the definition of temporary files when not manually defined."""
-        tracker = TETracker()
+        dn_params = DetectNodesParameters(in_data=["input_file.nc"])
+        tracker = TETracker(dn_params)
         tempdir = tracker._tempdir.name  # noqa: SLF001
         assert Path(tempdir).exists()
         assert tracker.detect_nodes_parameters.output_file == tempdir + "/nodes.txt"
@@ -172,7 +175,20 @@ class TestTETracker:
             file_name = str(tmp_path / "inputs.nc")
             field = cf.Field(properties=properties)
             field.nc_set_variable("psl")
-            field.set_data_axes([])
+            domain_axis_time = cf.DomainAxis(10)
+            domain_axis_time.nc_set_unlimited(True)
+            _ = field.set_construct(domain_axis_time)
+            data = cf.Data([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+            field.set_data(data)
+            dimension_T = cf.DimensionCoordinate(
+                properties={
+                    "standard_name": "time",
+                    "calendar": "360_day",
+                    "units": "days since 1950-01-01",
+                },
+                data=cf.Data([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
+            )
+            field.set_construct(dimension_T)
             cf.write(field, file_name)  # type: ignore[operator]
             return file_name
 
@@ -188,6 +204,7 @@ class TestTETracker:
         file_name = netcdf_psl_file(properties)
         dn_params = DetectNodesParameters(
             in_data=[file_name],
+            search_by_min="psl",
             output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
         )
         tracker = TETracker(dn_params)
@@ -214,9 +231,15 @@ class TestTETracker:
 
     def test_te_tracker_variable_metadata_failure(self, netcdf_psl_file) -> None:
         """Check set_metadata raises ValueError for invalid inputs."""
-        file_name = netcdf_psl_file({})
+        properties = {
+            "standard_name": "air_pressure_at_sea_level",
+            "long_name": "Sea Level Pressure",
+            "units": "Pa",
+        }
+        file_name = netcdf_psl_file(properties)
         dn_params = DetectNodesParameters(
             in_data=[file_name],
+            search_by_min="psl",
             output_commands=[TEOutputCommand(var="invalid", operator="min", dist=1)],
         )
         tracker = TETracker(dn_params)
@@ -231,6 +254,7 @@ class TestTETracker:
         file_name = netcdf_psl_file({})
         dn_params = DetectNodesParameters(
             in_data=[file_name],
+            search_by_min="psl",
             output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
         )
         tracker = TETracker(dn_params)
@@ -248,9 +272,14 @@ class TestTETracker:
         assert metadata["psl"].constructs == [expected_cell_method]
         assert metadata["psl"].construct_kwargs is None
 
-    def test_te_tracker_global_metadata(self) -> None:
+    def test_te_tracker_global_metadata(self, netcdf_psl_file) -> None:
         """Check set_metadata correctly sets _global_metadata."""
-        tracker = TETracker()
+        file_name = netcdf_psl_file({})
+        dn_params = DetectNodesParameters(
+            in_data=[file_name],
+            search_by_min="psl",
+        )
+        tracker = TETracker(dn_params)
         tracker.set_metadata()
 
         assert tracker.global_metadata is not None
@@ -479,7 +508,8 @@ class TestTETracker:
     ):
         """Test trajectories method for different formats and multiple trajectories."""
         mock_file = request.getfixturevalue(mock_file_fixture)
-        tracker = TETracker()
+        dn_params = DetectNodesParameters(in_data=["input_file.nc"])
+        tracker = TETracker(dn_params)
         tracker.stitch_nodes_parameters.output_file = mock_file
         tracker.stitch_nodes_parameters.out_file_format = file_format
         trajectories = tracker.trajectories()
@@ -514,7 +544,9 @@ class TestTETracker:
             TEOutputCommand(var="v1", operator="min", dist=0.0),
             TEOutputCommand(var="v2", operator="min", dist=0.0),
         ]
-        dn_params = DetectNodesParameters(output_commands=output_commands)
+        dn_params = DetectNodesParameters(
+            in_data=["input_file.nc"], output_commands=output_commands
+        )
         tracker = TETracker(dn_params)
 
         # Read in the trajectories
@@ -537,13 +569,15 @@ class TestTETracker:
         ],
     )
     def test_to_netcdf_with_cf_read(
-        self, file_format, mock_file_fixture, request, tmp_path
+        self, file_format, mock_file_fixture, netcdf_psl_file, request, tmp_path
     ):
         """Test the to_netcdf method by writing out and validating with cf.read."""
         # Get the mock file and set up the TETracker
         mock_file = request.getfixturevalue(mock_file_fixture)
+        file_name = netcdf_psl_file({})
+        dn_params = DetectNodesParameters(in_data=[file_name], search_by_min="psl")
         sn_params = StitchNodesParameters(in_fmt=["lon", "lat", "v1", "v2"])
-        tracker = TETracker(stitch_nodes_parameters=sn_params)
+        tracker = TETracker(dn_params, stitch_nodes_parameters=sn_params)
         tracker.stitch_nodes_parameters.output_file = mock_file
         tracker.stitch_nodes_parameters.out_file_format = file_format
 
@@ -572,7 +606,9 @@ class TestTETracker:
         assert time_coord.shape == (trajectory_ids, observation_count)
         assert lat_coord.shape == lon_coord.shape == (trajectory_ids, observation_count)
 
-    def test_run_tracker_success(self, mocker, tmp_path, mock_gfdl_file) -> None:
+    def test_run_tracker_success(
+        self, mocker, tmp_path, netcdf_psl_file, mock_gfdl_file
+    ) -> None:
         """Check run_tracker runs successfully."""
         # Mock subprocess.run to simulate successful execution
         mock_subprocess_run = mocker.patch("subprocess.run")
@@ -580,10 +616,15 @@ class TestTETracker:
             returncode=0, stdout="Success"
         )
 
+        # Set up psl file with metadata for time
+        file_name = netcdf_psl_file({})
+        dn_params = DetectNodesParameters(in_data=[file_name], search_by_min="psl")
+
         # Use the mock_gfdl_file to simulate the output of StitchNodes
         sn_in_fmt = ["lon", "lat", "psl", "orog"]
+        dn_params = DetectNodesParameters(in_data=[file_name], search_by_min="psl")
         sn_params = StitchNodesParameters(output_file=mock_gfdl_file, in_fmt=sn_in_fmt)
-        tracker = TETracker(stitch_nodes_parameters=sn_params)
+        tracker = TETracker(dn_params, stitch_nodes_parameters=sn_params)
 
         # Check run_tracker runs without error and produces an output file
         output_file = tmp_path / "trajectories.nc"
@@ -593,7 +634,8 @@ class TestTETracker:
     def test_run_tracker_failure(self, mocker) -> None:
         """Check run_tracker propagates RuntimeError from detect/stitch_nodes."""
         # Create tracker object
-        tracker = TETracker()
+        dn_params = DetectNodesParameters(in_data=["input_file.nc"])
+        tracker = TETracker(dn_params)
 
         # Mock subprocess.run and define a function to mock fail for a specific command
         mock_subprocess_run = mocker.patch("subprocess.run")
@@ -649,7 +691,8 @@ class TestTETrackerDetectNodes:
         )
 
         # create a TETracker with default parameters and call detect_nodes method
-        tracker = TETracker()
+        dn_params = DetectNodesParameters(in_data=["input_file.nc"])
+        tracker = TETracker(dn_params)
         result = tracker.detect_nodes()
         outfile = tracker._tempdir.name + "/nodes.txt"  # noqa: SLF001
 
@@ -657,6 +700,8 @@ class TestTETrackerDetectNodes:
         mock_subprocess_run.assert_called_once_with(
             [
                 "DetectNodes",
+                "--in_data",
+                "input_file.nc",
                 "--out",
                 outfile,
                 "--mergedist",
@@ -692,6 +737,7 @@ class TestTETrackerDetectNodes:
 
         # Create a TETracker with non-default parameters and call detect_nodes method
         params = DetectNodesParameters(
+            in_data=["input_data.nc"],
             output_file="custom_nodes.txt",
             merge_dist=10.0,
             lat_name="latitude",
@@ -708,6 +754,8 @@ class TestTETrackerDetectNodes:
         mock_subprocess_run.assert_called_once_with(
             [
                 "DetectNodes",
+                "--in_data",
+                "input_data.nc",
                 "--out",
                 "custom_nodes.txt",
                 "--mergedist",
@@ -811,7 +859,9 @@ class TestTETrackerDetectNodes:
         mock_subprocess_run.side_effect = FileNotFoundError("Executable not found")
 
         # Create a TETracker instance
-        params = DetectNodesParameters(output_file="output.txt")
+        params = DetectNodesParameters(
+            in_data=["input_data.nc"], output_file="output.txt"
+        )
         tracker = TETracker(detect_nodes_parameters=params)
 
         # Assert that detect_nodes raises FileNotFoundError
@@ -830,7 +880,9 @@ class TestTETrackerDetectNodes:
         )
 
         # Create a TETracker instance
-        params = DetectNodesParameters(output_file="output.txt")
+        params = DetectNodesParameters(
+            in_data=["input_data.nc"], output_file="output.txt"
+        )
         tracker = TETracker(detect_nodes_parameters=params)
 
         # Assert that detect_nodes raises RuntimeError
@@ -852,7 +904,8 @@ class TestTETrackerStitchNodes:
         )
 
         # Create a TETracker instance with default StitchNodes parameters
-        tracker = TETracker()
+        dn_params = DetectNodesParameters(in_data=["input_data.nc"])
+        tracker = TETracker(dn_params)
         result = tracker.stitch_nodes()
         tempdir = tracker._tempdir.name  # noqa: SLF001
         infile = tempdir + "/nodes.txt"
@@ -898,7 +951,8 @@ class TestTETrackerStitchNodes:
         )
 
         # Create a TETracker instance with non-default StitchNodes parameters
-        params = StitchNodesParameters(
+        dn_params = DetectNodesParameters(in_data=["input_data.nc"])
+        sn_params = StitchNodesParameters(
             output_file="custom_trajectories.txt",
             in_file="nodes.txt",
             caltype="noleap",
@@ -910,7 +964,7 @@ class TestTETrackerStitchNodes:
             out_file_format="csv",
             out_seconds=True,
         )
-        tracker = TETracker(stitch_nodes_parameters=params)
+        tracker = TETracker(dn_params, stitch_nodes_parameters=sn_params)
         result = tracker.stitch_nodes()
 
         # Check subprocess call made as expected and returned outputs are passed back up
@@ -976,12 +1030,13 @@ class TestTETrackerStitchNodes:
         )
 
         # Create a TETracker instance with threshold filters
-        params = StitchNodesParameters(
+        dn_params = DetectNodesParameters(in_data=["input_data.nc"])
+        sn_params = StitchNodesParameters(
             output_file="custom_trajectories.txt",
             in_file="nodes.txt",
             threshold_filters=threshold_filters,
         )
-        tracker = TETracker(stitch_nodes_parameters=params)
+        tracker = TETracker(dn_params, stitch_nodes_parameters=sn_params)
         result = tracker.stitch_nodes()
 
         # Check subprocess call made as expected and returned outputs are passed back up
@@ -1019,9 +1074,15 @@ class TestTETrackerStitchNodes:
     @pytest.mark.parametrize(
         "dn_params, sn_params, expected",
         [
-            pytest.param(None, None, [None, None], id="Check defaults"),
+            pytest.param(
+                DetectNodesParameters(in_data=["infile.txt"]),
+                None,
+                [None, None],
+                id="Check defaults",
+            ),
             pytest.param(
                 DetectNodesParameters(
+                    in_data=["infile.txt"],
                     output_file="file.txt",
                     output_commands=[
                         TEOutputCommand(var="v1", operator="min", dist=0.0),
@@ -1034,6 +1095,7 @@ class TestTETrackerStitchNodes:
             ),
             pytest.param(
                 DetectNodesParameters(
+                    in_data=["infile.txt"],
                     output_file="file.txt",
                     output_commands=[
                         TEOutputCommand(var="v1", operator="min", dist=0.0),
@@ -1063,8 +1125,9 @@ class TestTETrackerStitchNodes:
         mock_subprocess_run.side_effect = FileNotFoundError("Executable not found")
 
         # Create a TETracker instance
-        params = StitchNodesParameters(output_file="custom_trajectories.txt")
-        tracker = TETracker(stitch_nodes_parameters=params)
+        dn_params = DetectNodesParameters(in_data=["input_data.nc"])
+        sn_params = StitchNodesParameters(output_file="custom_trajectories.txt")
+        tracker = TETracker(dn_params, stitch_nodes_parameters=sn_params)
 
         # Assert that stitch_nodes raises FileNotFoundError
         with pytest.raises(
@@ -1082,8 +1145,9 @@ class TestTETrackerStitchNodes:
         )
 
         # Create a TETracker instance
-        params = StitchNodesParameters(output_file="custom_trajectories.txt")
-        tracker = TETracker(stitch_nodes_parameters=params)
+        dn_params = DetectNodesParameters(in_data=["input_data.nc"])
+        sn_params = StitchNodesParameters(output_file="custom_trajectories.txt")
+        tracker = TETracker(dn_params, stitch_nodes_parameters=sn_params)
 
         # Assert that stitch_nodes raises RuntimeError
         with pytest.raises(

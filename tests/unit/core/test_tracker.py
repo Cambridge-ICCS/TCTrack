@@ -8,6 +8,7 @@ from dataclasses import asdict, dataclass
 import cf
 import numpy as np
 import pytest
+from cftime import datetime
 
 from tctrack.core import TCTracker, TCTrackerMetadata, TCTrackerParameters, Trajectory
 
@@ -72,7 +73,7 @@ class TestTCTrackerMetadata:
             TCTrackerMetadata({}, ["construct1", "construct2"], [{"key1": "value1"}])
 
 
-def example_metadata():
+def example_variable_metadata():
     """Provide metadata for initialising and comparing variable_metadata."""
     return {
         "test_var": TCTrackerMetadata(
@@ -87,6 +88,16 @@ def example_metadata():
     }
 
 
+def example_time_metadata():
+    """Provide metadata for initialising and comparing variable_metadata."""
+    return {
+        "calendar": "360_day",
+        "units": "days since 1950-01-01",
+        "start_time": datetime(1950, 1, 1, 0, calendar="360_day"),
+        "end_time": datetime(1950, 12, 30, 23, calendar="360_day"),
+    }
+
+
 class TestTCTracker:
     """Tests for the TCTracker abstract base class."""
 
@@ -96,9 +107,13 @@ class TestTCTracker:
         def __init__(self, example_trajectories):
             self._example_trajectories = example_trajectories
 
-        def set_metadata(self) -> None:
+        def set_metadata(self, bad_time_data=None) -> None:
             """Implement a dummy of the set_metadata abstractmethod."""
-            self._variable_metadata = example_metadata()
+            self._variable_metadata = example_variable_metadata()
+            if bad_time_data:
+                self._time_metadata = bad_time_data
+            else:
+                self._time_metadata = example_time_metadata()
             self._global_metadata = {
                 "tctrack_tracker": type(self).__name__,
                 "parameters": json.dumps(asdict(ExampleParameters(42, "test"))),
@@ -149,14 +164,48 @@ class TestTCTracker:
             tracker.to_netcdf("dummy_output.nc")
 
     def test_variable_metadata_initialized(self):
-        """Test that `variable_metadata` is correctly initialized by the subclass."""
+        """Test that `variable_metadata` is correctly initialized and returned."""
         tracker = self.ExampleTracker(example_trajectories=None)
         tracker.set_metadata()
-        expected_metadata = example_metadata()
-        assert tracker.variable_metadata == expected_metadata
+        expected_variable_metadata = example_variable_metadata()
+        assert tracker.variable_metadata == expected_variable_metadata
+
+    def test_time_metadata_uninitialized(self):
+        """Test that accessing `time_metadata` raises error if not initialised."""
+        tracker = self.ExampleTracker(example_trajectories=None)
+        with pytest.raises(
+            AttributeError, match="_time_metadata has not been initialized"
+        ):
+            _ = tracker.time_metadata
+
+    def test_time_metadata_initialized(self):
+        """Test that `time_metadata` is correctly initialized and returned."""
+        tracker = self.ExampleTracker(example_trajectories=None)
+        tracker.set_metadata()
+        expected_time_metadata = example_time_metadata()
+        assert tracker.time_metadata == expected_time_metadata
+
+    def test_time_metadata_missing_key(self):
+        """Test that `time_metadata` raises error for missing key."""
+        tracker = self.ExampleTracker(example_trajectories=None)
+        bad_time_metadata = {
+            "calendar": "360_day",
+            "units": "days since 1950-01-01",
+            "start_time": datetime(1950, 1, 1, 0, calendar="360_day"),
+            "endingat": datetime(1950, 1, 1, 0, calendar="360_day"),
+        }
+        tracker.set_metadata(bad_time_data=bad_time_metadata)
+        with pytest.raises(
+            TypeError,
+            match=(
+                r"_time_metadata does not conform to the expected format of "
+                r"`TCTrackerTimeMetadata`."
+            ),
+        ):
+            _ = tracker.time_metadata
 
     def test_global_metadata_uninitialized(self):
-        """Test that `global_metadata` is None if not initialised."""
+        """Test that accessing `global_metadata` raises error if not initialised."""
         tracker = self.ExampleTracker(example_trajectories=None)
         with pytest.raises(
             AttributeError, match="_global_metadata has not been initialized"
@@ -221,7 +270,7 @@ class TestTCTracker:
 
         # Optionally remove the standard_name from the ExampleTracker metadata
         if delete_std_name:
-            for var_metadata in tracker._variable_metadata.values():  # noqa: SLF001
+            for var_metadata in tracker._variable_metadata.values():  # type: ignore  # noqa: SLF001
                 var_metadata.properties.pop("standard_name", None)
 
         # Write to NetCDF
@@ -276,7 +325,7 @@ class TestTCTracker:
         # Check the fields (variables) - just one in this test
         variable = "test_var"
         # Properties (as a dict)
-        expected_field_properties = example_metadata()[variable].properties
+        expected_field_properties = example_variable_metadata()[variable].properties
         expected_field_properties["missing_value"] = -1e10
         if delete_std_name:
             expected_field_properties.pop("standard_name")
