@@ -826,7 +826,7 @@ class TETracker(TCTracker):
     @staticmethod
     def _parse_gfdl_line_to_point(
         line: list[str], variable_names: list[str] | None = None
-    ) -> tuple[int, int, int, int, dict[str, int | float]]:
+    ) -> tuple[list[int], dict[str, int | float]]:
         """
         Parse line from StitchNodes gfdl output into a trajectory data point.
 
@@ -842,7 +842,8 @@ class TETracker(TCTracker):
         Returns
         -------
         tuple
-            A tuple of integer year, day, month, hour and dict of variables
+            A tuple containing the time as an integer list of [year, day, month, hour]
+            and a dict of variables.
         """
         return_vars: dict[str, int | float] = {}
         return_vars.update({"grid_i": int(line[0]), "grid_j": int(line[1])})
@@ -860,8 +861,8 @@ class TETracker(TCTracker):
                     for i, value in enumerate(line[2:-4], start=1)
                 }
             )
-        year, month, day, hour = map(int, line[-4:])
-        return year, month, day, hour, return_vars
+        time = list(map(int, line[-4:]))
+        return time, return_vars
 
     def _parse_trajectories_gfdl(self, file_path):
         """
@@ -890,14 +891,11 @@ class TETracker(TCTracker):
                     # Start of new trajectory.
                     # Extract metadata and add Trajectory to dict
                     current_trajectory_id += 1
-                    year, month, day, hour = map(int, items[2:6])
+                    time = list(map(int, items[2:6]))
 
                     trajectories[current_trajectory_id] = Trajectory(
                         current_trajectory_id,
-                        year,
-                        month,
-                        day,
-                        hour,
+                        time,
                         calendar=self.stitch_nodes_parameters.caltype,
                     )
 
@@ -937,9 +935,7 @@ class TETracker(TCTracker):
                 if has_header:
                     # Read from dict extracting variable names from keys/header
                     trajectory_id = int(row["track_id"])
-                    year, month, day, hour = map(
-                        int, (row["year"], row["month"], row["day"], row["hour"])
-                    )
+                    time = [int(row[k]) for k in ("year", "month", "day", "hour")]
                     variables_dict = {"grid_i": int(row["i"]), "grid_j": int(row["j"])}
                     variables_dict.update(
                         {
@@ -960,7 +956,7 @@ class TETracker(TCTracker):
                 else:
                     # Read from csv assuming: id, y, m, d, h, i, j, var1, ..., varn
                     trajectory_id = int(row[0])
-                    year, month, day, hour = map(int, row[1:5])
+                    time = list(map(int, row[1:5]))
                     variables_dict = {"grid_i": int(row[5]), "grid_j": int(row[6])}
                     # Get variable names from in_fmt
                     var_names = self.stitch_nodes_parameters.in_fmt or [
@@ -976,16 +972,11 @@ class TETracker(TCTracker):
                 if trajectory_id not in trajectories:
                     trajectories[trajectory_id] = Trajectory(
                         trajectory_id=trajectory_id,
-                        year=year,
-                        month=month,
-                        day=day,
-                        hour=hour,
+                        time=time,
                         calendar=self.stitch_nodes_parameters.caltype,
                     )
 
-                trajectories[trajectory_id].add_point(
-                    year, month, day, hour, variables_dict
-                )
+                trajectories[trajectory_id].add_point(time, variables_dict)
 
         return list(trajectories.values())
 

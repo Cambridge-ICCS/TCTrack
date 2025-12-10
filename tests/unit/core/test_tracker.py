@@ -132,22 +132,12 @@ class TestTCTracker:
         # Create a trajectory missing the 'lat' key
         trajectory = Trajectory(
             trajectory_id=1,
-            year=2023,
-            month=10,
-            day=1,
-            hour=0,
+            time=(2023, 10, 1, 0),
             calendar="standard",
         )
         trajectory.add_multiple_points(
-            years=[2023, 2023],
-            months=[10, 10],
-            days=[1, 1],
-            hours=[0, 6],
-            variables={
-                "timestamp": [0, 6],
-                "lon": [20.0, 25.0],
-                # Missing 'lat'
-            },
+            times=[(2023, 10, 1, 0), (2023, 10, 1, 6)],
+            variables={"timestamp": [0, 6], "lon": [20.0, 25.0]},  # Missing 'lat'
         )
 
         tracker = self.ExampleTracker([trajectory])
@@ -199,17 +189,11 @@ class TestTCTracker:
         # Simple example trajectories matching variable_metadata of ExampleTracker
         trajectory1 = Trajectory(
             trajectory_id=1,
-            year=2023,
-            month=10,
-            day=1,
-            hour=0,
+            time=(2023, 10, 1, 0),
             calendar="standard",
         )
         trajectory1.add_multiple_points(
-            years=[2023, 2023],
-            months=[10, 10],
-            days=[1, 1],
-            hours=[0, 6],
+            times=[(2023, 10, 1, 0), (2023, 10, 1, 6)],
             variables={
                 "lat": [10.0, 15.0],
                 "lon": [20.0, 25.0],
@@ -219,17 +203,11 @@ class TestTCTracker:
 
         trajectory2 = Trajectory(
             trajectory_id=2,
-            year=2023,
-            month=10,
-            day=2,
-            hour=0,
+            time=(2023, 10, 2, 0),
             calendar="standard",
         )
         trajectory2.add_multiple_points(
-            years=[2023, 2023, 2023],
-            months=[10, 10, 10],
-            days=[2, 2, 2],
-            hours=[0, 18, 21],
+            times=[(2023, 10, 2, 0), (2023, 10, 2, 18), (2023, 10, 2, 21)],
             variables={
                 "lat": [30.0, 35.0, 35.0],
                 "lon": [40.0, 45.0, 50.0],
