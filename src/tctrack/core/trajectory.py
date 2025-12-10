@@ -4,8 +4,14 @@ import numbers
 import warnings
 from collections.abc import Sequence
 from itertools import zip_longest
+from typing import TypeGuard
 
 from cftime import datetime
+
+
+def _is_datetime(x: object) -> TypeGuard[datetime]:
+    """Check (in a way the type-checker knows) that it is a datetime."""
+    return isinstance(x, datetime)
 
 
 class Trajectory:
@@ -51,15 +57,23 @@ class Trajectory:
         calendar : str, optional
             The calendar type to use for datetime handling if the time is provided as a
             list. Options are "gregorian", "julian", "360_day", or "noleap".
+
+        Raises
+        ------
+        TypeError
+            If time is not a ``Sequence[int]`` or ``cftime.datetime``.
         """
         self.trajectory_id = trajectory_id
         self.observations = 0
-        if isinstance(time, Sequence):
+        if isinstance(time, Sequence) and all(isinstance(t, int) for t in time):
             self.calendar = calendar
             self.start_time = self._create_datetime(time)
-        else:
+        elif _is_datetime(time):
             self.calendar = time.calendar
             self.start_time = time
+        else:
+            msg = "Invalid type for 'time'. Must be a Sequence[int] or cftime.datetime."
+            raise TypeError(msg)
         self.data: dict = {}
 
     def _create_datetime(self, time: Sequence[int]) -> datetime:
@@ -129,6 +143,11 @@ class Trajectory:
             appropriate calendar.
         variables : dict
             A dict containing any variables for the point as key : value pairs
+
+        Raises
+        ------
+        TypeError
+            If time is not a ``Sequence[int]`` or ``cftime.datetime``.
         """
         # Validate variables as int or float
         if not isinstance(variables, dict) or not all(
@@ -140,10 +159,13 @@ class Trajectory:
             )
             raise ValueError(msg)
 
-        if isinstance(time, datetime):
+        if _is_datetime(time):
             timestamp = time  # This assumes the time has the same calendar
-        else:
+        elif isinstance(time, Sequence) and all(isinstance(t, int) for t in time):
             timestamp = self._create_datetime(time)
+        else:
+            msg = "Invalid type for 'time'. Must be a Sequence[int] or cftime.datetime."
+            raise TypeError(msg)
 
         # Initialize data structure if empty
         if not self.data:

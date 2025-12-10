@@ -48,6 +48,11 @@ class TestTrajectory:
         assert trajectory.start_time.second == 0
         assert trajectory.calendar == "360_day"  # Check the datetime overrides this
 
+    def test_trajectory_invalid_time(self) -> None:
+        """Test the Trajectory class initialization fails if time is the wrong type."""
+        with pytest.raises(TypeError, match="Invalid type for 'time'"):
+            _ = Trajectory(trajectory_id=1, time="str is invalid")
+
     @pytest.mark.parametrize(
         "calendar",
         [
@@ -125,6 +130,12 @@ class TestTrajectory:
             (((1950, 13, 1, 3), {"psl": 1.005377e05}), ValueError, None),
             (((1950, 1, 32, 3), {"psl": 1.005377e05}), ValueError, None),
             (((1950, 1, 1, 25), {"psl": 1.005377e05}), ValueError, None),
+            # Invalid date/time type
+            (
+                ("invalid time", {"psl": 1.005377e05}),
+                TypeError,
+                "Invalid type for 'time'.",
+            ),
         ],
     )
     def test_add_point_edge_cases(self, inputs, expected_error, match):
