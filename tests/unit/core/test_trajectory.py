@@ -1,4 +1,4 @@
-"""Unit tests for core.py of the TCTrack Core Python package."""
+"""Unit tests for trajectory.py of the TCTrack Core Python package."""
 
 import re
 

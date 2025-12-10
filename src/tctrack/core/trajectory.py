@@ -1,4 +1,4 @@
-"""Core components and utilities used throughout the TCTrack codebase."""
+"""Module providing a class for storing data for a single cyclone trajectory."""
 
 import numbers
 
