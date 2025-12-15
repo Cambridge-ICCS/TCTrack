@@ -13,6 +13,7 @@ from pathlib import Path
 
 import cf
 import pytest
+from cftime import datetime
 
 from tctrack.core import TCTrackerMetadata
 from tctrack.tempest_extremes import (
@@ -193,6 +194,43 @@ class TestTETracker:
             return file_name
 
         return _create_file
+
+    def test_te_tracker_time_metadata(self, netcdf_psl_file):
+        """Test extracting valid calendar metadata from a NetCDF file."""
+        properties = {
+            "standard_name": "air_pressure_at_sea_level",
+            "long_name": "Sea Level Pressure",
+            "units": "Pa",
+        }
+        file_name = netcdf_psl_file(properties)
+        dn_params = DetectNodesParameters(
+            in_data=[file_name],
+            search_by_min="psl",
+        )
+        tracker = TETracker(dn_params)
+
+        # Assert the metadata extracted correctly
+        tracker.set_metadata()
+        assert tracker.time_metadata == {
+            "calendar": "360_day",
+            "units": "days since 1950-01-01",
+            "start_time": datetime(1950, 1, 1, 00, calendar="360_day"),
+            "end_time": datetime(1950, 1, 10, 00, calendar="360_day"),
+        }
+
+    def test_te_tracker_time_metadata_variable_not_found(self, netcdf_psl_file):
+        """Test ValueError raised when the main search variable not found in inputs."""
+        file_name = netcdf_psl_file({})
+        dn_params = DetectNodesParameters(
+            in_data=[file_name],
+            search_by_min="not_psl",
+        )
+        tracker = TETracker(dn_params)
+
+        with pytest.raises(
+            ValueError, match=r"Variable 'not_psl' not found in input files."
+        ):
+            tracker.set_metadata()
 
     def test_te_tracker_variable_metadata(self, netcdf_psl_file) -> None:
         """Test the reading in of variable metadata from input NetCDF files."""
