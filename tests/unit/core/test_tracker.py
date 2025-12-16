@@ -192,7 +192,7 @@ class TestTCTracker:
             "calendar": "360_day",
             "units": "days since 1950-01-01",
             "start_time": datetime(1950, 1, 1, 0, calendar="360_day"),
-            "endingat": datetime(1950, 1, 1, 0, calendar="360_day"),
+            "endingat": datetime(1950, 1, 30, 0, calendar="360_day"),
         }
         tracker.set_metadata(bad_time_data=bad_time_metadata)
         with pytest.raises(
@@ -236,13 +236,14 @@ class TestTCTracker:
         the variable metadata.
         """
         # Simple example trajectories matching variable_metadata of ExampleTracker
+        # 1 Starts on final time
         trajectory1 = Trajectory(
             trajectory_id=1,
-            time=(2023, 10, 1, 0),
+            time=(1950, 1, 1, 0),
             calendar="360_day",
         )
         trajectory1.add_multiple_points(
-            times=[(2023, 10, 1, 0), (2023, 10, 1, 6)],
+            times=[(1950, 1, 1, 0), (1950, 1, 2, 6)],
             variables={
                 "lat": [10.0, 15.0],
                 "lon": [20.0, 25.0],
@@ -250,13 +251,29 @@ class TestTCTracker:
             },
         )
 
+        # 2 in the middle of dataset
         trajectory2 = Trajectory(
             trajectory_id=2,
-            time=(2023, 10, 2, 0),
+            time=(1950, 10, 2, 0),
             calendar="360_day",
         )
         trajectory2.add_multiple_points(
-            times=[(2023, 10, 2, 0), (2023, 10, 2, 18), (2023, 10, 2, 21)],
+            times=[(1950, 10, 2, 0), (1950, 10, 2, 18), (1950, 10, 2, 21)],
+            variables={
+                "lat": [30.0, 35.0, 35.0],
+                "lon": [40.0, 45.0, 50.0],
+                "test_var": [15.0, 20.0, 15.0],
+            },
+        )
+
+        # Ends on final time
+        trajectory3 = Trajectory(
+            trajectory_id=2,
+            time=(1950, 12, 30, 21),
+            calendar="360_day",
+        )
+        trajectory3.add_multiple_points(
+            times=[(1950, 12, 30, 21), (1950, 12, 30, 22), (1950, 12, 30, 23)],
             variables={
                 "lat": [30.0, 35.0, 35.0],
                 "lon": [40.0, 45.0, 50.0],
@@ -265,7 +282,7 @@ class TestTCTracker:
         )
 
         # Instantiate the dummy tracker with valid trajectories
-        tracker = self.ExampleTracker([trajectory1, trajectory2])
+        tracker = self.ExampleTracker([trajectory1, trajectory2, trajectory3])
         tracker.set_metadata()
 
         # Optionally remove the standard_name from the ExampleTracker metadata
@@ -298,7 +315,7 @@ class TestTCTracker:
         # Validate trajectory and observation dimensions
         trajectory_ids = field.dimension_coordinate("trajectory").size
         observation_count = field.dimension_coordinate("observation").size
-        assert trajectory_ids == 2
+        assert trajectory_ids == 3
         assert observation_count == 3
 
         # Validate key coordinates like time, latitude, and longitude exist
@@ -369,6 +386,26 @@ class TestTCTracker:
                 assert construct.get_property(key) == value, (
                     f"Metadata mismatch for {variable}: {key}"
                 )
+
+    def test_to_netcdf_track_flag(self, tmp_path):
+        """Check to_netcdf correctly flags tracks at start and end of file."""
+        netcdf_file = self.make_netcdf_file(tmp_path)
+
+        # Read back with cf.read
+        fields = cf.read(netcdf_file)
+
+        # Check the fields (variables) - just one in this test
+        variable = fields.select_by_identity("test_standard_name")[0]
+
+        # Check flag variables exist as field ancillaries
+        field_ancillaries = variable.constructs.filter_by_type("field_ancillary")
+        assert len(field_ancillaries) == 2
+
+        # Check TFF and FFT
+        start_flag = variable.constructs("ncvar%start_flag")
+        end_flag = variable.constructs("ncvar%end_flag")
+        assert np.array_equal(start_flag.value().array, [True, False, False])
+        assert np.array_equal(end_flag.value().array, [False, False, True])
 
     def test_to_netcdf_global_metadata(self, tmp_path):
         """Check to_netcdf writes trajectories with the correct global metadata."""
