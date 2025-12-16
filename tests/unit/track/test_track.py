@@ -390,9 +390,11 @@ class TestTrackTracker:
         ):
             tracker.trajectories()
 
-    def test_variable_metadata(self, mocker):
+    def test_variable_metadata(self, mocker, tmp_path):
         """Test variable_metadata is defined correctly by set_metadata."""
-        tracker = self._setup_tracker(mocker)
+        input_file = self._create_nc_input_file(tmp_path)
+        params = {"base_dir": str(tmp_path), "input_file": input_file}
+        tracker = self._setup_tracker(mocker, mock_input_file=False, params_dict=params)
 
         tracker.set_metadata()
         metadata = tracker.variable_metadata
@@ -417,9 +419,27 @@ class TestTrackTracker:
         assert metadata["intensity"].constructs == expected_constructs
         assert metadata["intensity"].construct_kwargs == expected_construct_kwargs
 
-    def test_global_metadata(self, mocker):
+    def test_time_metadata(self, mocker, tmp_path):
+        """Test time_metadata is defined correctly by set_metadata."""
+        input_file = self._create_nc_input_file(tmp_path)
+        params = {"base_dir": str(tmp_path), "input_file": input_file}
+        tracker = self._setup_tracker(mocker, mock_input_file=False, params_dict=params)
+
+        tracker.set_metadata()
+
+        assert tracker.time_metadata is not None
+        assert tracker.time_metadata == {
+            "calendar": "360_day",
+            "units": "days since 1950-01-01",
+            "start_time": cftime.datetime(1950, 1, 1, 0, calendar="360_day"),
+            "end_time": cftime.datetime(1950, 1, 3, 0, calendar="360_day"),
+        }
+
+    def test_global_metadata(self, mocker, tmp_path):
         """Test global_metadata is defined correctly by set_metadata."""
-        tracker = self._setup_tracker(mocker)
+        input_file = self._create_nc_input_file(tmp_path)
+        params = {"base_dir": str(tmp_path), "input_file": input_file}
+        tracker = self._setup_tracker(mocker, mock_input_file=False, params_dict=params)
 
         tracker.set_metadata()
 
