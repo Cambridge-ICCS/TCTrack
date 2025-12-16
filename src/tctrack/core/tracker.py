@@ -344,7 +344,7 @@ class TCTracker(ABC):
             [
                 date2num(
                     trajectory.data["timestamp"],
-                    units="days since 1970-01-01",
+                    units=self.time_metadata["units"],
                     calendar=self.time_metadata["calendar"],
                 ).tolist()
                 + [time_fill] * (max_obs - trajectory.observations)
@@ -358,7 +358,7 @@ class TCTracker(ABC):
                 "standard_name": "time",
                 "long_name": "time",
                 "units": cf.Units(
-                    "days since 1970-01-01", calendar=self.time_metadata["calendar"]
+                    self.time_metadata["units"], calendar=self.time_metadata["calendar"]
                 ),
                 "missing_value": time_fill,
             },
