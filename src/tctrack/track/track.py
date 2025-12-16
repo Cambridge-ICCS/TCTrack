@@ -109,8 +109,6 @@ class TRACKTracker(TCTracker):
         """
         self.parameters: TRACKParameters = parameters
 
-        self._variable_metadata = {}
-
         # Get sizes from input file
         input_file = self.parameters.input_file
         if not Path(input_file).exists():
@@ -688,10 +686,29 @@ class TRACKTracker(TCTracker):
         return trajectories
 
     def set_metadata(self) -> None:
-        """Set the global and variable metadata attributes."""
+        """
+        Set the global, time, and variable metadata attributes.
+
+        Raises
+        ------
+        ValueError
+            If a variable with time coordinate is not found in the input file.
+        """
         super().set_metadata()
 
         self.global_metadata["track_parameters"] = json.dumps(asdict(self.parameters))
+
+        vars_with_time = cf.read(self.parameters.input_file).select_by_construct("time")  # type: ignore[operator]  # type: ignore[operator]
+        if len(vars_with_time) == 0:
+            msg = r"No variable with 'time' coordinate found in TRACK input file."
+            raise ValueError(msg)
+        time_coord = vars_with_time[0].coordinate("time")
+        self._time_metadata = {
+            "calendar": time_coord.calendar,
+            "units": time_coord.units,
+            "start_time": time_coord.data[0],
+            "end_time": time_coord.data[-1],
+        }
 
         self._variable_metadata = {}
 
