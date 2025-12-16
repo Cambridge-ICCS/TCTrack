@@ -148,7 +148,7 @@ class TestTCTracker:
         trajectory = Trajectory(
             trajectory_id=1,
             time=(2023, 10, 1, 0),
-            calendar="standard",
+            calendar="360_day",
         )
         trajectory.add_multiple_points(
             times=[(2023, 10, 1, 0), (2023, 10, 1, 6)],
@@ -239,7 +239,7 @@ class TestTCTracker:
         trajectory1 = Trajectory(
             trajectory_id=1,
             time=(2023, 10, 1, 0),
-            calendar="standard",
+            calendar="360_day",
         )
         trajectory1.add_multiple_points(
             times=[(2023, 10, 1, 0), (2023, 10, 1, 6)],
@@ -253,7 +253,7 @@ class TestTCTracker:
         trajectory2 = Trajectory(
             trajectory_id=2,
             time=(2023, 10, 2, 0),
-            calendar="standard",
+            calendar="360_day",
         )
         trajectory2.add_multiple_points(
             times=[(2023, 10, 2, 0), (2023, 10, 2, 18), (2023, 10, 2, 21)],
@@ -358,7 +358,7 @@ class TestTCTracker:
             "time": {
                 "standard_name": "time",
                 "long_name": "time",
-                "units": "days since 1970-01-01",
+                "units": "days since 1950-01-01",
                 "missing_value": -1e8,
             },
         }

@@ -184,7 +184,7 @@ class TestTETracker:
             dimension_T = cf.DimensionCoordinate(
                 properties={
                     "standard_name": "time",
-                    "calendar": "360_day",
+                    "calendar": "standard",
                     "units": "days since 1950-01-01",
                 },
                 data=cf.Data([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
@@ -212,10 +212,10 @@ class TestTETracker:
         # Assert the metadata extracted correctly
         tracker.set_metadata()
         assert tracker.time_metadata == {
-            "calendar": "360_day",
+            "calendar": "standard",
             "units": "days since 1950-01-01",
-            "start_time": datetime(1950, 1, 1, 00, calendar="360_day"),
-            "end_time": datetime(1950, 1, 10, 00, calendar="360_day"),
+            "start_time": datetime(1950, 1, 1, 00, calendar="standard"),
+            "end_time": datetime(1950, 1, 10, 00, calendar="standard"),
         }
 
     def test_te_tracker_time_metadata_variable_not_found(self, netcdf_psl_file):
