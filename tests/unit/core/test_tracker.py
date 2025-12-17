@@ -266,14 +266,14 @@ class TestTCTracker:
             },
         )
 
-        # Ends on final time
+        # Ends within a day of final time
         trajectory3 = Trajectory(
             trajectory_id=2,
             time=(1950, 12, 30, 21),
             calendar="360_day",
         )
         trajectory3.add_multiple_points(
-            times=[(1950, 12, 30, 21), (1950, 12, 30, 22), (1950, 12, 30, 23)],
+            times=[(1950, 12, 29, 21), (1950, 12, 30, 0), (1950, 12, 30, 3)],
             variables={
                 "lat": [30.0, 35.0, 35.0],
                 "lon": [40.0, 45.0, 50.0],
