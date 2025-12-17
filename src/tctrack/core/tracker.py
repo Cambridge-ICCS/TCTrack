@@ -4,6 +4,7 @@ import importlib.metadata
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields
+from datetime import timedelta
 from typing import TypedDict
 
 import cf
@@ -269,6 +270,9 @@ class TCTracker(ABC):
         Trajectories are assumed to contain as a minimum data for ``lat``, ``lon``,
         and ``timestep``.
 
+        An ancillary field variable is added to the output file indicating any tracks
+        that start/end within 1 day of the input dataset boundaries.
+
         Parameters
         ----------
         output_file: str
@@ -331,10 +335,14 @@ class TCTracker(ABC):
                 )
                 raise ValueError(errmsg)
 
-            # Check for trajectories starting and ending at the file boundaries
-            if trajectory.data["time"][0] == self.time_metadata["start_time"]:
+            # Check for trajectories starting and ending within a day of file boundaries
+            if (
+                trajectory.data["time"][0] - self.time_metadata["start_time"]
+            ) <= timedelta(days=1):
                 starting_trajectory[i] = True
-            if trajectory.data["time"][-1] == self.time_metadata["end_time"]:
+            if (
+                self.time_metadata["end_time"] - trajectory.data["time"][-1]
+            ) <= timedelta(days=1):
                 ending_trajectory[i] = True
 
         start_field = cf.FieldAncillary(
