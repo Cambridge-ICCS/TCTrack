@@ -299,7 +299,21 @@ class TestTCTracker:
     def test_to_netcdf(self, tmp_path):
         """Test to_netcdf writes trajectories to a file in the netcdf_file fixture."""
         netcdf_file = self.make_netcdf_file(tmp_path)
-        netcdf_file.exists()
+        assert netcdf_file.exists()
+
+    def test_to_netcdf_no_trajectories(self, tmp_path):
+        """Test to_netcdf raises warning and exits gracefully when no trajectories."""
+        # Instantiate the dummy tracker with empty trajectories
+        tracker = self.ExampleTracker([])
+        tracker.set_metadata()
+
+        # Check for warning when attempting to write to NetCDF
+        netcdf_file = tmp_path / "trajectories.nc"
+        with pytest.warns(
+            UserWarning, match="There are no trajectories in this period so no output.*"
+        ):
+            tracker.to_netcdf(str(netcdf_file))
+        assert not netcdf_file.exists()
 
     def test_to_netcdf_data(self, tmp_path):
         """Check to_netcdf writes trajectories with the correct data and dimensions."""
