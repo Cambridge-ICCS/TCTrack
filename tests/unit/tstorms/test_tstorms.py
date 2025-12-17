@@ -712,7 +712,7 @@ class TestTSTORMSTracker:
 
         # Validate the data attribute for the first trajectory
         expected_data_trajectory_1 = {
-            "timestamp": [
+            "time": [
                 datetime(
                     1950,
                     1,

@@ -33,7 +33,7 @@ class Trajectory:
         Dict of data for various variables along the trajectory.
         Timestamp and other variables as supplied in file.
         For compatibility elsewhere in TCTrack trajectories are assumed to contain as
-        a minimum data for ``lat``, ``lon``, and ``timestep``.
+        a minimum data for ``lat``, ``lon``, and ``time``.
     """
 
     def __init__(
@@ -160,9 +160,9 @@ class Trajectory:
             raise ValueError(msg)
 
         if _is_datetime(time):
-            timestamp = time  # This assumes the time has the same calendar
+            pass  # This assumes the time has the same calendar
         elif isinstance(time, Sequence) and all(isinstance(t, int) for t in time):
-            timestamp = self._create_datetime(time)
+            time = self._create_datetime(time)
         else:
             msg = "Invalid type for 'time'. Must be a Sequence[int] or cftime.datetime."
             raise TypeError(msg)
@@ -170,12 +170,12 @@ class Trajectory:
         # Initialize data structure if empty
         if not self.data:
             self.data = {
-                "timestamp": [],
+                "time": [],
                 **{key: [] for key in variables},
             }
 
         # Append data to the respective lists
-        self.data["timestamp"].append(timestamp)
+        self.data["time"].append(time)
         for key, value in variables.items():
             self.data[key].append(value)
 
