@@ -594,7 +594,7 @@ class TestTETracker:
         trajectories = tracker.trajectories()
 
         # Check the track header names are correct
-        cols = ["timestamp", "grid_i", "grid_j", "lon", "lat", "v1", "v2"]
+        cols = ["time", "grid_i", "grid_j", "lon", "lat", "v1", "v2"]
         for track in trajectories:
             assert [*track.data.keys()] == cols
 

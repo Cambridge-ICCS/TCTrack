@@ -162,6 +162,6 @@ class TestTrajectory:
         trajectory.add_multiple_points(times, variables)
 
         # Validate the data
-        assert len(trajectory.data["timestamp"]) == 2
+        assert len(trajectory.data["time"]) == 2
         assert np.allclose(trajectory.data["temperature"], [300.0, 305.0])
         assert np.allclose(trajectory.data["pressure"], [1000.0, 995.0])

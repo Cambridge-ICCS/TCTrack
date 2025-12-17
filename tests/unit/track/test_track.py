@@ -367,7 +367,7 @@ class TestTrackTracker:
         times1 = cftime.num2date(
             [0, 0.5], units="days since 1950-01-01", calendar="360_day"
         )
-        assert_array_equal(t1.data["timestamp"], times1)
+        assert_array_equal(t1.data["time"], times1)
 
         t2 = trajectories[1]
         assert t2.trajectory_id == 1
@@ -379,7 +379,7 @@ class TestTrackTracker:
         times2 = cftime.num2date(
             [0, 0.5, 1], units="days since 1950-01-01", calendar="360_day"
         )
-        assert_array_equal(t2.data["timestamp"], times2)
+        assert_array_equal(t2.data["time"], times2)
 
     def test_trajectories_missing_output(self, mocker):
         """Check trajectories fails when the TRACK output file doesn't exist."""
