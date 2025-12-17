@@ -12,6 +12,7 @@ import json
 import subprocess
 import tempfile
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import TypedDict
 
 import cf
@@ -207,11 +208,15 @@ class DetectNodesParameters(TCTrackerParameters):
     out_header: bool = False
     """Include header at the top of the output file?"""
 
-    output_file: str | None = None
+    output_dir: str = ""  # Not using None to keep type-checking simple
     """
-    Output nodefile to write to. If ``None``, a temporary file will be created for the
-    lifetime of the :class:`TETracker` instance.
+    File path of the directory to output intermediate files. If left empty, it will use
+    a temporary directory that will last only for the lifetime of the :class:`TETracker`
+    instance.
     """
+
+    output_file: str = "nodes.txt"
+    """Name of output nodefile to write to in the :attr:`output_dir` directory."""
 
     search_by_min: str | None = None
     """
@@ -289,18 +294,25 @@ class StitchNodesParameters(TCTrackerParameters):
     and the `StitchNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/StitchNodes.cpp>`_
     """
 
-    output_file: str | None = None
+    output_dir: str = ""  # Not using None to keep type-checking simple
     """
-    The output filename to save the track trajectories to. If ``None``, a temporary file
-    will be created for the lifetime of the :class:`TETracker` instance.
-    Called "out" in TempestExtremes.
+    File path of the directory to output intermediate files. If left empty, it will use
+    the :attr:`DetectNodesParameters.output_dir` value if one is provided. Otherwise, it
+    will use a temporary directory that will last only for the lifetime of the
+    :class:`TETracker` instance.
+    """
+
+    output_file: str = "trajectories.txt"
+    """
+    The output filename to write the trajectories to in the :attr:`output_dir`
+    directory.
     """
 
     in_file: str | None = None
     """
-    Filename of the DetectNodes output file. If this and ``in_list`` are ``None``, it
-    will be taken from :attr:`DetectNodesParameters.output_file`. Called "in" in
-    TempestExtremes.
+    Filepath of the DetectNodes output file. If this and ``in_list`` are ``None``, it
+    will be determined from :attr:`DetectNodesParameters.output_dir` and
+    :attr:`DetectNodesParameters.output_file`. Called "in" in TempestExtremes.
     """
 
     in_list: str | None = None
@@ -443,21 +455,22 @@ class TETracker(TCTracker):
         else:
             self.stitch_nodes_parameters = StitchNodesParameters()
 
-        # Use temporary output files if none provided
-        # These will be cleaned up when the class instance is deleted
         dn_params = self.detect_nodes_parameters
         sn_params = self.stitch_nodes_parameters
-        self._tempdir = tempfile.TemporaryDirectory()  # Store so directory persists
-        if dn_params.output_file is None:
-            dn_params.output_file = self._tempdir.name + "/nodes.txt"
-        if sn_params.output_file is None:
-            sn_params.output_file = self._tempdir.name + "/trajectories.txt"
+
+        # Define the default output directories
+        if dn_params.output_dir == "":
+            # The temporary directory is deleted when the object goes out of scope.
+            # It is stored in an attribute to persist for the lifetime of the tracker.
+            self._tempdir = tempfile.TemporaryDirectory()
+            dn_params.output_dir = self._tempdir.name
+        if sn_params.output_dir == "":
+            sn_params.output_dir = dn_params.output_dir
 
         # Set StitchNodes input arguments according to DetectNodes parameters,
         # if not provided
-        sn_input_none = sn_params.in_file is None and sn_params.in_list is None
-        if sn_input_none and dn_params.output_file is not None:
-            sn_params.in_file = dn_params.output_file
+        if sn_params.in_file is None and sn_params.in_list is None:
+            sn_params.in_file = str(Path(dn_params.output_dir) / dn_params.output_file)
         if sn_params.in_fmt is None and dn_params.output_commands is not None:
             variables = [output["var"] for output in dn_params.output_commands]
             sn_params.in_fmt = ["lon", "lat", *variables]
@@ -538,10 +551,13 @@ class TETracker(TCTracker):
                     ";".join(self.detect_nodes_parameters.in_data),
                 ]
             )
+        out_file = str(
+            Path(self.detect_nodes_parameters.output_dir)
+            / self.detect_nodes_parameters.output_file
+        )
+        dn_argslist.extend(["--out", out_file])
         if self.detect_nodes_parameters.out_header:
             dn_argslist.extend(["--out_header"])
-        if self.detect_nodes_parameters.output_file is not None:
-            dn_argslist.extend(["--out", self.detect_nodes_parameters.output_file])
         if self.detect_nodes_parameters.search_by_min is not None:
             dn_argslist.extend(
                 [
@@ -640,7 +656,7 @@ class TETracker(TCTracker):
         that were set when the :class:`TETracker` instance was created.
 
         The output file is a plain text file containing each of the TC candidates at
-        each time from the input files. If :attr:`~DetectNodesParameters.output_file` is
+        each time from the input files. If :attr:`~DetectNodesParameters.output_dir` is
         ``None`` this will be a temporary file lasting the lifetime of the
         :class:`TETracker` instance. If :attr:`~DetectNodesParameters.out_header` is
         ``True`` the first two lines of the file will be a header describing the
@@ -699,8 +715,8 @@ class TETracker(TCTracker):
         """
         sn_argslist = ["StitchNodes"]
         sn_params = self.stitch_nodes_parameters
-        if sn_params.output_file is not None:
-            sn_argslist.extend(["--out", sn_params.output_file])
+        out_file = str(Path(sn_params.output_dir) / sn_params.output_file)
+        sn_argslist.extend(["--out", out_file])
         if sn_params.in_file is not None:
             sn_argslist.extend(["--in", sn_params.in_file])
         if sn_params.in_list is not None:
@@ -740,7 +756,7 @@ class TETracker(TCTracker):
         that were set when the :class:`TETracker` instance was created.
 
         The output is a file containing the data for each node of each trajectory. If
-        :attr:`~StitchNodesParameters.output_file` is ``None`` this will be a temporary
+        :attr:`~StitchNodesParameters.output_dir` is ``None`` this will be a temporary
         file lasting the lifetime of the :class:`TETracker` instance. The format of the
         file depends on the :attr:`~StitchNodesParameters.out_file_format` parameter.
         The default ``"gfdl"`` output is a plain-text "nodefile" format which contains a
@@ -801,18 +817,16 @@ class TETracker(TCTracker):
         list[Trajectory]
             A list of :class:`tctrack.core.Trajectory` objects.
         """
+        out_file = str(
+            Path(self.stitch_nodes_parameters.output_dir)
+            / self.stitch_nodes_parameters.output_file
+        )
         if self.stitch_nodes_parameters.out_file_format == "gfdl":
-            trajectories = self._parse_trajectories_gfdl(
-                self.stitch_nodes_parameters.output_file
-            )
+            trajectories = self._parse_trajectories_gfdl(out_file)
         elif self.stitch_nodes_parameters.out_file_format == "csv":
-            trajectories = self._parse_trajectories_csv(
-                self.stitch_nodes_parameters.output_file, has_header=True
-            )
+            trajectories = self._parse_trajectories_csv(out_file, has_header=True)
         elif self.stitch_nodes_parameters.out_file_format == "csvnohead":
-            trajectories = self._parse_trajectories_csv(
-                self.stitch_nodes_parameters.output_file, has_header=False
-            )
+            trajectories = self._parse_trajectories_csv(out_file, has_header=False)
         return trajectories
 
     @staticmethod
