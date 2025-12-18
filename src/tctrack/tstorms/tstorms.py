@@ -123,7 +123,7 @@ class TSTORMSDetectParameters(TCTrackerParameters):
 
     tm_crit: float = 0.5
     """
-    Critical warm core threshold to be exceeded to qualify as a candidate storm.
+    Critical warm core local maximum to be exceeded to qualify as a candidate storm.
     """
 
     thick_crit: float = 50.0
@@ -210,9 +210,9 @@ class TSTORMSStitchParameters(TCTrackerParameters):
     """Minimum number of days a trajectory must last to be valid."""
 
     do_filter: bool = True
-    """
+    r"""
     Whether to apply filtering of trajectories.
-    Filtering is based on landmask and lat-lon bounds to generate *_filt output files.
+    Filtering is based on landmask and lat-lon bounds to generate \*_filt output files.
     """
 
     lat_bound_n: float = 40.0
@@ -634,6 +634,7 @@ class TSTORMSTracker(TCTracker):
         directory in a file ``cyclones`` text file.
 
         The outputs are plain text files named:
+
             - ``ori`` containing the origins of each storm in the form
               ``lon, lat, YY, MM, DD, HH``,
             - ``traj`` containing trajectory point data in the form
@@ -642,6 +643,7 @@ class TSTORMSTracker(TCTracker):
               ``lon, lat, wind, psl, vort_max, YY, MM, DD, HH`` for each trajectory,
             - ``stats`` containing information about the number of storms per month/year
               in each basin.
+
         If filtering is applied (:attr:`stitch_parameters` ``do_filter``) there will be
         additional files ``ori_filt``, ``traj_filt``, and ``trav_filt`` from after this
         takes place.
