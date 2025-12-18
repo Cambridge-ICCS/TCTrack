@@ -652,6 +652,7 @@ class TestTETracker:
     ) -> None:
         """Check run_tracker runs successfully."""
         # Mock subprocess.run to simulate successful execution
+        mocker.patch("pathlib.Path.mkdir")
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.side_effect = mocker.MagicMock(
             returncode=0, stdout="Success"
@@ -683,6 +684,7 @@ class TestTETracker:
         tracker = TETracker(dn_params)
 
         # Mock subprocess.run and define a function to mock fail for a specific command
+        mocker.patch("pathlib.Path.mkdir")
         mock_subprocess_run = mocker.patch("subprocess.run")
 
         def subprocess_failure(cmd, args, **_kwargs):
@@ -729,6 +731,9 @@ class TestTETrackerDetectNodes:
 
     def test_te_tracker_detect_nodes_defaults(self, mocker) -> None:
         """Checks the correct detect_nodes call is made for defaults."""
+        # Mock the creation of the output directory
+        mock_mkdir = mocker.patch("pathlib.Path.mkdir", autospec=True)
+
         # Mock subprocess.run to simulate successful execution
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.return_value = mocker.MagicMock(
@@ -739,7 +744,10 @@ class TestTETrackerDetectNodes:
         dn_params = DetectNodesParameters(in_data=["input_file.nc"])
         tracker = TETracker(dn_params)
         result = tracker.detect_nodes()
-        outfile = tracker._tempdir.name + "/nodes.txt"  # noqa: SLF001
+        outdir = tracker._tempdir.name  # noqa: SLF001
+
+        # Check the mkdir call made as expected
+        mock_mkdir.assert_called_once_with(Path(outdir), parents=True, exist_ok=True)
 
         # Check subprocess call made as expected and returned outputs are passed back up
         mock_subprocess_run.assert_called_once_with(
@@ -748,7 +756,7 @@ class TestTETrackerDetectNodes:
                 "--in_data",
                 "input_file.nc",
                 "--out",
-                outfile,
+                outdir + "/nodes.txt",
                 "--mergedist",
                 "0.0",
                 "--latname",
@@ -774,6 +782,9 @@ class TestTETrackerDetectNodes:
 
     def test_te_tracker_detect_nodes_non_defaults(self, mocker) -> None:
         """Checks the correct detect_nodes call is made for non-default values."""
+        # Mock the creation of the output directory
+        mock_mkdir = mocker.patch("pathlib.Path.mkdir", autospec=True)
+
         # Mock subprocess.run to simulate successful execution
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.return_value = mocker.MagicMock(
@@ -795,6 +806,13 @@ class TestTETrackerDetectNodes:
         )
         tracker = TETracker(detect_nodes_parameters=params)
         result = tracker.detect_nodes()
+
+        # Check the mkdir call made as expected
+        mock_mkdir.assert_called_once_with(
+            Path("custom_outputs"),
+            parents=True,
+            exist_ok=True,
+        )
 
         # Check subprocess call made as expected and returned outputs are passed back up
         mock_subprocess_run.assert_called_once_with(
@@ -833,6 +851,7 @@ class TestTETrackerDetectNodes:
         This will implicitly check the lod_to_te utility function.
         """
         # Mock subprocess.run to simulate successful execution
+        mocker.patch("pathlib.Path.mkdir")
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.return_value = mocker.MagicMock(
             returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
@@ -901,6 +920,7 @@ class TestTETrackerDetectNodes:
     def test_te_tracker_detect_nodes_file_not_found(self, mocker) -> None:
         """Check detect_nodes raises FileNotFoundError when executable is missing."""
         # Mock subprocess.run to simulate a FileNotFoundError
+        mocker.patch("pathlib.Path.mkdir")
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.side_effect = FileNotFoundError("Executable not found")
 
@@ -920,6 +940,7 @@ class TestTETrackerDetectNodes:
     def test_te_tracker_detect_nodes_failure(self, mocker) -> None:
         """Check detect_nodes raises RuntimeError on subprocess failure."""
         # Mock subprocess.run to simulate a failure
+        mocker.patch("pathlib.Path.mkdir")
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.side_effect = subprocess.CalledProcessError(
             returncode=1, cmd="DetectNodes", stderr="Error occurred"
@@ -943,6 +964,9 @@ class TestTETrackerStitchNodes:
 
     def test_stitch_nodes_defaults(self, mocker) -> None:
         """Checks the correct stitch_nodes call is made for default parameters."""
+        # Mock the creation of the output directory
+        mock_mkdir = mocker.patch("pathlib.Path.mkdir", autospec=True)
+
         # Mock subprocess.run to simulate successful execution
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.return_value = mocker.MagicMock(
@@ -953,18 +977,19 @@ class TestTETrackerStitchNodes:
         dn_params = DetectNodesParameters(in_data=["input_data.nc"])
         tracker = TETracker(dn_params)
         result = tracker.stitch_nodes()
-        tempdir = tracker._tempdir.name  # noqa: SLF001
-        infile = tempdir + "/nodes.txt"
-        outfile = tempdir + "/trajectories.txt"
+        outdir = tracker._tempdir.name  # noqa: SLF001
+
+        # Check the mkdir call made as expected
+        mock_mkdir.assert_called_once_with(Path(outdir), parents=True, exist_ok=True)
 
         # Check subprocess call made as expected and returned outputs are passed back up
         mock_subprocess_run.assert_called_once_with(
             [
                 "StitchNodes",
                 "--out",
-                outfile,
+                outdir + "/trajectories.txt",
                 "--in",
-                infile,
+                outdir + "/nodes.txt",
                 "--caltype",
                 "standard",
                 "--range",
@@ -990,6 +1015,9 @@ class TestTETrackerStitchNodes:
 
     def test_stitch_nodes_non_defaults(self, mocker) -> None:
         """Checks the correct stitch_nodes call is made for non-default parameters."""
+        # Mock the creation of the output directory
+        mock_mkdir = mocker.patch("pathlib.Path.mkdir", autospec=True)
+
         # Mock subprocess.run to simulate successful execution
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.return_value = mocker.MagicMock(
@@ -1013,6 +1041,13 @@ class TestTETrackerStitchNodes:
         )
         tracker = TETracker(dn_params, stitch_nodes_parameters=sn_params)
         result = tracker.stitch_nodes()
+
+        # Check the mkdir call made as expected
+        mock_mkdir.assert_called_once_with(
+            Path("custom_outputs"),
+            parents=True,
+            exist_ok=True,
+        )
 
         # Check subprocess call made as expected and returned outputs are passed back up
         mock_subprocess_run.assert_called_once_with(
@@ -1071,6 +1106,7 @@ class TestTETrackerStitchNodes:
         Also checks use of string and int inputs to TEThreshold["count"].
         """
         # Mock subprocess.run to simulate successful execution
+        mocker.patch("pathlib.Path.mkdir")
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.return_value = mocker.MagicMock(
             returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
@@ -1169,6 +1205,7 @@ class TestTETrackerStitchNodes:
     def test_stitch_nodes_file_not_found(self, mocker) -> None:
         """Check stitch_nodes raises FileNotFoundError when executable is missing."""
         # Mock subprocess.run to simulate a FileNotFoundError
+        mocker.patch("pathlib.Path.mkdir")
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.side_effect = FileNotFoundError("Executable not found")
 
@@ -1186,6 +1223,7 @@ class TestTETrackerStitchNodes:
     def test_stitch_nodes_failure(self, mocker) -> None:
         """Check stitch_nodes raises RuntimeError on subprocess failure."""
         # Mock subprocess.run to simulate a failure
+        mocker.patch("pathlib.Path.mkdir")
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.side_effect = subprocess.CalledProcessError(
             returncode=1, cmd="StitchNodes", stderr="Error occurred"
