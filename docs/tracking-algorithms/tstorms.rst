@@ -2,7 +2,7 @@ TSTORMS
 =======
 
 TSTORMS is an early tracking software for tropical cyclones originally developed
-by NOAA GFDL.
+by NOAA GFDL and described in [Vitart2001]_.
 It is made available under a GPL-2.0 license.
 
 TCTrack provides bindings for both the ``Driver`` routine for detecting candidate
@@ -60,9 +60,10 @@ so that the executables can be located at runtime.
 Usage
 -----
 
-Cyclone tracking in TSTORMS consists of two phases: detection, which performs
-node detection of candidate storms for each snapshot in time, and stitching, which
-combines suitable nodes across timesteps to generate trajectories. [*]_
+Cyclone tracking in TSTORMS is described in [Vitart2001]_ and consists of two phases:
+detection, which performs node detection of candidate storms for each snapshot in time,
+and stitching, which combines suitable nodes across timesteps to generate
+trajectories. [*]_
 
 Usage of TSTORMS in TCTrack is through the ``tstorms`` module.
 
@@ -70,6 +71,9 @@ This provides the :class:`TSTORMSTracker` class that stores algorithm parameters
 access to the methods. The detection and stitching algorithms can be configured through
 the various parameters in the :class:`TSTORMSBaseParameters`, :class:`TSTORMSDetectParameters`, and
 :class:`TSTORMSStitchParameters` dataclasses.
+
+Detection
+^^^^^^^^^
 
 In the following example we demonstrate the approach for detecting tropical cyclones
 using TSTORMS. First, we set up the :meth:`~TSTORMSTracker.detect`
@@ -116,6 +120,9 @@ documentation:
 The result of this will be a ``cyclones`` file in the prescribed output directory with
 candidate storms organised by date in the format described in :meth:`~TSTORMSTracker.detect`.
 
+Stitching
+^^^^^^^^^
+
 These candidates may be stitched into plausible trajectories using the
 :meth:`~TSTORMSTracker.stitch` functionality.
 Stitching is based on locating subsequent candidate points within a maximum distance of
@@ -156,6 +163,9 @@ If filtering is applied (:class:`TSTORMSStitchParameters` ``do_filter``) there w
 additional files ``ori_filt``, ``traj_filt``, and ``trav_filt`` from after this
 takes place.
 
+Output
+^^^^^^
+
 Finally, after running stitch to generate storm trajectories, the tracks can be written to
 a NetCDF file fully compliant with the `CF-Conventions <https://cfconventions.org/>`_
 (specifically the `trajectory data format <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.11/cf-conventions.html#trajectory-data>`_)
@@ -168,6 +178,9 @@ using :meth:`~TSTORMSTracker.to_netcdf`:
 This can be read using any NetCDF reading utility, though
 `cf-python <https://ncas-cms.github.io/cf-python/>`_ will load it following the
 `CF data model <https://ncas-cms.github.io/cf-python/#cf-data-model>`_.
+
+Combined run
+^^^^^^^^^^^^
 
 The above examples demonstrate running :meth:`~TSTORMSTracker.detect`,
 :meth:`~TSTORMSTracker.stitch`, and :meth:`~TSTORMSTracker.to_netcdf` separately.
@@ -191,9 +204,71 @@ object with appropriate :class:`TSTORMSDetectParameters` and :class:`TSTORMSStit
 
     tracker.run_tracker("my_tstorms_cf_trajectories.nc")
 
+Input data
+----------
+
+TSTORMS requires data for Eastward and Northward velocities, vorticity, air temperature,
+and sea-level pressure at certain pressure levels or ranges.
+The input data must be stored in NetCDF files with dimensions named ``lon``, ``lat``,
+and ``time`` and all variables must be on the same grid.
+There can be only one variable per file and they should conform to the pre-defined
+variable names described below.
+
+* Eastward Velocity:
+
+  * Eastward velocity in m s-1.
+  * Can be at surface, in which case set :attr:`~TSTORMSDetectParameters.use_sfc_wind`
+    to ``True``, or at a pressure level of 850 hPa, in which case set
+    :attr:`~TSTORMSDetectParameters.use_sfc_wind` to ``False``.
+  * Named ``u_ref`` or ``u850`` in the NetCDF file depending on the value of
+    :attr:`~TSTORMSDetectParameters.use_sfc_wind`.
+  * The filename is proviuded to TSTORMS through :attr:`~TSTORMSDetectParameters.u_in_file`.
+
+* Northward Velocity:
+
+  * Northward velocity in m s-1.
+  * Can be at surface, in which case set :attr:`~TSTORMSDetectParameters.use_sfc_wind`
+    to ``True``, or at a pressure level of 850 hPa, in which case set
+    :attr:`~TSTORMSDetectParameters.use_sfc_wind` to ``False``.
+  * Named ``v_ref`` or ``v850`` in the NetCDF file depending on the value of
+    :attr:`~TSTORMSDetectParameters.use_sfc_wind`.
+  * The filename is proviuded to TSTORMS through :attr:`~TSTORMSDetectParameters.v_in_file`.
+
+* Vorticity:
+
+  * Vorticity in s-1.
+  * Should be at a pressure level of 850 hPa.
+  * Named ``vort850`` in the NetCDF file.
+  * The filename is proviuded to TSTORMS through :attr:`~TSTORMSDetectParameters.vort_in_file`.
+
+* Mean Temperature:
+
+  * Mean air temperature in the warm core layer in degrees K.
+  * Should be the mean air temperature over 500-200 hPa.
+  * Named ``tm`` in the NetCDF file.
+  * The filename is proviuded to TSTORMS through :attr:`~TSTORMSDetectParameters.tm_in_file`.
+
+* Sea-level Pressure:
+
+  * Sea-level pressure in Pa .
+  * Named ``slp`` in the NetCDF file.
+  * The filename is proviuded to TSTORMS through :attr:`~TSTORMSDetectParameters.slp_in_file`.
+
+To extract these variables from an input dataset and write to individual files with the
+requisite variable names, combine multiple files over times, or regrid variables to a
+consistent grid see :doc:`../data/preprocessing_data`.
+
+
 
 
 .. [*] These are named detect and stitch for consistency across the TCTrack package.
    However, in the TSTORMS source they are referred to as tstorms_driver and
    trajectory_analysis respectively.
+
+.. rubric:: References
+
+.. [Vitart2001] Vitart, Frédéric, and Timothy N. Stockdale.
+   "Seasonal Forecasting of Tropical Storms Using Coupled GCM Integrations",
+   Monthly Weather Review 129, 10 (2001): 2521-2537.
+   `https://doi.org/10.1175/1520-0493(2001)129\<2521:SFOTSU\>2.0.CO;2 <https://doi.org/10.1175/1520-0493(2001)129\<2521:SFOTSU\>2.0.CO;2>`_
 
