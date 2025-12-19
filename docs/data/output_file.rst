@@ -50,8 +50,8 @@ a single storm track.
 The format follows the
 `CF Conventions: H4 Trajectory Data <https://cfconventions.org/cf-conventions/cf-conventions.html#trajectory-data>`_
 reccomendations for trajectory data using two-dimensional arrays of
-(n_trajectory by n_observations).
-Any trajectories shorter than n_observations end with fill values.
+shape ``(n_trajectory, n_observations)``.
+Any trajectories shorter than ``n_observations`` end with fill values.
 
 
 File Format
@@ -62,11 +62,11 @@ Dimensions
 
 - **trajectory**: Number of detected storm tracks (each a unique trajectory).
 
-    - Has a corresponding dimension coordinate variable indicating the trajectory index
+  - Has a corresponding dimension coordinate variable indicating the trajectory index
 
-- **observation** Number of time steps (observations) per trajectory.
+- **observation** Maximum number of time steps (observations) in the trajectories.
     
-    - Has a corresponding dimension coordinate variable indicating the observation index
+  - Has a corresponding dimension coordinate variable indicating the observation index
 
 Variables
 ^^^^^^^^^
@@ -78,9 +78,13 @@ These (auxiliary coordinate variables) are always present in a dataset:
 
 - **trajectory**: Unique index for each trajectory.
 
-  - Designated by the ``cf_role="trajectory_id"`` attribute.
+  - *Dimensions*: (trajectory)
+  - Designated by the ``cf_role="trajectory_id"`` *attribute*.
 
 - **observation**: Index for each observation within a trajectory.
+
+  - *Dimensions*: (observation)
+
 - **time**: Time of each observation.
 
   - *Dimensions*: (trajectory, observation)
@@ -92,22 +96,22 @@ These (auxiliary coordinate variables) are always present in a dataset:
 
 - **lon**: Longitude of the observation.
   
-    - *Dimensions*: (trajectory, observation)
+  - *Dimensions*: (trajectory, observation)
 
 Optional variables
 """"""""""""""""""
 
 A number of additional variables may also be written to file for each trajectory
-depending on the algorithm and data used and user-configuration.
+depending on the algorithm, data used, and user-configuration.
 Most commonly these will be measures of "intensity" along the tracks, but may also include
 auxilliary coordinates such as grid indices.
 
 - **Intensity variables**
 
-    - *Dimensions*: (trajectory, observation)
-    - *Attributes* should include ``units`` and may also provide a
-      `CF cell method <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.12/cf-conventions.html#data-model-cell-method>`_
-      indicating how the variable was calculated.
+  - *Dimensions*: (trajectory, observation)
+  - *Attributes* should include ``units`` and may also provide a
+    `CF cell method <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.12/cf-conventions.html#data-model-cell-method>`_
+    indicating how the variable was calculated.
 
 Ancillary Field Variables
 """""""""""""""""""""""""
@@ -117,11 +121,11 @@ Files always include two
 
 - **start_flag**
 
-    - *Dimensions*: (trajectory)
+  - *Dimensions*: (trajectory)
 
 - **end_flag**
 
-    - *Dimensions*: (trajectory)
+  - *Dimensions*: (trajectory)
 
 These indicate any tracks that start or end within 1 day of the input dataset bounds
 and may therefore extend outside this range.
@@ -131,9 +135,9 @@ Global Attributes
 
 Files contain a number of global metadata attributes 
 
-- **Conventions**: Indicates the versino of the CF-conventions the file was generated
+- **Conventions**: Indicates the version of the CF-conventions the file was generated
   with
-- **featureType**: ``trajectory`` a CF attribute aiding in data processing
+- **featureType**: ``trajectory``, a CF attribute aiding data processing and regognition of data format
 - **tctrack_version**: Attribute detailing the software version used to generate the file.
   Indicates semantic version and commit hash.
 - **tctrack_tracker**: Tracker name identifying the algorithm used (e.g., TSTORMSTracker)
@@ -142,7 +146,7 @@ Files contain a number of global metadata attributes
 Inspection and Usage
 --------------------
 
-As a CF-compliant NetCDF file TCTrack outputs can be accessed using a number of downstreamtools and softwares including NetCDF-python, xarray, cf-python ete. both within and
+As a CF-compliant NetCDF file TCTrack outputs can be accessed using a number of downstream tools and softwares including NetCDF-python, xarray, cf-python ete. both within and
 beyond the Python ecosystem.
 
 Perhaps the quickest way of inspecting the metadata is to use the
@@ -277,7 +281,7 @@ Plotting example
 
 Tracks can be visualised using variety of softwares.
 Here we demonstrate a simple example using NetCDF with cartopy, though users may also
-explore cd-python, xarray, or `hurucanpy <https://huracanpy.readthedocs.io>`_.
+explore cf-python, xarray, or `hurucanpy <https://huracanpy.readthedocs.io>`_.
 
 .. code-block:: python
 
