@@ -13,7 +13,14 @@ Dependencies
 
 Any regridding with cf-python requires `esmpy <https://earthsystemmodeling.org/esmpy/>`_
 and `ESMF <https://earthsystemmodeling.org/>`_ as dependencies. These are not
-pip-installable but can be installed in a conda environment.
+pip-installable but can be installed in a conda environment:
+
+.. code-block:: bash
+
+    conda create -n tctrack_env
+    conda activate tctrack_env
+    conda install -c conda-forge esmpy h5py
+    pip install tctrack
 
 .. _combine_time:
 
@@ -51,6 +58,38 @@ read them in separately and then write them together:
 
     # Write the combined fields to a single file
     cf.write([field1, field2], "combined_file.nc")
+
+Separating Variables
+--------------------
+
+If variables instead need to be separated into multiple files, such as in :doc:`TSTORMS
+<../tracking-algorithms/tstorms>`, the opposite proceedure is followed:
+
+.. code-block:: python
+
+    # Read in the combined file
+    field1, field2 = cf.read("combined_file.nc")
+
+    # Write to separate files
+    cf.write(field1, "var1_file.nc")
+    cf.write(field2, "var2_file.nc")
+
+Set NetCDF Variable Name
+------------------------
+
+To set specfic NetCDF variable names for the fields and coordinates you can use the
+``nc_set_variable`` methods:
+
+.. code-block:: python
+
+    field = cf.read("var1_file.nc")[0]
+
+    # Set the new netcdf variable names for the field and coordinates
+    field.nc_set_variable("slp")
+    field.coordinate("latitude").nc_set_variable("lat")
+
+    # Save with the new netcdf variable names
+    cf.write(field, "slp_file.nc")
 
 Regridding
 ----------
