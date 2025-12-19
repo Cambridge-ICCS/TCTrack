@@ -11,13 +11,15 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
 
-The TCTrack package aims to provide functionality for running tropical cyclone (TC)
-tracking algorithms and analysing the results. This can be used to compare the output
-of different algorithms for a variety of data sources.
+TCTrack is a Python library providing bindings to tracking algorithms for tropical
+cyclones in an accessible manner to generate high-quality and
+[FAIR](https://en.wikipedia.org/wiki/FAIR_data>) output data.
+
+It can be used for tracking cyclones in simularions and observations, and to compare
+the output of different algorithms for a variety of data sources.
 
 > [!WARNING]  
-> The software is currently in early development and therefore subject to significant
-> changes.
+> The software is currently in pre-release and may therefore be subject to changes.
 
 
 ## Installation
