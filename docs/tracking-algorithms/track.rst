@@ -84,20 +84,6 @@ Further details can be found in [Hodges2017]_.
 Usage
 -----
 
-TRACK takes a single NetCDF file as input which must contain the northward and eastward
-windspeeds on a single `Gaussian grid <https://en.wikipedia.org/wiki/Gaussian_grid>`_
-and in units of ``m s-1``. Some preprocessing of the input data may be required. For
-example, using the following `NCO <https://nco.sourceforge.net/nco.html>`_ and `CDO
-<https://code.mpimet.mpg.de/projects/cdo/wiki/tutorial>`_ commands:
-
-.. code-block:: bash
-
-   # Combine the windspeeds onto a single grid / file (grid given by ua_file.nc)
-   ncremap -i va_file.nc -d ua_file.nc -o ua_va_file.nc
-
-   # Map to a Gaussian grid with 512 (2x256) latitude points
-   cdo remapbil,F256 ua_va_file.nc ua_va_file_F256.nc
-
 Usage of TRACK is performed using the :mod:`tctrack.track` module. This contains the
 :class:`TRACKTracker` class which is used to run the algorithm, and the
 :class:`TRACKParameters` dataclass for specifying the various parameters.
@@ -145,6 +131,17 @@ individual steps without rerunning the whole process. For each step, intermediat
 and output files are stored in the 'indat' and 'outdat' folders in the TRACK source
 directory - the same location as when calling TRACK manually. Therefore, any generated
 files that you wish to keep should be moved to prevent them from being overwritten.
+
+Input Data
+----------
+
+The input data to TRACK must be contained in a single NetCDF file. This must contain the
+northward and eastward windspeeds at a level of 850 hPa (or as otherwise set in
+:attr:`~TRACKParameter.pressure_level`) and in units of ``m s-1``. This should be on a
+single `Gaussian grid <https://en.wikipedia.org/wiki/Gaussian_grid>`_. Some
+preprocessing of the input data is likely to be required in order to concatenate along
+time, combine the variables onto a single grid and into one file, and to regrid onto a
+Gaussian grid. See :doc:`../data/preprocessing_data` for examples.
 
 Modifying Parameters
 --------------------
