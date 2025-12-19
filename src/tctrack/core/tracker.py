@@ -357,7 +357,7 @@ class TCTracker(ABC):
             data=ending_trajectory,
             properties={
                 "standard_name": "status_flag",
-                "long_name": "Trajectory finishing at enf of dataset flag.",
+                "long_name": "Trajectory finishing at end of dataset flag.",
             },
         )
         end_field.nc_set_variable("end_flag")
