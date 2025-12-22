@@ -17,8 +17,8 @@ These pages describe the contents of this file and how it can be used downstream
 CF-Conventions and FAIR Data
 ----------------------------
 
-The CF (Climate and Forecast) Conventions for NetCDF data are best introduced in their
-own words:
+The `CF (Climate and Forecast) Conventions for NetCDF data <https://cfconventions.org/>`_
+are best introduced in their own words:
 
     *"The CF metadata conventions are designed to promote the processing and sharing of
     files created with the NetCDF API. The conventions define metadata that provide a
@@ -27,7 +27,7 @@ own words:
     sources to decide which quantities are comparable, and facilitates building
     applications with powerful extraction, regridding, and display capabilities."*
 
-TCTrack produces CF-compliant data files for all tracking algorithms with clear
+TCTrack produces CF-compliant files for all tracking algorithms with clear
 metadata.
 
 `FAIR <https://www.go-fair.org/fair-principles/>`_ is an acronym for
@@ -49,8 +49,8 @@ a single storm track.
 
 The format follows the
 `CF Conventions: H4 Trajectory Data <https://cfconventions.org/cf-conventions/cf-conventions.html#trajectory-data>`_
-reccomendations for trajectory data using two-dimensional arrays of
-shape ``(n_trajectory, n_observations)``.
+recommendations for trajectory data using two-dimensional arrays of
+shape ``(n_trajectory, n_observation)``.
 Any trajectories shorter than ``n_observations`` end with fill values.
 
 
@@ -74,29 +74,34 @@ Variables
 Required variables
 """"""""""""""""""
 
-These (auxiliary coordinate variables) are always present in a dataset:
+These coordinate variables are always present in a dataset:
 
 - **trajectory**: Unique index for each trajectory.
 
-  - *Dimensions*: (trajectory)
+  - *Dimensions*: ``(trajectory)``
+  - Dimension coordinate.
   - Designated by the ``cf_role="trajectory_id"`` *attribute*.
 
 - **observation**: Index for each observation within a trajectory.
 
-  - *Dimensions*: (observation)
+  - *Dimensions*: ``(observation)``
+  - Dimension coordinate.
 
 - **time**: Time of each observation.
 
-  - *Dimensions*: (trajectory, observation)
+  - *Dimensions*: ``(trajectory, observation)``
+  - Auxiliary coordinate.
   - *Attributes* include ``units`` and ``calendar`` amongst others
 
 - **lat**: Latitude of the observation.
   
-  - *Dimensions*: (trajectory, observation)
+  - *Dimensions*: ``(trajectory, observation)``
+  - Auxiliary coordinate.
 
 - **lon**: Longitude of the observation.
   
-  - *Dimensions*: (trajectory, observation)
+  - *Dimensions*: ``(trajectory, observation)``
+  - Auxiliary coordinate.
 
 Optional variables
 """"""""""""""""""
@@ -108,7 +113,7 @@ auxilliary coordinates such as grid indices.
 
 - **Intensity variables**
 
-  - *Dimensions*: (trajectory, observation)
+  - *Dimensions*: ``(trajectory, observation)``
   - *Attributes* should include ``units`` and may also provide a
     `CF cell method <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.12/cf-conventions.html#data-model-cell-method>`_
     indicating how the variable was calculated.
@@ -121,11 +126,11 @@ Files always include two
 
 - **start_flag**
 
-  - *Dimensions*: (trajectory)
+  - *Dimensions*: ``(trajectory)``
 
 - **end_flag**
 
-  - *Dimensions*: (trajectory)
+  - *Dimensions*: ``(trajectory)``
 
 These indicate any tracks that start or end within 1 day of the input dataset bounds
 and may therefore extend outside this range.
@@ -146,7 +151,7 @@ Files contain a number of global metadata attributes
 Inspection and Usage
 --------------------
 
-As a CF-compliant NetCDF file TCTrack outputs can be accessed using a number of downstream tools and softwares including NetCDF-python, xarray, cf-python ete. both within and
+As a CF-compliant NetCDF file TCTrack outputs can be accessed using a number of downstream tools and softwares including NetCDF-Python, xarray, cf-python etc. both within and
 beyond the Python ecosystem.
 
 Perhaps the quickest way of inspecting the metadata is to use the
@@ -233,7 +238,7 @@ described above:
         Data(trajectory(2)) = [0, 0]
 
     Field Ancillary: status_flag
-        long_name = 'Trajectory finishing at enf of dataset flag.'
+        long_name = 'Trajectory finishing at end of dataset flag.'
         standard_name = 'status_flag'
         Data(trajectory(2)) = [0, 0]
 
