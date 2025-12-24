@@ -26,6 +26,7 @@ the output of different algorithms for a variety of data sources.
    :caption: Contents:
 
    Getting Started <getting-started/index>
+   Tutorial <getting-started/tutorial>
    Tracking Algorithms <tracking-algorithms/index>
    API Documentation <api/index>
    Data Formats and Manipulation <data/index>

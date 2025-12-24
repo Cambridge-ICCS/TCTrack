@@ -56,8 +56,12 @@ import tctrack
 #[Example]
 ```
 
+New users may wish to follow the [TCTrack tutorial](https://tctrack.readthedocs.io/getting-started/tutorial.html)
+using the scripts in the [`tutorial/`](https://github.com/Cambridge-ICCS/TCTrack/tree/main/tutorial)
+directory.
+
 Full details can be found in the
-[getting-started documentation online](https://tctrack.readthedocs.io/developer/index.html).
+[getting-started documentation online](https://tctrack.readthedocs.io/en/getting-started/index.html).
 For a complete description of the library API see 
 [API documentation](https://tctrack.readthedocs.io/developer/index.html).
 
