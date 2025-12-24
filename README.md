@@ -48,9 +48,13 @@ pip install --editable .
 
 ## Using TCTrack
 
-Information and examples of how to use TCTrack from within Python after installation can
-be found in the
+Details of how to use TCTrack can be found in the
 [getting-started documentation online](https://tctrack.readthedocs.io/en/latest/getting-started/index.html).
+
+New users may wish to follow the [TCTrack tutorial](https://tctrack.readthedocs.io/en/latest/getting-started/tutorial.html)
+using the scripts in the [`tutorial/`](https://github.com/Cambridge-ICCS/TCTrack/tree/main/tutorial)
+directory.
+
 For a complete description of the library API see 
 [API documentation](https://tctrack.readthedocs.io/en/latest/api/index.html).
 
