@@ -23,11 +23,7 @@ wget --directory-prefix data https://esgf.ceda.ac.uk/thredds/fileServer/esg_cmip
 #vs
 wget --directory-prefix data https://esgf.ceda.ac.uk/thredds/fileServer/esg_cmip6/CMIP6/HighResMIP/MOHC/HadGEM3-GC31-HM/hist-1950/r1i1p1f1/day/vas/gn/files/d20180730/vas_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500701-19501230.nc
 
-# zg and vorticity has to be fetched direct from CEDA as not present on ESGF
+# zg has to be fetched direct from CEDA as not present on ESGF
 wget https://dap.ceda.ac.uk/badc/cmip6/data/PRIMAVERA/HighResMIP/MOHC/HadGEM3-GC31-HM/hist-1950/r1i1p1f1/Prim3hrPt/zg7h/gn/files/d20180730/zg7h_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195008010000-195008302100.nc?download=1 -O data/zg7h_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195008010000-195008302100.nc
 wget https://dap.ceda.ac.uk/badc/cmip6/data/PRIMAVERA/HighResMIP/MOHC/HadGEM3-GC31-HM/hist-1950/r1i1p1f1/Prim3hrPt/zg7h/gn/files/d20180730/zg7h_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195009010000-195009302100.nc?download=1 -O data/zg7h_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195010090000-195009302100.nc
 wget https://dap.ceda.ac.uk/badc/cmip6/data/PRIMAVERA/HighResMIP/MOHC/HadGEM3-GC31-HM/hist-1950/r1i1p1f1/Prim3hrPt/zg7h/gn/files/d20180730/zg7h_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195010010000-195010302100.nc?download=1 -O data/zg7h_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195010010000-195010302100.nc
-
-wget https://dap.ceda.ac.uk/badc/cmip6/data/PRIMAVERA/HighResMIP/MOHC/HadGEM3-GC31-HM/hist-1950/r1i1p1f1/Prim3hrPt/vortmean/gn/files/d20180730/vortmean_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195008010000-195008302100.nc?download=1 -O data/vortmean_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195008010000-195008302100.nc
-wget https://dap.ceda.ac.uk/badc/cmip6/data/PRIMAVERA/HighResMIP/MOHC/HadGEM3-GC31-HM/hist-1950/r1i1p1f1/Prim3hrPt/vortmean/gn/files/d20180730/vortmean_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195009010000-195009302100.nc?download=1 -O data/vortmean_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195009010000-195009302100.nc
-wget https://dap.ceda.ac.uk/badc/cmip6/data/PRIMAVERA/HighResMIP/MOHC/HadGEM3-GC31-HM/hist-1950/r1i1p1f1/Prim3hrPt/vortmean/gn/files/d20180730/vortmean_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195010010000-195010302100.nc?download=1 -O data/vortmean_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195010010000-195010302100.nc
