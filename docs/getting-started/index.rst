@@ -3,7 +3,11 @@ Getting Started
 
 This getting started guide is intended for new users of TCTrack to get them up
 and running as quickly as possible whilst introducing the main concepts.
-More advanced users should consult the full :doc:`API documentation`<../api/index>`.
+More advanced users should consult the full :doc:`api documentation`<../api/index>`.
+
+After reading the installation information here new users may wish to work through the
+:doc:`tutorial `<tutorial>` to see examples of how TCTrack is used and familiarise
+themselves with the workflow before using their own data.
 
 .. toctree::
    :maxdepth: 3
