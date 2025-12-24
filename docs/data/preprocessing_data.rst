@@ -6,6 +6,9 @@ we detail how to perform some of the typically required preprocessing steps usin
 cf-python library. Other tools can be used for the same tasks, however we focus on
 cf-python since it provides a uniform interface and it is a dependency of TCTrack.
 
+For full documentation of the routines described on these pages and more see the
+`cf python documentation <https://ncas-cms.github.io/cf-python/>`_.
+
 .. _preprocessing_deps:
 
 Dependencies
@@ -74,6 +77,95 @@ If variables instead need to be separated into multiple files, such as in :doc:`
     cf.write(field1, "var1_file.nc")
     cf.write(field2, "var2_file.nc")
 
+Subsampling
+-----------
+
+Sometimes we wish to subsample, e.g. to move from hourly data to daily.
+This can be done again using cf-python's ``subspace`` command, this time providing a
+``slice`` or indices to extract the values of interest:
+
+.. code-block:: python
+
+    # Read the separate input files
+    field1 = cf.read("var1_file.nc")[0]
+
+    # Generate subspaces as required
+    # Take the 5th element of the 'Z' coordinate
+    field2 = field1.subspace(Z=[5])
+    # Take the zeroth and fifth elements of the 'X' coordinate
+    field3 = field1.subspace(X=[0, 5])
+    # Every second elements of the 'Y' coordinate between 3 and -3
+    field4 = field1.subspace(Y=slice(3, -3, 2))
+
+Note that if only a single element is taken (e.g. a slice of a single pressure level)
+then the field will retain this as a coordinate dimension.
+To remove the single-valued coordinate from the field use cf-python's
+``squeeze`` before writing to file:
+
+.. code-block:: python
+
+    # Read the separate input files
+    field1 = cf.read("var1_file.nc")[0]
+
+    # Slice the 5th pressure level ('Z' coordinate)
+    field2 = field1.subspace(Z=[5])
+
+    # Squeeze to remove the single-valued Z from field dimensions
+    field_ta.squeeze(inplace=True)
+    # or, for a new field
+    field3 = field2.squeeze()
+
+Operations
+----------
+
+cf-python provides various operations to calculate new fields.
+These include both matehmatical operations and statistical collapses.
+
+For example, to calculate vorticity from coincident velocity date we can use ``curl_xy``:
+
+.. code-block:: python
+
+    # Read the separate input files
+    u_field = cf.read("u_file.nc")[0]
+    v_field = cf.read("v_file.nc")[0]
+
+    # calculate vorticity
+    w_field = cf.curl_xy(u_field, v_field, radius="earth")
+    w_field.nc_set_variable("vorticity")
+    w_field.set_property("standard_name", "atmosphere_upward_absolute_vorticity")
+    w_field.set_property("units", "s-1")
+
+    # Save the new variable to NetCDF
+    cf.write(w_field, "vorticity_file.nc")
+
+Or to take a mean over a coordinate:
+
+.. code-block:: python
+
+    # Read the separate input files
+    field = cf.read("file.nc")[0]
+
+    # Take the mean in the zonal 'X' coordinate and squeeze to remove 'X' dimension
+    field_zonal_mean = field.collapse("mean", axes="X")
+    field_zonal_mean.squeeze(inplace=True)
+
+    # Save the new variable to NetCDF
+    cf.write(field_zonal_mean, "zonal_mean_file.nc")
+
+Setting Fill Values
+^^^^^^^^^^^^^^^^^^^
+
+Sometimes it us useful to replace fill values after an operation before writing to file.
+This can be done using cf-python's ``filled`` routine.
+For example, after to set any null or masked values to ``0.0`` after calculating
+vorticity above use:
+
+.. code-block:: python
+
+    w_field.filled(fill_value=0.0, inplace=True)
+
+before writing to file.
+
 Set NetCDF Variable Name
 ------------------------
 
@@ -130,6 +222,8 @@ To regrid onto a new grid:
     # Regrid
     field = field.regrid(domain, method="linear")
     field.nc_clear_dataset_chunksizes()  # Avoids a possible error when writing
+
+Note that regridding can be performed inplace using ``inplace=True``.
 
 Gaussian Grid
 ^^^^^^^^^^^^^
