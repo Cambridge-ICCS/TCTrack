@@ -169,25 +169,6 @@ print("done.")
 
 print("done.")
 
-# # Combine the monthly vortmean files into one, subspacing in time to the above resolutions:
-# print("Combining vortmean files into one...", end="", flush=True)
-# input_files = [
-#     f"{data_dir}/vortmean_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195008010000-195008302100.nc",
-#     f"{data_dir}/vortmean_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195009010000-195009302100.nc",
-#     f"{data_dir}/vortmean_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195010010000-195010302100.nc",
-# ]
-#
-# field_vort = cf.read(input_files)[0]
-# # vortmean is 3hr data from 00:00 but we want daily at 12:00, so subspace with a slice
-# field_vort = field_vort.subspace(T=slice(4, None, 8))
-# print("writing data...", end="", flush=True)
-# cf.write(
-#     field_zg,
-#     f"{data_out}/zg7h_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
-# )
-# del field_zg
-# print("done.")
-
 print("Extracting subspace and taking mean of ta and renaming...", end="", flush=True)
 field_ta_full = cf.read(
     f"{data_dir}/ta_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500701-19501230.nc"
