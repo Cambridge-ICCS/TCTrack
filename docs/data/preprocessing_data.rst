@@ -111,7 +111,7 @@ To remove the single-valued coordinate from the field use cf-python's
     field2 = field1.subspace(Z=[5])
 
     # Squeeze to remove the single-valued Z from field dimensions
-    field_ta.squeeze(inplace=True)
+    field2.squeeze(inplace=True)
     # or, for a new field
     field3 = field2.squeeze()
 
@@ -119,9 +119,9 @@ Operations
 ----------
 
 cf-python provides various operations to calculate new fields.
-These include both matehmatical operations and statistical collapses.
+These include both mathematical operations and statistical collapses.
 
-For example, to calculate vorticity from coincident velocity date we can use ``curl_xy``:
+For example, to calculate vorticity from coincident velocity data we can use ``curl_xy``:
 
 .. code-block:: python
 
