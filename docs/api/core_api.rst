@@ -24,3 +24,7 @@ They are generic, and not tied to any particular tracking code or algorithm.
 .. autoclass:: TCTrackerMetadata
    :members:
    :undoc-members:
+
+.. autoclass:: TCTrackerTimeMetadata
+   :members:
+   :undoc-members:
