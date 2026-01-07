@@ -48,15 +48,8 @@ pip install --editable .
 
 ## Using TCTrack
 
-To use TCTrack from within Python after install import it as you would any other
-library:
-
-```python
-import tctrack
-#[Example]
-```
-
-Full details can be found in the
+Information and examples of how to use TCTrack from within Python after installation can
+be found in the
 [getting-started documentation online](https://tctrack.readthedocs.io/en/latest/getting-started/index.html).
 For a complete description of the library API see 
 [API documentation](https://tctrack.readthedocs.io/en/latest/api/index.html).
