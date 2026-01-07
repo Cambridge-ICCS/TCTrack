@@ -57,9 +57,9 @@ import tctrack
 ```
 
 Full details can be found in the
-[getting-started documentation online](https://tctrack.readthedocs.io/developer/index.html).
+[getting-started documentation online](https://tctrack.readthedocs.io/en/latest/getting-started/index.html).
 For a complete description of the library API see 
-[API documentation](https://tctrack.readthedocs.io/developer/index.html).
+[API documentation](https://tctrack.readthedocs.io/en/latest/api/index.html).
 
 
 ## Contributing
@@ -80,7 +80,7 @@ pip install --editable .[dev]
 ```
 
 Full details for contribution and developers can be found in the
-[online documentation](https://tctrack.readthedocs.io/developer/index.html).
+[online documentation](https://tctrack.readthedocs.io/en/latest/developer/index.html).
 
 ### Code of Conduct
 
