@@ -16,13 +16,13 @@ For an overview of the functionalities, installation, and usage see the
    :show-inheritance:
    :inherited-members:
 
-.. autoclass:: DetectNodesParameters
+.. autoclass:: TEDetectParameters
    :members:
    :undoc-members:
    :show-inheritance:
    :inherited-members:
 
-.. autoclass:: StitchNodesParameters
+.. autoclass:: TEStitchParameters
    :members:
    :undoc-members:
    :show-inheritance:
