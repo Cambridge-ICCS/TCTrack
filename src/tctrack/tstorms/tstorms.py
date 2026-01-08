@@ -283,7 +283,7 @@ class TSTORMSTracker(TCTracker):
             Used to create the namelists for `tstorms_driver`.
         stitch_parameters : TSTORMSStitchParameters | None
             Class containing the parameters for the stitching algorithm of TSTORMS
-            Defaults to the default values in StitchNodesParameters Class
+            Defaults to the default values in TSTORMSStitchParameters Class
         """
         self.tstorms_parameters: TSTORMSBaseParameters = tstorms_parameters
         self.detect_parameters: TSTORMSDetectParameters = detect_parameters

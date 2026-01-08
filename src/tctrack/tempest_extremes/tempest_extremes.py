@@ -60,7 +60,7 @@ class TEContour(TypedDict):
     See Also
     --------
     TETracker.detect_nodes : The Detect Nodes call from the TETracker object
-    DetectNodesParameters : The DetectNodes parameter class
+    TEDetectParameters : The DetectNodes parameter class
 
     References
     ----------
@@ -109,7 +109,7 @@ class TEOutputCommand(TypedDict):
     See Also
     --------
     TETracker.detect_nodes : The Detect Nodes call from the TETracker object
-    DetectNodesParameters : The DetectNodes parameter class
+    TEDetectParameters : The DetectNodes parameter class
 
     References
     ----------
@@ -152,7 +152,7 @@ class TEThreshold(TypedDict):
     See Also
     --------
     TETracker.stitch_nodes : The StitchNodes call from the TETracker object.
-    StitchNodesParameters : The StitchNodes parameter class.
+    TEStitchParameters : The StitchNodes parameter class.
 
     References
     ----------
@@ -187,7 +187,7 @@ class TEThreshold(TypedDict):
 
 
 @dataclass(repr=False)
-class DetectNodesParameters(TCTrackerParameters):
+class TEDetectParameters(TCTrackerParameters):
     """
     Dataclass containing values used by the DetectNodes operation of TE.
 
@@ -285,7 +285,7 @@ class DetectNodesParameters(TCTrackerParameters):
 
 
 @dataclass(repr=False)
-class StitchNodesParameters(TCTrackerParameters):
+class TEStitchParameters(TCTrackerParameters):
     """Dataclass containing values used by the StitchNodes operation of TE.
 
     References
@@ -297,7 +297,7 @@ class StitchNodesParameters(TCTrackerParameters):
     output_dir: str = ""  # Not using None to keep type-checking simple
     """
     File path of the directory to output intermediate files. If left empty, it will use
-    the :attr:`DetectNodesParameters.output_dir` value if one is provided. Otherwise, it
+    the :attr:`TEDetectParameters.output_dir` value if one is provided. Otherwise, it
     will use a temporary directory that will last only for the lifetime of the
     :class:`TETracker` instance.
     """
@@ -311,8 +311,8 @@ class StitchNodesParameters(TCTrackerParameters):
     in_file: str | None = None
     """
     Filepath of the DetectNodes output file. If this and ``in_list`` are ``None``, it
-    will be determined from :attr:`DetectNodesParameters.output_dir` and
-    :attr:`DetectNodesParameters.output_file`. Called "in" in TempestExtremes.
+    will be determined from :attr:`TEDetectParameters.output_dir` and
+    :attr:`TEDetectParameters.output_file`. Called "in" in TempestExtremes.
     """
 
     in_list: str | None = None
@@ -325,7 +325,7 @@ class StitchNodesParameters(TCTrackerParameters):
     """
     List of the variables in the order they appear in the input file.
     If ``None``, it will be ``["lon", "lat", ...]``, ending in variables defined in
-    :attr:`DetectNodesParameters.output_commands`.
+    :attr:`TEDetectParameters.output_commands`.
     """
 
     allow_repeated_times: bool = False
@@ -421,9 +421,9 @@ class TETracker(TCTracker):
 
     Attributes
     ----------
-    detect_nodes_parameters : DetectNodesParameters
+    detect_parameters : TEDetectParameters
         Class containing the parameters for the DetectNodes algorithm
-    stitch_nodes_parameters : StitchNodesParameters | None
+    stitch_parameters : TEStitchParameters | None
         Class containing the parameters for the StitchNodes algorithm
     """
 
@@ -432,31 +432,29 @@ class TETracker(TCTracker):
 
     def __init__(
         self,
-        detect_nodes_parameters: DetectNodesParameters,
-        stitch_nodes_parameters: StitchNodesParameters | None = None,
+        detect_parameters: TEDetectParameters,
+        stitch_parameters: TEStitchParameters | None = None,
     ):
         """
         Construct the TempestExtremes class.
 
         Parameters
         ----------
-        detect_nodes_parameters : DetectNodesParameters
+        detect_parameters : TEDetectParameters
             Class containing the parameters for the DetectNodes algorithm
-        stitch_nodes_parameters : StitchNodesParameters | None
+        stitch_parameters : TEStitchParameters | None
             Class containing the parameters for the StitchNodes algorithm
-            Defaults to the default values in StitchNodesParameters Class
+            Defaults to the default values in TEStitchParameters Class
         """
-        self.detect_nodes_parameters: DetectNodesParameters = detect_nodes_parameters
+        self.detect_parameters: TEDetectParameters = detect_parameters
 
-        if stitch_nodes_parameters is not None:
-            self.stitch_nodes_parameters: StitchNodesParameters = (
-                stitch_nodes_parameters
-            )
+        if stitch_parameters is not None:
+            self.stitch_parameters: TEStitchParameters = stitch_parameters
         else:
-            self.stitch_nodes_parameters = StitchNodesParameters()
+            self.stitch_parameters = TEStitchParameters()
 
-        dn_params = self.detect_nodes_parameters
-        sn_params = self.stitch_nodes_parameters
+        dn_params = self.detect_parameters
+        sn_params = self.stitch_parameters
 
         # Define the default output directories
         if dn_params.output_dir == "":
@@ -540,107 +538,106 @@ class TETracker(TCTracker):
         -------
         list[str]
             list of strings that can be combined to form a DetectNodes command
-            based on the parameters set in self.detect_nodes_parameters
+            based on the parameters set in self.detect_parameters
         """
         dn_argslist = ["DetectNodes"]
 
-        if self.detect_nodes_parameters.in_data is not None:
+        if self.detect_parameters.in_data is not None:
             dn_argslist.extend(
                 [
                     "--in_data",
-                    ";".join(self.detect_nodes_parameters.in_data),
+                    ";".join(self.detect_parameters.in_data),
                 ]
             )
         out_file = str(
-            Path(self.detect_nodes_parameters.output_dir)
-            / self.detect_nodes_parameters.output_file
+            Path(self.detect_parameters.output_dir) / self.detect_parameters.output_file
         )
         dn_argslist.extend(["--out", out_file])
-        if self.detect_nodes_parameters.out_header:
+        if self.detect_parameters.out_header:
             dn_argslist.extend(["--out_header"])
-        if self.detect_nodes_parameters.search_by_min is not None:
+        if self.detect_parameters.search_by_min is not None:
             dn_argslist.extend(
                 [
                     "--searchbymin",
-                    self.detect_nodes_parameters.search_by_min,
+                    self.detect_parameters.search_by_min,
                 ]
             )
-        if self.detect_nodes_parameters.search_by_max is not None:
+        if self.detect_parameters.search_by_max is not None:
             dn_argslist.extend(
                 [
                     "--searchbymax",
-                    self.detect_nodes_parameters.search_by_max,
+                    self.detect_parameters.search_by_max,
                 ]
             )
-        if self.detect_nodes_parameters.closed_contours is not None:
+        if self.detect_parameters.closed_contours is not None:
             dn_argslist.extend(
                 [
                     "--closedcontourcmd",
-                    lod_to_te(self.detect_nodes_parameters.closed_contours),
+                    lod_to_te(self.detect_parameters.closed_contours),
                 ]
             )
         dn_argslist.extend(
             [
                 "--mergedist",
-                str(self.detect_nodes_parameters.merge_dist),
+                str(self.detect_parameters.merge_dist),
             ]
         )
-        if self.detect_nodes_parameters.time_filter is not None:
+        if self.detect_parameters.time_filter is not None:
             dn_argslist.extend(
                 [
                     "--timefilter",
-                    self.detect_nodes_parameters.time_filter,
+                    self.detect_parameters.time_filter,
                 ]
             )
-        if self.detect_nodes_parameters.lat_name is not None:
+        if self.detect_parameters.lat_name is not None:
             dn_argslist.extend(
                 [
                     "--latname",
-                    self.detect_nodes_parameters.lat_name,
+                    self.detect_parameters.lat_name,
                 ]
             )
-        if self.detect_nodes_parameters.lon_name is not None:
+        if self.detect_parameters.lon_name is not None:
             dn_argslist.extend(
                 [
                     "--lonname",
-                    self.detect_nodes_parameters.lon_name,
+                    self.detect_parameters.lon_name,
                 ]
             )
-        if self.detect_nodes_parameters.min_lat is not None:
+        if self.detect_parameters.min_lat is not None:
             dn_argslist.extend(
                 [
                     "--minlat",
-                    str(self.detect_nodes_parameters.min_lat),
+                    str(self.detect_parameters.min_lat),
                 ]
             )
-        if self.detect_nodes_parameters.max_lat is not None:
+        if self.detect_parameters.max_lat is not None:
             dn_argslist.extend(
                 [
                     "--maxlat",
-                    str(self.detect_nodes_parameters.max_lat),
+                    str(self.detect_parameters.max_lat),
                 ]
             )
-        if self.detect_nodes_parameters.min_lon is not None:
+        if self.detect_parameters.min_lon is not None:
             dn_argslist.extend(
                 [
                     "--minlon",
-                    str(self.detect_nodes_parameters.min_lon),
+                    str(self.detect_parameters.min_lon),
                 ]
             )
-        if self.detect_nodes_parameters.max_lon is not None:
+        if self.detect_parameters.max_lon is not None:
             dn_argslist.extend(
                 [
                     "--maxlon",
-                    str(self.detect_nodes_parameters.max_lon),
+                    str(self.detect_parameters.max_lon),
                 ]
             )
-        if self.detect_nodes_parameters.regional:
+        if self.detect_parameters.regional:
             dn_argslist.extend(["--regional"])
-        if self.detect_nodes_parameters.output_commands is not None:
+        if self.detect_parameters.output_commands is not None:
             dn_argslist.extend(
                 [
                     "--outputcmd",
-                    lod_to_te(self.detect_nodes_parameters.output_commands),
+                    lod_to_te(self.detect_parameters.output_commands),
                 ]
             )
 
@@ -652,13 +649,13 @@ class TETracker(TCTracker):
 
         This will make a system call out to the DetectNodes method from Tempest Extremes
         (provided it has been installed as an external dependency). DetectNodes will be
-        run according to the parameters in the :attr:`detect_nodes_parameters` attribute
+        run according to the parameters in the :attr:`detect_parameters` attribute
         that were set when the :class:`TETracker` instance was created.
 
         The output file is a plain text file containing each of the TC candidates at
-        each time from the input files. If :attr:`~DetectNodesParameters.output_dir` is
+        each time from the input files. If :attr:`~TEDetectParameters.output_dir` is
         ``None`` this will be a temporary file lasting the lifetime of the
-        :class:`TETracker` instance. If :attr:`~DetectNodesParameters.out_header` is
+        :class:`TETracker` instance. If :attr:`~TEDetectParameters.out_header` is
         ``True`` the first two lines of the file will be a header describing the
         structure of the data. After this each time is listed in the format:
 
@@ -672,7 +669,7 @@ class TETracker(TCTracker):
         - ``count`` is the number of nodes at that time.
         - ``i``, ``j`` are the grid indices of the node.
         - ``var1``, ``var2``, etc., are scalar variables as defined by
-          :attr:`~DetectNodesParameters.output_commands` (typically, psl, orog).
+          :attr:`~TEDetectParameters.output_commands` (typically, psl, orog).
 
         Returns
         -------
@@ -696,11 +693,11 @@ class TETracker(TCTracker):
         To set the parameters, instantiate a :class:`TETracker` instance and run
         DetectNodes:
 
-        >>> my_params = DetectNodesParameters(...)
-        >>> my_tracker = TETracker(detect_nodes_parameters=my_params)
+        >>> my_params = TEDetectParameters(...)
+        >>> my_tracker = TETracker(detect_parameters=my_params)
         >>> result = my_tracker.detect_nodes()
         """
-        Path(self.detect_nodes_parameters.output_dir).mkdir(parents=True, exist_ok=True)
+        Path(self.detect_parameters.output_dir).mkdir(parents=True, exist_ok=True)
         dn_call_list = self._make_detect_nodes_call()
         return self._run_te_process("DetectNodes", dn_call_list)
 
@@ -712,10 +709,10 @@ class TETracker(TCTracker):
         -------
         list[str]
             list of strings that can be combined to form a StitchNodes command
-            based on the parameters set in self.stitch_nodes_parameters
+            based on the parameters set in self.stitch_parameters
         """
         sn_argslist = ["StitchNodes"]
-        sn_params = self.stitch_nodes_parameters
+        sn_params = self.stitch_parameters
         out_file = str(Path(sn_params.output_dir) / sn_params.output_file)
         sn_argslist.extend(["--out", out_file])
         if sn_params.in_file is not None:
@@ -753,13 +750,13 @@ class TETracker(TCTracker):
 
         This will make a system call out to the StitchNodes method from Tempest Extremes
         (provided it has been installed as an external dependency).  StitchNodes will be
-        run according to the parameters in the :attr:`stitch_nodes_parameters` attribute
+        run according to the parameters in the :attr:`stitch_parameters` attribute
         that were set when the :class:`TETracker` instance was created.
 
         The output is a file containing the data for each node of each trajectory. If
-        :attr:`~StitchNodesParameters.output_dir` is ``None`` this will be a temporary
+        :attr:`~TEStitchParameters.output_dir` is ``None`` this will be a temporary
         file lasting the lifetime of the :class:`TETracker` instance. The format of the
-        file depends on the :attr:`~StitchNodesParameters.out_file_format` parameter.
+        file depends on the :attr:`~TEStitchParameters.out_file_format` parameter.
         The default ``"gfdl"`` output is a plain-text "nodefile" format which contains a
         number of track trajectories, each of which in the form.
 
@@ -773,8 +770,8 @@ class TETracker(TCTracker):
         - ``N`` is number of nodes in the trajectory (and number of lines below header).
         - ``i``, ``j`` are grid indices.
         - ``var1``, ``var2``, etc., are scalar variables as defined by
-          :attr:`~StitchNodesParameters.in_fmt` (typically, lon, lat, psl, orog).
-        - ``hour`` may instead be seconds if :attr:`~StitchNodesParameters.out_seconds`
+          :attr:`~TEStitchParameters.in_fmt` (typically, lon, lat, psl, orog).
+        - ``hour`` may instead be seconds if :attr:`~TEStitchParameters.out_seconds`
           is ``True``.
 
         Returns
@@ -799,11 +796,11 @@ class TETracker(TCTracker):
         To set the parameters, instantiate a :class:`TETracker` instance and run
         StitchNodes:
 
-        >>> my_params = StitchNodesParameters(...)
-        >>> my_tracker = TETracker(stitch_nodes_parameters=my_params)
+        >>> my_params = TEStitchParameters(...)
+        >>> my_tracker = TETracker(stitch_parameters=my_params)
         >>> result = my_tracker.stitch_nodes()
         """
-        Path(self.stitch_nodes_parameters.output_dir).mkdir(parents=True, exist_ok=True)
+        Path(self.stitch_parameters.output_dir).mkdir(parents=True, exist_ok=True)
         sn_call_list = self._make_stitch_nodes_call()
         return self._run_te_process("StitchNodes", sn_call_list)
 
@@ -812,7 +809,7 @@ class TETracker(TCTracker):
         Parse outputs from Tempest Extremes to list of :class:`tctrack.core.Trajectory`.
 
         The file to be read and its properties are based on the values in the
-        :attr:`stitch_nodes_parameters` attribute.
+        :attr:`stitch_parameters` attribute.
 
         Returns
         -------
@@ -820,14 +817,13 @@ class TETracker(TCTracker):
             A list of :class:`tctrack.core.Trajectory` objects.
         """
         out_file = str(
-            Path(self.stitch_nodes_parameters.output_dir)
-            / self.stitch_nodes_parameters.output_file
+            Path(self.stitch_parameters.output_dir) / self.stitch_parameters.output_file
         )
-        if self.stitch_nodes_parameters.out_file_format == "gfdl":
+        if self.stitch_parameters.out_file_format == "gfdl":
             trajectories = self._parse_trajectories_gfdl(out_file)
-        elif self.stitch_nodes_parameters.out_file_format == "csv":
+        elif self.stitch_parameters.out_file_format == "csv":
             trajectories = self._parse_trajectories_csv(out_file, has_header=True)
-        elif self.stitch_nodes_parameters.out_file_format == "csvnohead":
+        elif self.stitch_parameters.out_file_format == "csvnohead":
             trajectories = self._parse_trajectories_csv(out_file, has_header=False)
         return trajectories
 
@@ -890,7 +886,7 @@ class TETracker(TCTracker):
         current_trajectory_id = 0  # Initialize trajectory ID
 
         # Get variable names from in_fmt
-        var_names = self.stitch_nodes_parameters.in_fmt or []
+        var_names = self.stitch_parameters.in_fmt or []
 
         with open(file_path, "r") as file:
             for line in file:
@@ -904,7 +900,7 @@ class TETracker(TCTracker):
                     trajectories[current_trajectory_id] = Trajectory(
                         current_trajectory_id,
                         time,
-                        calendar=self.stitch_nodes_parameters.caltype,
+                        calendar=self.stitch_parameters.caltype,
                     )
 
                 # Continue processing ongoing trajectory
@@ -967,7 +963,7 @@ class TETracker(TCTracker):
                     time = list(map(int, row[1:5]))
                     variables_dict = {"grid_i": int(row[5]), "grid_j": int(row[6])}
                     # Get variable names from in_fmt
-                    var_names = self.stitch_nodes_parameters.in_fmt or [
+                    var_names = self.stitch_parameters.in_fmt or [
                         f"var_{i + 1}" for i in range(len(row[7:]))
                     ]
                     variables_dict.update(
@@ -981,7 +977,7 @@ class TETracker(TCTracker):
                     trajectories[trajectory_id] = Trajectory(
                         trajectory_id=trajectory_id,
                         time=time,
-                        calendar=self.stitch_nodes_parameters.caltype,
+                        calendar=self.stitch_parameters.caltype,
                     )
 
                 trajectories[trajectory_id].add_point(time, variables_dict)
@@ -993,8 +989,8 @@ class TETracker(TCTracker):
         Set the global and variable (reading from input files) metadata attributes.
 
         Reads metadata for each variable listed in
-        :attr:`detect_nodes_parameters.output_commands` from the input NetCDF files
-        defined in :attr:`detect_nodes_parameters.in_data` (matching the NetCDF variable
+        :attr:`detect_parameters.output_commands` from the input NetCDF files
+        defined in :attr:`detect_parameters.in_data` (matching the NetCDF variable
         name). These will be stored in the :attr:`variable_metadata` attribute as a
         dictionary of :class:`TCTrackerMetadata` objects. This will be called from the
         :meth:`to_netcdf` method.
@@ -1008,11 +1004,11 @@ class TETracker(TCTracker):
         --------
         To read in the metadata for ``psl`` from ``inputs.nc``:
 
-        >>> dn_params = DetectNodesParameters(
+        >>> detect_params = TEDetectParameters(
         >>>     in_data=["inputs.nc"],
         >>>     output_commands=[TEOutputCommand(var="psl", operator="min", dist=0)],
         >>> )
-        >>> tracker = TETracker(dn_params, sn_params)
+        >>> tracker = TETracker(detect_params, stitch_params)
         >>> tracker.set_metadata()
         >>> tracker.variable_metadata
         {
@@ -1028,17 +1024,17 @@ class TETracker(TCTracker):
         """
         super().set_metadata()
 
-        detect_params_json = json.dumps(asdict(self.detect_nodes_parameters))
-        stitch_params_json = json.dumps(asdict(self.stitch_nodes_parameters))
-        self.global_metadata["detect_nodes_parameters"] = detect_params_json
-        self.global_metadata["stitch_nodes_parameters"] = stitch_params_json
+        detect_params_json = json.dumps(asdict(self.detect_parameters))
+        stitch_params_json = json.dumps(asdict(self.stitch_parameters))
+        self.global_metadata["detect_parameters"] = detect_params_json
+        self.global_metadata["stitch_parameters"] = stitch_params_json
 
-        input_files = self.detect_nodes_parameters.in_data
+        input_files = self.detect_parameters.in_data
 
         # set time metadata
         variable_name = (
-            self.detect_nodes_parameters.search_by_min
-            or self.detect_nodes_parameters.search_by_max
+            self.detect_parameters.search_by_min
+            or self.detect_parameters.search_by_max
             or "PSL"
         )
         fields = cf.read(input_files, select=f"ncvar%{variable_name}")  # type: ignore[operator]
@@ -1066,7 +1062,7 @@ class TETracker(TCTracker):
         )
 
         # Set the variable metadata for the output variables
-        var_outputs = self.detect_nodes_parameters.output_commands
+        var_outputs = self.detect_parameters.output_commands
         if var_outputs is None or input_files is None:
             return
 
@@ -1130,9 +1126,9 @@ class TETracker(TCTracker):
         To set the parameters, instantiate a :class:`TETracker` instance and run
         StitchNodes:
 
-        >>> dn_params = DetectNodesParameters(...)
-        >>> sn_params = StitchNodesParameters(...)
-        >>> my_tracker = TETracker(dn_params, sn_params)
+        >>> detect_params = TEDetectParameters(...)
+        >>> stitch_params = TEStitchParameters(...)
+        >>> my_tracker = TETracker(detect_params, stitch_params)
         >>> my_tracker.run_tracker()
         """
         self.detect_nodes()
