@@ -62,7 +62,7 @@ Usage
 
 Cyclone tracking in Tempest Extremes consists of two phases: node detection of candidate
 storms for each snapshot in time, and stitching of nodes across timesteps to generate
-tracks.
+tracks. [*]_
 
 Usage of Tempest Extremes in TCTrack is done through the ``tempest_extremes`` module.
 
@@ -75,13 +75,13 @@ Detection
 ^^^^^^^^^
 
 In the following example we demonstrate the approach for detecting tropical cyclones as
-detailed in [Ullrich2021]_. First, we set up the :meth:`~TETracker.detect_nodes`
-functionality to run on a series of input files to generate output. We configure
-detection to be done based on minima in sea-level pressure (psl) every 6 hours, with
-filters based on closed contours of psl and the geopotential height difference [*]_ [*]_, and
-merging of candidates within 6 degrees of one another. Additional output fields are also
-added for psl, surface elevation (orog), and surface windspeed (sfcWind) so that they
-may be used with :meth:`~TETracker.stitch_nodes`:
+detailed in [Ullrich2021]_. First, we set up the :meth:`~TETracker.detect` functionality
+to run on a series of input files to generate output. We configure detection to be done
+based on minima in sea-level pressure (psl) every 6 hours, with filters based on closed
+contours of psl and the geopotential height difference [*]_ [*]_, and merging of
+candidates within 6 degrees of one another. Additional output fields are also added for
+psl, surface elevation (orog), and surface windspeed (sfcWind) so that they may be used
+with :meth:`~TETracker.stitch`:
 
 .. code-block:: python
 
@@ -120,17 +120,17 @@ may be used with :meth:`~TETracker.stitch_nodes`:
 
     te_tracker = te.TETracker(dn_params)
 
-    run_info = te_tracker.detect_nodes()
+    run_info = te_tracker.detect()
 
 Stitching
 ^^^^^^^^^
 
-This can then followed by StitchNodes which is set up to combine nodes into a track that
-are less than 8 degrees from one another, with a track length of at least 54 hours and 8
-degrees end-to-end, with up to 24 hours of missing data between adjacent nodes. This is
-then filtered based upon the latitude, windspeed, and surface altitude. The result will
-be saved in the ``"te_outputs/trajectories.txt"`` file. The format of which is described
-in the documentation for :meth:`~TETracker.stitch_nodes`.
+This can then followed by :meth:`~TETracker.stitch` which is set up to combine nodes
+into a track that are less than 8 degrees from one another, with a track length of at
+least 54 hours and 8 degrees end-to-end, with up to 24 hours of missing data between
+adjacent nodes. This is then filtered based upon the latitude, windspeed, and surface
+altitude. The result will be saved in the ``"te_outputs/trajectories.txt"`` file. The
+format of which is described in the documentation for :meth:`~TETracker.stitch`.
 
 .. code-block:: python
 
@@ -152,7 +152,7 @@ in the documentation for :meth:`~TETracker.stitch_nodes`.
 
     te_tracker = te.TETracker(dn_params, sn_params)
 
-    run_info = te_tracker.stitch_nodes()
+    run_info = te_tracker.stitch()
 
 Output
 ^^^^^^
@@ -173,9 +173,9 @@ This can be read using any NetCDF reading utility, though
 Combined run
 ^^^^^^^^^^^^
 
-The above examples demonstrate running :meth:`~TETracker.detect_nodes`,
-:meth:`~TETracker.stitch_nodes`, and :meth:`~TETracker.to_netcdf` separately. However,
-it is likely that users will want to these in succession which can be done using the
+The above examples demonstrate running :meth:`~TETracker.detect`,
+:meth:`~TETracker.stitch`, and :meth:`~TETracker.to_netcdf` separately. However, it is
+likely that users will want to these in succession which can be done using the
 :meth:`~TETracker.run_tracker` method after defining a :class:`TETracker` object with
 appropriate :class:`TEDetectParameters` and :class:`TEStitchParameters`:
 
@@ -213,13 +213,17 @@ files and multiple variables per file. However, each variable must only appear i
 file, i.e. variables split over time into multiple files must first be combined (see
 :ref:`combine_time`).
 
+
+.. [*] These are named detect and stitch for consistency across the TCTrack package.
+   However, in the TempestExtremes source they are referred to as DetectNodes and
+   StitchNodes respectively.
+
 .. [*] In the example code a functional operation (`_DIFF`) is used for the geopotential
    height difference. View the `TempestExtremes online documentation
    <https://climate.ucdavis.edu/tempestextremes.php#VariableExpressions>`_ for details
    about this and other functional operations. As is done here, functional operations
    can be used for the closed contours, but they should not be used elsewhere as the
-   reading of the `detect_nodes` output file and setting the output metadata will not
-   work.
+   reading of the `detect` output file and setting the output metadata will not work.
 
 .. [*] The geopotential height difference in [Ullrich2021]_ is calculated between 300
    hPa and 500 hPa. However, if the input data does not have a 300 hPa level then using

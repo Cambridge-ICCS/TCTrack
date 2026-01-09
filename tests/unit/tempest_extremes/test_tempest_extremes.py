@@ -674,7 +674,7 @@ class TestTETracker:
         assert output_file.exists()
 
     def test_run_tracker_failure(self, mocker) -> None:
-        """Check run_tracker propagates RuntimeError from detect/stitch_nodes."""
+        """Check run_tracker propagates RuntimeError from detect/stitch."""
         # Create tracker object
         dn_params = TEDetectParameters(in_data=["input_file.nc"])
         tracker = TETracker(dn_params)
@@ -703,7 +703,7 @@ class TestTETracker:
             mock_output = mocker.Mock(returncode=0, stdout="Success")
             return mock_output
 
-        # Check a RuntimeError is correctly raised for detect_nodes
+        # Check a RuntimeError is correctly raised for detect
         mock_subprocess_run.side_effect = lambda args, **kwargs: subprocess_failure(
             "DetectNodes", args, **kwargs
         )
@@ -712,7 +712,7 @@ class TestTETracker:
         ):
             tracker.run_tracker("trajectories.nc")
 
-        # Check a RuntimeError is correctly raised for stitch_nodes
+        # Check a RuntimeError is correctly raised for stitch
         mock_subprocess_run.side_effect = lambda args, **kwargs: subprocess_failure(
             "StitchNodes", args, **kwargs
         )
@@ -722,11 +722,11 @@ class TestTETracker:
             tracker.run_tracker("trajectories.nc")
 
 
-class TestTETrackerDetectNodes:
-    """Tests for the detect_nodes functionality of TETracker."""
+class TestTETrackerDetect:
+    """Tests for the detect functionality of TETracker."""
 
-    def test_te_tracker_detect_nodes_defaults(self, mocker) -> None:
-        """Checks the correct detect_nodes call is made for defaults."""
+    def test_te_tracker_detect_defaults(self, mocker) -> None:
+        """Checks the correct detect call is made for defaults."""
         # Mock the creation of the output directory
         mock_mkdir = mocker.patch("pathlib.Path.mkdir", autospec=True)
 
@@ -736,10 +736,10 @@ class TestTETrackerDetectNodes:
             returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
         )
 
-        # create a TETracker with default parameters and call detect_nodes method
+        # create a TETracker with default parameters and call detect method
         dn_params = TEDetectParameters(in_data=["input_file.nc"])
         tracker = TETracker(dn_params)
-        result = tracker.detect_nodes()
+        result = tracker.detect()
         outdir = tracker._tempdir.name  # noqa: SLF001
 
         # Check the mkdir call made as expected
@@ -776,8 +776,8 @@ class TestTETrackerDetectNodes:
         assert result["stderr"] == "Mocked stderr output"
         assert result["returncode"] == 0
 
-    def test_te_tracker_detect_nodes_non_defaults(self, mocker) -> None:
-        """Checks the correct detect_nodes call is made for non-default values."""
+    def test_te_tracker_detect_non_defaults(self, mocker) -> None:
+        """Checks the correct detect call is made for non-default values."""
         # Mock the creation of the output directory
         mock_mkdir = mocker.patch("pathlib.Path.mkdir", autospec=True)
 
@@ -787,7 +787,7 @@ class TestTETrackerDetectNodes:
             returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
         )
 
-        # Create a TETracker with non-default parameters and call detect_nodes method
+        # Create a TETracker with non-default parameters and call detect method
         params = TEDetectParameters(
             in_data=["input_data.nc"],
             output_dir="custom_outputs",
@@ -801,7 +801,7 @@ class TestTETrackerDetectNodes:
             max_lon=180.0,
         )
         tracker = TETracker(detect_parameters=params)
-        result = tracker.detect_nodes()
+        result = tracker.detect()
 
         # Check the mkdir call made as expected
         mock_mkdir.assert_called_once_with(
@@ -841,8 +841,8 @@ class TestTETrackerDetectNodes:
         assert result["stderr"] == "Mocked stderr output"
         assert result["returncode"] == 0
 
-    def test_te_tracker_detect_nodes_optional_parameters(self, mocker) -> None:
-        """Checks the correct detect_nodes call is made for optional parameters.
+    def test_te_tracker_detect_optional_parameters(self, mocker) -> None:
+        """Checks the correct detect call is made for optional parameters.
 
         This will implicitly check the lod_to_te utility function.
         """
@@ -853,7 +853,7 @@ class TestTETrackerDetectNodes:
             returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
         )
 
-        # Create a TETracker with optional parameters and call detect_nodes method
+        # Create a TETracker with optional parameters and call detect method
         params = TEDetectParameters(
             in_data=["input1.nc", "input2.nc"],
             out_header=True,
@@ -870,7 +870,7 @@ class TestTETrackerDetectNodes:
             regional=True,
         )
         tracker = TETracker(detect_parameters=params)
-        result = tracker.detect_nodes()
+        result = tracker.detect()
 
         # Check subprocess call made as expected and returned outputs are passed back up
         mock_subprocess_run.assert_called_once_with(
@@ -913,8 +913,8 @@ class TestTETrackerDetectNodes:
         assert result["stderr"] == "Mocked stderr output"
         assert result["returncode"] == 0
 
-    def test_te_tracker_detect_nodes_file_not_found(self, mocker) -> None:
-        """Check detect_nodes raises FileNotFoundError when executable is missing."""
+    def test_te_tracker_detect_file_not_found(self, mocker) -> None:
+        """Check detect raises FileNotFoundError when executable is missing."""
         # Mock subprocess.run to simulate a FileNotFoundError
         mocker.patch("pathlib.Path.mkdir")
         mock_subprocess_run = mocker.patch("subprocess.run")
@@ -924,15 +924,15 @@ class TestTETrackerDetectNodes:
         params = TEDetectParameters(in_data=["input_data.nc"], output_file="output.txt")
         tracker = TETracker(detect_parameters=params)
 
-        # Assert that detect_nodes raises FileNotFoundError
+        # Assert that detect raises FileNotFoundError
         with pytest.raises(
             FileNotFoundError,
             match="DetectNodes failed because the executable could not be found",
         ):
-            tracker.detect_nodes()
+            tracker.detect()
 
-    def test_te_tracker_detect_nodes_failure(self, mocker) -> None:
-        """Check detect_nodes raises RuntimeError on subprocess failure."""
+    def test_te_tracker_detect_failure(self, mocker) -> None:
+        """Check detect raises RuntimeError on subprocess failure."""
         # Mock subprocess.run to simulate a failure
         mocker.patch("pathlib.Path.mkdir")
         mock_subprocess_run = mocker.patch("subprocess.run")
@@ -944,18 +944,18 @@ class TestTETrackerDetectNodes:
         params = TEDetectParameters(in_data=["input_data.nc"], output_file="output.txt")
         tracker = TETracker(detect_parameters=params)
 
-        # Assert that detect_nodes raises RuntimeError
+        # Assert that detect raises RuntimeError
         with pytest.raises(
             RuntimeError, match="DetectNodes failed with a non-zero exit code"
         ):
-            tracker.detect_nodes()
+            tracker.detect()
 
 
-class TestTETrackerStitchNodes:
-    """Tests for the stitch_nodes functionality of TETracker."""
+class TestTETrackerStitch:
+    """Tests for the stitch functionality of TETracker."""
 
-    def test_stitch_nodes_defaults(self, mocker) -> None:
-        """Checks the correct stitch_nodes call is made for default parameters."""
+    def test_stitch_defaults(self, mocker) -> None:
+        """Checks the correct stitch call is made for default parameters."""
         # Mock the creation of the output directory
         mock_mkdir = mocker.patch("pathlib.Path.mkdir", autospec=True)
 
@@ -965,10 +965,10 @@ class TestTETrackerStitchNodes:
             returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
         )
 
-        # Create a TETracker instance with default StitchNodes parameters
+        # Create a TETracker instance with default stitch parameters
         dn_params = TEDetectParameters(in_data=["input_data.nc"])
         tracker = TETracker(dn_params)
-        result = tracker.stitch_nodes()
+        result = tracker.stitch()
         outdir = tracker._tempdir.name  # noqa: SLF001
 
         # Check the mkdir call made as expected
@@ -1005,8 +1005,8 @@ class TestTETrackerStitchNodes:
         assert result["stderr"] == "Mocked stderr output"
         assert result["returncode"] == 0
 
-    def test_stitch_nodes_non_defaults(self, mocker) -> None:
-        """Checks the correct stitch_nodes call is made for non-default parameters."""
+    def test_stitch_non_defaults(self, mocker) -> None:
+        """Checks the correct stitch call is made for non-default parameters."""
         # Mock the creation of the output directory
         mock_mkdir = mocker.patch("pathlib.Path.mkdir", autospec=True)
 
@@ -1016,7 +1016,7 @@ class TestTETrackerStitchNodes:
             returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
         )
 
-        # Create a TETracker instance with non-default StitchNodes parameters
+        # Create a TETracker instance with non-default stitch parameters
         dn_params = TEDetectParameters(in_data=["input_data.nc"])
         sn_params = TEStitchParameters(
             output_dir="custom_outputs",
@@ -1032,7 +1032,7 @@ class TestTETrackerStitchNodes:
             out_seconds=True,
         )
         tracker = TETracker(dn_params, stitch_parameters=sn_params)
-        result = tracker.stitch_nodes()
+        result = tracker.stitch()
 
         # Check the mkdir call made as expected
         mock_mkdir.assert_called_once_with(
@@ -1089,11 +1089,11 @@ class TestTETrackerStitchNodes:
             ),
         ],
     )
-    def test_stitch_nodes_threshold_filters(
+    def test_stitch_threshold_filters(
         self, mocker, threshold_filters, expected_cmd
     ) -> None:
         """
-        Checks the correct stitch_nodes call is made with threshold filters.
+        Checks the correct stitch call is made with threshold filters.
 
         Also checks use of string and int inputs to TEThreshold["count"].
         """
@@ -1112,7 +1112,7 @@ class TestTETrackerStitchNodes:
             threshold_filters=threshold_filters,
         )
         tracker = TETracker(dn_params, stitch_parameters=sn_params)
-        result = tracker.stitch_nodes()
+        result = tracker.stitch()
 
         # Check subprocess call made as expected and returned outputs are passed back up
         mock_subprocess_run.assert_called_once_with(
@@ -1184,9 +1184,7 @@ class TestTETrackerStitchNodes:
             ),
         ],
     )
-    def test_stitch_nodes_values_from_detect_nodes(
-        self, dn_params, sn_params, expected
-    ) -> None:
+    def test_stitch_values_from_detect(self, dn_params, sn_params, expected) -> None:
         """Check the values are being assigned properly from TEDetectParameters."""
         tracker = TETracker(dn_params, sn_params)
         expected_in_file, expected_in_fmt = expected
@@ -1194,8 +1192,8 @@ class TestTETrackerStitchNodes:
             assert tracker.stitch_parameters.in_file == expected_in_file
         assert tracker.stitch_parameters.in_fmt == expected_in_fmt
 
-    def test_stitch_nodes_file_not_found(self, mocker) -> None:
-        """Check stitch_nodes raises FileNotFoundError when executable is missing."""
+    def test_stitch_file_not_found(self, mocker) -> None:
+        """Check stitch raises FileNotFoundError when executable is missing."""
         # Mock subprocess.run to simulate a FileNotFoundError
         mocker.patch("pathlib.Path.mkdir")
         mock_subprocess_run = mocker.patch("subprocess.run")
@@ -1205,15 +1203,15 @@ class TestTETrackerStitchNodes:
         dn_params = TEDetectParameters(in_data=["input_data.nc"])
         tracker = TETracker(dn_params)
 
-        # Assert that stitch_nodes raises FileNotFoundError
+        # Assert that stitch raises FileNotFoundError
         with pytest.raises(
             FileNotFoundError,
             match="StitchNodes failed because the executable could not be found",
         ):
-            tracker.stitch_nodes()
+            tracker.stitch()
 
-    def test_stitch_nodes_failure(self, mocker) -> None:
-        """Check stitch_nodes raises RuntimeError on subprocess failure."""
+    def test_stitch_failure(self, mocker) -> None:
+        """Check stitch raises RuntimeError on subprocess failure."""
         # Mock subprocess.run to simulate a failure
         mocker.patch("pathlib.Path.mkdir")
         mock_subprocess_run = mocker.patch("subprocess.run")
@@ -1225,8 +1223,8 @@ class TestTETrackerStitchNodes:
         dn_params = TEDetectParameters(in_data=["input_data.nc"])
         tracker = TETracker(dn_params)
 
-        # Assert that stitch_nodes raises RuntimeError
+        # Assert that stitch raises RuntimeError
         with pytest.raises(
             RuntimeError, match="StitchNodes failed with a non-zero exit code"
         ):
-            tracker.stitch_nodes()
+            tracker.stitch()

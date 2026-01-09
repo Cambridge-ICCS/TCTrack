@@ -47,9 +47,9 @@ def lod_to_te(inputs: list[dict]) -> str:
 
 class TEContour(TypedDict):
     """
-    Data required for checking a contour of a single variable in DetectNodes.
+    Data required for checking a contour of a single variable during detection.
 
-    Points will be eliminated in a DetectNodes search if they fail this criterion.
+    Points will be eliminated in a detection search if they fail this criterion.
     The closed contour is determined by breadth first search: if any paths exist from
     the candidate point (or nearby minima/maxima if minmaxdist is specified) that
     reach the specified distance before achieving the specified delta then we say no
@@ -59,8 +59,8 @@ class TEContour(TypedDict):
 
     See Also
     --------
-    TETracker.detect_nodes : The Detect Nodes call from the TETracker object
-    TEDetectParameters : The DetectNodes parameter class
+    TETracker.detect : The DetectNodes call from the TETracker object
+    TEDetectParameters : The detection parameter class
 
     References
     ----------
@@ -101,15 +101,15 @@ class TEContour(TypedDict):
 
 class TEOutputCommand(TypedDict):
     """
-    Data required to specify an additional column in the DetectNodes output.
+    Data required to specify an additional column in the detection output.
 
     Each output command takes the form of a ``dict`` with keys ``"var"``, ``"op"``, and
     ``"dist"``.
 
     See Also
     --------
-    TETracker.detect_nodes : The Detect Nodes call from the TETracker object
-    TEDetectParameters : The DetectNodes parameter class
+    TETracker.detect : The DetectNodes call from the TETracker object
+    TEDetectParameters : The detection parameter class
 
     References
     ----------
@@ -142,7 +142,7 @@ class TEOutputCommand(TypedDict):
 
 
 class TEThreshold(TypedDict):
-    """Data required for a threshold filter for a track trajectory in StitchNodes.
+    """Data required for a threshold filter for a track trajectory when stitching.
 
     Any storm track trajectories that do not satisfy the threshold value for a given
     number of points will be filtered out.
@@ -151,8 +151,8 @@ class TEThreshold(TypedDict):
 
     See Also
     --------
-    TETracker.stitch_nodes : The StitchNodes call from the TETracker object.
-    TEStitchParameters : The StitchNodes parameter class.
+    TETracker.stitch : The StitchNodes call from the TETracker object.
+    TEStitchParameters : The stitching parameter class.
 
     References
     ----------
@@ -189,7 +189,7 @@ class TEThreshold(TypedDict):
 @dataclass(repr=False)
 class TEDetectParameters(TCTrackerParameters):
     """
-    Dataclass containing values used by the DetectNodes operation of TE.
+    Dataclass containing values used by the detection operation of TE.
 
     See Also
     --------
@@ -286,7 +286,7 @@ class TEDetectParameters(TCTrackerParameters):
 
 @dataclass(repr=False)
 class TEStitchParameters(TCTrackerParameters):
-    """Dataclass containing values used by the StitchNodes operation of TE.
+    """Dataclass containing values used by the stitch operation of TE.
 
     References
     ----------
@@ -391,7 +391,7 @@ class TEStitchParameters(TCTrackerParameters):
     out_file_format: str = "gfdl"
     """
     Format of the output file. ``"gfdl"``, ``"csv"``, or ``"csvnohead"``.
-    See :meth:`TETracker.stitch_nodes` for details.
+    See :meth:`TETracker.stitch` for details.
     """
 
     out_seconds: bool = False
@@ -422,9 +422,9 @@ class TETracker(TCTracker):
     Attributes
     ----------
     detect_parameters : TEDetectParameters
-        Class containing the parameters for the DetectNodes algorithm
+        Class containing the parameters for the detection step
     stitch_parameters : TEStitchParameters | None
-        Class containing the parameters for the StitchNodes algorithm
+        Class containing the parameters for the stitching step
     """
 
     # Private attributes
@@ -441,9 +441,9 @@ class TETracker(TCTracker):
         Parameters
         ----------
         detect_parameters : TEDetectParameters
-            Class containing the parameters for the DetectNodes algorithm
+            Class containing the parameters for the detection step
         stitch_parameters : TEStitchParameters | None
-            Class containing the parameters for the StitchNodes algorithm
+            Class containing the parameters for the stitching step
             Defaults to the default values in TEStitchParameters Class
         """
         self.detect_parameters: TEDetectParameters = detect_parameters
@@ -643,7 +643,7 @@ class TETracker(TCTracker):
 
         return dn_argslist
 
-    def detect_nodes(self):
+    def detect(self):
         """
         Call the DetectNodes utility of Tempest Extremes.
 
@@ -695,7 +695,7 @@ class TETracker(TCTracker):
 
         >>> my_params = TEDetectParameters(...)
         >>> my_tracker = TETracker(detect_parameters=my_params)
-        >>> result = my_tracker.detect_nodes()
+        >>> result = my_tracker.detect()
         """
         Path(self.detect_parameters.output_dir).mkdir(parents=True, exist_ok=True)
         dn_call_list = self._make_detect_nodes_call()
@@ -745,7 +745,7 @@ class TETracker(TCTracker):
 
         return sn_argslist
 
-    def stitch_nodes(self):
+    def stitch(self):
         """Call the StitchNodes utility in Tempest Extremes.
 
         This will make a system call out to the StitchNodes method from Tempest Extremes
@@ -793,12 +793,12 @@ class TETracker(TCTracker):
 
         Examples
         --------
-        To set the parameters, instantiate a :class:`TETracker` instance and run
-        StitchNodes:
+        To set the parameters, instantiate a :class:`TETracker` instance and perform
+        stitching:
 
         >>> my_params = TEStitchParameters(...)
         >>> my_tracker = TETracker(stitch_parameters=my_params)
-        >>> result = my_tracker.stitch_nodes()
+        >>> result = my_tracker.stitch()
         """
         Path(self.stitch_parameters.output_dir).mkdir(parents=True, exist_ok=True)
         sn_call_list = self._make_stitch_nodes_call()
@@ -1104,8 +1104,8 @@ class TETracker(TCTracker):
     def run_tracker(self, output_file: str):
         """Run TempestExtremes tracker to obtain tropical cyclone track trajectories.
 
-        This first runs :meth:`detect_nodes` to get TC candidates at each time. Then
-        these are combined into trajectories using :meth:`stitch_nodes`.
+        This first runs :meth:`detect` to get TC candidates at each time. Then
+        these are combined into trajectories using :meth:`stitch`.
         The output is then saved as a CF-compliant NetCDF trajectory file.
 
         Arguments
@@ -1117,20 +1117,20 @@ class TETracker(TCTracker):
         ------
         FileNotFoundError
             - If the TempestExtremes executables cannot be found.
-            - If the stitch_nodes output file does not exist.
+            - If the stitch output file does not exist.
         RuntimeError
             If the TempestExtremes commands return a non-zero exit code.
 
         Examples
         --------
-        To set the parameters, instantiate a :class:`TETracker` instance and run
-        StitchNodes:
+        To create the tracker instance, then use run_tracker to perform the detection,
+        stitching, and generate output.
 
         >>> detect_params = TEDetectParameters(...)
         >>> stitch_params = TEStitchParameters(...)
         >>> my_tracker = TETracker(detect_params, stitch_params)
         >>> my_tracker.run_tracker()
         """
-        self.detect_nodes()
-        self.stitch_nodes()
+        self.detect()
+        self.stitch()
         self.to_netcdf(output_file)
