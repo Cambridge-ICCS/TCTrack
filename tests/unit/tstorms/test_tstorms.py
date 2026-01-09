@@ -814,7 +814,7 @@ class TestTSTORMSTracker:
         assert os.path.exists(output_file)
 
     def test_run_tracker_failure(self, mocker, tstorms_tracker, mock_trav_file) -> None:
-        """Check run_tracker propagates RuntimeError from detect/stitch_nodes."""
+        """Check run_tracker propagates RuntimeError from detect/stitch."""
         # Create tracker object
         tracker = tstorms_tracker[0]
 
@@ -958,7 +958,7 @@ class TestTSTORMSTrackerDetect:
         # Create a TSTORMSTracker instance
         tracker = tstorms_tracker[0]
 
-        # Assert that detect_nodes raises FileNotFoundError
+        # Assert that detect raises FileNotFoundError
         with pytest.raises(
             FileNotFoundError,
             match="Detect failed because the executable could not be found",
@@ -983,7 +983,7 @@ class TestTSTORMSTrackerDetect:
             tracker.detect(verbose=True)
 
     def test_tstorms_tracker_detect_failure(self, mocker, tstorms_tracker) -> None:
-        """Check detect_nodes raises RuntimeError on subprocess failure."""
+        """Check detect raises RuntimeError on subprocess failure."""
         # Mock subprocess.run to simulate a failure
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.side_effect = subprocess.CalledProcessError(
@@ -993,7 +993,7 @@ class TestTSTORMSTrackerDetect:
         # Create a TSTORMSTracker instance
         tracker = tstorms_tracker[0]
 
-        # Assert that detect_nodes raises RuntimeError
+        # Assert that detect raises RuntimeError
         with pytest.raises(
             RuntimeError, match="Detect failed with a non-zero exit code"
         ):
@@ -1130,7 +1130,7 @@ class TestTSTORMSTrackerStitch:
         with open(generated_cyclones_file, "w") as f:
             f.write("Mock cyclones content")
 
-        # Assert that detect_nodes raises FileNotFoundError
+        # Assert that stitch raises FileNotFoundError
         with pytest.raises(
             FileNotFoundError,
             match="Stitch failed because the executable could not be found",
@@ -1177,7 +1177,7 @@ class TestTSTORMSTrackerStitch:
         with open(generated_cyclones_file, "w") as f:
             f.write("Mock cyclones content")
 
-        # Assert that detect_nodes raises RuntimeError
+        # Assert that stitch raises RuntimeError
         with pytest.raises(
             RuntimeError, match="Stitch failed with a non-zero exit code"
         ):
