@@ -537,17 +537,17 @@ class TestTETracker:
             ),
         ],
     )
-    def test_trajectories(
+    def test_read_trajectories(
         self, file_format, mock_file_fixture, expected_trajectories, request
     ):
-        """Test trajectories method for different formats and multiple trajectories."""
+        """Test read_trajectories for different formats and multiple trajectories."""
         mock_file = request.getfixturevalue(mock_file_fixture)
         dn_params = TEDetectParameters(in_data=["input_file.nc"])
         tracker = TETracker(dn_params)
         tracker.stitch_parameters.output_dir = str(mock_file.parent)
         tracker.stitch_parameters.output_file = mock_file.name
         tracker.stitch_parameters.out_file_format = file_format
-        trajectories = tracker.trajectories()
+        trajectories = tracker.read_trajectories()
 
         # Assertions
         assert len(trajectories) == len(expected_trajectories)
@@ -564,13 +564,13 @@ class TestTETracker:
             ("csvnohead", "mock_csvnohead_file"),
         ],
     )
-    def test_trajectories_header_names(
+    def test_read_trajectories_header_names(
         self, file_format, mock_file_fixture, request
     ) -> None:
         """
         Test the track header names are assigned correctly when not in file.
 
-        Checks that trajectories() pulls correct variable names from
+        Checks that read_trajectories() pulls correct variable names from
         TEDetectParameters when there is no header information in the file
         (gfdl, csvnohead).
         """
@@ -589,7 +589,7 @@ class TestTETracker:
         tracker.stitch_parameters.output_dir = str(mock_file.parent)
         tracker.stitch_parameters.output_file = mock_file.name
         tracker.stitch_parameters.out_file_format = file_format
-        trajectories = tracker.trajectories()
+        trajectories = tracker.read_trajectories()
 
         # Check the track header names are correct
         cols = ["time", "grid_i", "grid_j", "lon", "lat", "v1", "v2"]
