@@ -119,8 +119,8 @@ class TestTCTracker:
                 "parameters": json.dumps(asdict(ExampleParameters(42, "test"))),
             }
 
-        def trajectories(self) -> list[Trajectory]:
-            """Implement a dummy of the trajectories abstractmethod."""
+        def read_trajectories(self) -> list[Trajectory]:
+            """Implement a dummy of the read_trajectories abstractmethod."""
             return self._example_trajectories
 
         def run_tracker(self, output_file: str) -> None:  # noqa:ARG002 unused arg

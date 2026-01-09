@@ -625,7 +625,7 @@ class TRACKTracker(TCTracker):
         inputs = self._get_filter_trajectories_inputs()
         self._run_track_process("filter_trajectories", input_file, inputs)
 
-    def trajectories(self) -> list[Trajectory]:
+    def read_trajectories(self) -> list[Trajectory]:
         """Parse outputs from TRACK to list of :class:`tctrack.core.Trajectory`.
 
         This reads the output file from the filter_trajectories step, i.e.

@@ -686,14 +686,14 @@ class TestTSTORMSTracker:
         file_path.write_text(content)
         return str(file_path)
 
-    def test_trajectories_valid(self, tstorms_tracker, mock_trav_file):
+    def test_read_trajectories_valid(self, tstorms_tracker, mock_trav_file):
         """Test parsing valid trajectories from a TSTORMS 'trav' file."""
         tracker = tstorms_tracker[0]
 
         # Update the tracker to use the temporary file
         tracker.tstorms_parameters.output_dir = str(os.path.dirname(mock_trav_file))
 
-        trajectories = tracker.trajectories()
+        trajectories = tracker.read_trajectories()
 
         # Assert the trajectories were parsed correctly
         assert len(trajectories) == 2

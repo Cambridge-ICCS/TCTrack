@@ -343,8 +343,8 @@ class TestTrackTracker:
 
         return str(file_path)
 
-    def test_trajectories(self, mocker, tmp_path):
-        """Check trajectories correctly reads in the output netcdf file."""
+    def test_read_trajectories(self, mocker, tmp_path):
+        """Check read_trajectories correctly reads in the output netcdf file."""
         # Create the temporary input and output files
         self._create_nc_output_file(tmp_path)
         input_file = self._create_nc_input_file(tmp_path)
@@ -354,7 +354,7 @@ class TestTrackTracker:
         tracker = self._setup_tracker(mocker, mock_input_file=False, params_dict=params)
 
         # Get the trajectories
-        trajectories = tracker.trajectories()
+        trajectories = tracker.read_trajectories()
 
         # Check the trajectories
         t1 = trajectories[0]
@@ -381,14 +381,14 @@ class TestTrackTracker:
         )
         assert_array_equal(t2.data["time"], times2)
 
-    def test_trajectories_missing_output(self, mocker):
-        """Check trajectories fails when the TRACK output file doesn't exist."""
+    def test_read_trajectories_missing_output(self, mocker):
+        """Check read_trajectories fails when the TRACK output file doesn't exist."""
         tracker = self._setup_tracker(mocker)
         mocker.stopall()
         with pytest.raises(
             FileNotFoundError, match="TRACK output trajectory file does not exist"
         ):
-            tracker.trajectories()
+            tracker.read_trajectories()
 
     def test_variable_metadata(self, mocker, tmp_path):
         """Test variable_metadata is defined correctly by set_metadata."""

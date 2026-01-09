@@ -804,7 +804,7 @@ class TETracker(TCTracker):
         sn_call_list = self._make_stitch_nodes_call()
         return self._run_te_process("StitchNodes", sn_call_list)
 
-    def trajectories(self) -> list[Trajectory]:
+    def read_trajectories(self) -> list[Trajectory]:
         """
         Parse outputs from Tempest Extremes to list of :class:`tctrack.core.Trajectory`.
 

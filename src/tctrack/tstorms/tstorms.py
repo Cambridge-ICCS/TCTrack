@@ -944,7 +944,7 @@ class TSTORMSTracker(TCTracker):
                 "end_time": num2date(end_time_num, units=units, calendar=calendar),
             }
 
-    def trajectories(self):
+    def read_trajectories(self):
         """
         Parse outputs from TSTORMS to list of :class:`tctrack.core.Trajectory`.
 
