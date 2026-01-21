@@ -57,7 +57,7 @@ class TCTrackerTimeMetadata(TypedDict):
 
     calendar: str
     """The calendar type as a string."""
-    units: int
+    units: str
     """The calendar units as a string."""
     start_time: datetime
     """The start time of the data processed as a ``cftime.datetime`` object."""
