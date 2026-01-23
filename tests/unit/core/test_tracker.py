@@ -10,7 +10,13 @@ import numpy as np
 import pytest
 from cftime import datetime
 
-from tctrack.core import TCTracker, TCTrackerMetadata, TCTrackerParameters, Trajectory
+from tctrack.core import (
+    TCTracker,
+    TCTrackerMetadata,
+    TCTrackerParameters,
+    TCTrackerTimeMetadata,
+    Trajectory,
+)
 
 
 @dataclass(repr=False)
@@ -88,7 +94,7 @@ def example_variable_metadata():
     }
 
 
-def example_time_metadata():
+def example_time_metadata() -> TCTrackerTimeMetadata:
     """Provide metadata for initialising and comparing variable_metadata."""
     return {
         "calendar": "360_day",
