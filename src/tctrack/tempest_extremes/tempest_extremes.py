@@ -1091,7 +1091,7 @@ class TETracker(TCTracker):
                 "min": "minimum",
                 "avg": "mean",
             }
-            method = methods.get(var_output["operator"], None)
+            method = methods.get(var_output["operator"])
             if method is not None:
                 dist = var_output["dist"]
                 if dist == 0:
