@@ -2,6 +2,8 @@
 requires = ["setuptools>=80", "setuptools-scm[simple]>=8"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools_scm]
+
 [project]
 name = "tctrack"
 dynamic = ["version"]
@@ -12,10 +14,10 @@ authors = [
   { name="Sam Avis", email="sa2329@cam.ac.uk" },
 ]
 readme = "README.md"
-license = {file = "LICENSE"}
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 classifiers = [
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Development Status :: 3 - Alpha",
     "Natural Language :: English",
     "Programming Language :: Python",
