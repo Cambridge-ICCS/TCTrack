@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/images/TCTrack_Logo.svg" alt="TCTrack Logo">
+  <img src="https://raw.githubusercontent.com/Cambridge-ICCS/TCTrack/main/docs/images/TCTrack_Logo.svg" alt="TCTrack Logo">
 </div>
 
 # TCTrack
@@ -101,7 +101,7 @@ This work was funded by a philantropic donation to the
 [INIGO Insurance](https://inigoinsurance.com/) as part of the InSPIRe project.
 
 <p align="left">
-  <img src="docs/images/inigo_inspire.png" width="355">
+  <img src="https://raw.githubusercontent.com/Cambridge-ICCS/TCTrack/main/docs/images/inigo_inspire.png" width="355">
 </p>
 
 The TCTrack logo was designed by [Jack Atkinson](https://jackatkinson.net/) - [@jatkinson1000](https://github.com/jatkinson1000).
