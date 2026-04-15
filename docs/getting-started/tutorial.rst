@@ -23,20 +23,28 @@ you may choose to follow just one.
 Installation
 ------------
 
-Install TCTrack from GitHub.
-It is recommended that a Python virtual environment is used.
-For more information see the :ref:`installation instructions <getting-started/index:installation>`.::
+For more information see the :ref:`installation instructions <getting-started/index:installation>`.
+
+In this tutorial, cf-python and esmf are required as dependencies for preprocessing
+data, as described in the :doc:`../data/preprocessing_data` page. The reccomended way of
+installing these and other non-python dependencies is via conda, for which we reccomend
+`miniforge <https://github.com/conda-forge/miniforge>`_. From a conda base environment,
+create a new environment with the dependencies installed::
+
+    conda create -n tctrack-env -c conda-forge cf-python cf-plot udunits2 esmpy
+    conda activate tctrack-env
+
+Then, install TCTrack from GitHub::
 
     git clone git@github.com:Cambridge-ICCS/TCTrack.git
     cd TCTrack
     pip install .
 
-
 The next step is to install the trackers we want to call from TCTrack, in this case
 :ref:`Tempest Extremes <../tracking-algorithms/tempest_extremes>` and
 :ref:`TSTORMS <../tracking-algorithms/tstorms>`.
 
-Ensure that the following dependencies have been installed
+Ensure that the following dependencies have also been installed
 
 * NetCDF (with C++ bindings and Tempest Extremes and Fortran bindings for TSTORMS)
 * A C++ Compiler (for Tempest Extremes)
@@ -92,17 +100,6 @@ before running.
 
 Pre-processing of Data
 ----------------------
-
-Some preprocessing of the data is required.
-We will do this using cf-python and esmf as described on the
-:doc:`../data/preprocessing_data` pages.
-
-The recommended method for installing esmf is via Conda for which we recommend using
-`miniforge <https://github.com/conda-forge/miniforge>`_.
-From a conda base environment create a new environment with cf-python and esmpy installed::
-
-    conda create -n regrid -c conda-forge cf-python cf-plot udunits2 esmpy
-    conda activate regrid
 
 From inside the conda environment run the regridding script to pre-process the data::
 
@@ -161,10 +158,10 @@ This can be done by running the included plotting script::
 which will generate a png figure of tracks plotted on a map using windspeed as a measure
 of intensity.
 
-By default this will read from tracks_tempest_extremes.nc, but this can be changed in
+By default this will read from ``tracks_tempest_extremes.nc``, but this can be changed in
 the file.
 
-Note that the plotting script requires the following Pythion packages to be installed in
+Note that the plotting script requires the following Python packages to be installed in
 the local environment: ``numpy``, ``NetCDF4``, ``matplotlib``, and ``cartopy``.
 
 
