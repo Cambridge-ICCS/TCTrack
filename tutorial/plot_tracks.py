@@ -39,8 +39,9 @@ with netCDF4.Dataset(TCTRACK_DATA) as ncfile:
     min_intensity = np.nanmin(intensity)
     max_intensity = np.nanmax(intensity)
 
-    plt.figure(figsize=(10, 3))
+    plt.figure(figsize=(8, 4))
     ax = plt.axes(projection=ccrs.PlateCarree())
+    ax.set_extent([-180, 180, -90, 90])
     ax.coastlines()
     gl = ax.gridlines(draw_labels=True)
     gl.top_labels = False
