@@ -326,7 +326,7 @@ class TestTCTracker:
         netcdf_file = self.make_netcdf_file(tmp_path)
 
         # Read back with cf.read
-        fields = cf.read(netcdf_file)
+        fields = cf.read(str(netcdf_file))
 
         # Validate the structure and content - one variable field
         assert len(fields) == 1
@@ -357,7 +357,7 @@ class TestTCTracker:
         netcdf_file = self.make_netcdf_file(tmp_path, delete_std_name)
 
         # Read back with cf.read
-        field = cf.read(netcdf_file)[0]
+        field = cf.read(str(netcdf_file))[0]
 
         # Check the fields (variables) - just one in this test
         variable = "test_var"
@@ -412,7 +412,7 @@ class TestTCTracker:
         netcdf_file = self.make_netcdf_file(tmp_path)
 
         # Read back with cf.read
-        fields = cf.read(netcdf_file)
+        fields = cf.read(str(netcdf_file))
 
         # Check the fields (variables) - just one in this test
         variable = fields.select_by_identity("test_standard_name")[0]
@@ -432,7 +432,7 @@ class TestTCTracker:
         netcdf_file = self.make_netcdf_file(tmp_path)
 
         # Read back with cf.read
-        field = cf.read(netcdf_file)[0]
+        field = cf.read(str(netcdf_file))[0]
 
         # Check the global metadata is written correctly
         global_metadata = field.nc_global_attributes(values=True)
