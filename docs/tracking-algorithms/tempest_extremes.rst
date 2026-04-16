@@ -228,8 +228,3 @@ file, i.e. variables split over time into multiple files must first be combined 
 .. [*] The geopotential height difference in [Ullrich2021]_ is calculated between 300
    hPa and 500 hPa. However, if the input data does not have a 300 hPa level then using
    a 250 hPa level is a reasonable substitute.
-
-.. rubric:: References
-
-.. [Ullrich2021] Ullrich, Paul A., et al. “TempestExtremes v2.1: A Community Framework for Feature Detection, Tracking, and Analysis in Large Datasets.” Geoscientific Model Development 14, no. 8 (2021): 5023–48. https://doi.org/10.5194/gmd-14-5023-2021.
-

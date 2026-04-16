@@ -264,11 +264,3 @@ consistent grid see :doc:`../data/preprocessing_data`.
 .. [*] These are named detect and stitch for consistency across the TCTrack package.
    However, in the TSTORMS source they are referred to as tstorms_driver and
    trajectory_analysis respectively.
-
-.. rubric:: References
-
-.. [Vitart2001] Vitart, Frédéric, and Timothy N. Stockdale.
-   "Seasonal Forecasting of Tropical Storms Using Coupled GCM Integrations",
-   Monthly Weather Review 129, 10 (2001): 2521-2537.
-   `https://doi.org/10.1175/1520-0493(2001)129\<2521:SFOTSU\>2.0.CO;2 <https://doi.org/10.1175/1520-0493(2001)129\<2521:SFOTSU\>2.0.CO;2>`_
-
