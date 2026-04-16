@@ -41,15 +41,15 @@ Then, install TCTrack from GitHub::
     pip install .
 
 The next step is to install the trackers we want to call from TCTrack, in this case
-:ref:`Tempest Extremes <../tracking-algorithms/tempest_extremes>` and
-:ref:`TSTORMS <../tracking-algorithms/tstorms>`.
+:doc:`Tempest Extremes <../tracking-algorithms/tempest_extremes>` and
+:doc:`TSTORMS <../tracking-algorithms/tstorms>`.
 
 Ensure that the following dependencies have also been installed
 
 * NetCDF (with C++ bindings and Tempest Extremes and Fortran bindings for TSTORMS)
 * A C++ Compiler (for Tempest Extremes)
 * A Fortran Compiler (for TSTORMS) -- ifort is assumed,
-  though :ref:`others are available <../tracking-algorithms/tstorms:installation>`
+  though :ref:`others are available <tracking-algorithms/tstorms:installation>`
 
 
 From your cloned version of TCTrack navigate to the ``tutorial/`` directory at the top
@@ -64,7 +64,7 @@ detecting cyclone tracks from climate data.
 
 To install Tempest Extremes source the installation script which will
 clone and build Tempest Extremes locally under the tutorial directory, as
-described on the :ref:`Tempest Extremes pages <../tracking-algorithms/tempest_extremes>`,
+described on the :doc:`Tempest Extremes pages <../tracking-algorithms/tempest_extremes>`,
 and add the executables to the ``PATH``.
 Read carefully to understand and check that you are happy with what it will do before
 running::
@@ -73,7 +73,7 @@ running::
 
 
 To install TSTORMS source the installation script to clone and build TSTORMS locally
-under the tutorial directory, as described on the :ref:`TSTORMS pages <../tracking-algorithms/tstorms>`.
+under the tutorial directory, as described on the :doc:`TSTORMS pages <../tracking-algorithms/tstorms>`.
 Read carefully to understand and check that you are happy with what it will do before
 running::
 
