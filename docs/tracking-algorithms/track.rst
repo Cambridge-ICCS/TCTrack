@@ -166,7 +166,3 @@ can also be changed by setting the value of :attr:`~TRACKParameters.inputs_direc
 
 If you identify any useful inputs it would be appreciated if you can contribute by
 adding these to :class:`TRACKParameters` and the relevant input generation method(s).
-
-.. rubric:: References
-
-.. [Hodges2017] Hodges, Kevin, Alison Cobb, and Pier Luigi Vidale. "How Well Are Tropical Cyclones Represented in Reanalysis Datasets?", Journal of Climate 30, 14 (2017): 5243-5264, doi: https://doi.org/10.1175/JCLI-D-16-0557.1

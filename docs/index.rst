@@ -31,6 +31,7 @@ the output of different algorithms for a variety of data sources.
    API Documentation <api/index>
    Data Formats and Manipulation <data/index>
    Developer Information <developer/index>
+   References <references>
 
 Indices
 =======
