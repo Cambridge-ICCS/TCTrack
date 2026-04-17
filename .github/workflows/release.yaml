@@ -1,4 +1,5 @@
 # Workflow to publish versioned commits to PyPI
+name: release
 
 on:
   push:
