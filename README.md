@@ -25,22 +25,22 @@ the output of different algorithms for a variety of data sources.
 The package requires Python 3 (>=3.10).
 
 ### Package Installation
-First clone the repository using `git`:
+We recommend using a Conda virtual environment for TCTrack in order to simplify the
+installation of dependencies.
 ```sh
-git clone https://github.com/Cambridge-ICCS/TCTrack
+conda create -n tctrack-env -c conda-forge cf-python cf-plot udunits2 esmpy
+conda activate tctrack-env
+```
+When finished using TCTrack this can be turned off with `conda deactivate`.
+
+TCTrack can then be installed using `pip`:
+```sh
+pip install tctrack
 ```
 
-Set up and activate a virtual environment:
-```sh
-python3 -m venv .venv
-source .venv/bin/activate
-```
-When finished using TCTrack this can be turned off with `deactivate`.
-
-Then install the package using `pip`:
-```sh
-pip install --editable .
-```
+Futher details about installation, including how to install the individual tracking
+algorithms, are available in the
+[documentation](https://tctrack.readthedocs.io/en/latest/getting-started/index.html#installation).
 
 
 ## Using TCTrack
@@ -52,7 +52,7 @@ New users may wish to follow the [TCTrack tutorial](https://tctrack.readthedocs.
 using the scripts in the [`tutorial/`](https://github.com/Cambridge-ICCS/TCTrack/tree/main/tutorial)
 directory.
 
-For a complete description of the library API see 
+For a complete description of the library API see
 [API documentation](https://tctrack.readthedocs.io/en/latest/api/index.html).
 
 
