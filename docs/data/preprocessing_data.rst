@@ -9,22 +9,6 @@ cf-python since it provides a uniform interface and it is a dependency of TCTrac
 For full documentation of the routines described on these pages and more see the
 `cf python documentation <https://ncas-cms.github.io/cf-python/>`_.
 
-.. _preprocessing_deps:
-
-Dependencies
-------------
-
-Any regridding with cf-python requires `esmpy <https://earthsystemmodeling.org/esmpy/>`_
-and `ESMF <https://earthsystemmodeling.org/>`_ as dependencies. These are not
-pip-installable but can be installed in a conda environment:
-
-.. code-block:: bash
-
-    conda create -n tctrack_env
-    conda activate tctrack_env
-    conda install -c conda-forge esmpy h5py
-    pip install tctrack
-
 .. _combine_time:
 
 Combining in Time
@@ -187,8 +171,7 @@ Regridding
 ----------
 
 .. note::
-    To regrid using cf-python requires esmpy and ESMF to be installed as dependencies
-    (:ref:`see above <preprocessing_deps>`). There are also other tools available
+    To regrid using cf-python requires :ref:`esmpy and ESMF to be installed as dependencies <getting-started/index:esmpy>`. There are also other tools available
     including xarray, `NCO <https://nco.sourceforge.net/nco.html>`_ (ncremap), and `CDO
     <https://code.mpimet.mpg.de/projects/cdo/wiki/tutorial>`_ (cdo remap...).
 

@@ -23,34 +23,20 @@ you may choose to follow just one.
 Installation
 ------------
 
-For more information see the :ref:`installation instructions <getting-started/index:installation>`.
-
-In this tutorial, cf-python and esmf are required as dependencies for preprocessing
-data, as described in the :doc:`../data/preprocessing_data` page. The reccomended way of
-installing these and other non-python dependencies is via conda, for which we reccomend
-`miniforge <https://github.com/conda-forge/miniforge>`_. From a conda base environment,
-create a new environment with the dependencies installed::
-
-    conda create -n tctrack-env -c conda-forge cf-python cf-plot udunits2 esmpy
-    conda activate tctrack-env
-
-Then, install TCTrack from GitHub::
-
-    git clone git@github.com:Cambridge-ICCS/TCTrack.git
-    cd TCTrack
-    pip install .
+First, follow the :ref:`installation instructions <getting-started/index:installation>`.
+Make sure to use a conda environment and install TCTrack from source (not from PyPI) so
+that the tutorial scripts are downloaded.
 
 The next step is to install the trackers we want to call from TCTrack, in this case
 :doc:`Tempest Extremes <../tracking-algorithms/tempest_extremes>` and
 :doc:`TSTORMS <../tracking-algorithms/tstorms>`.
 
-Ensure that the following dependencies have also been installed
+To do this, first ensure that the following dependencies have also been installed:
 
 * NetCDF (with C++ bindings and Tempest Extremes and Fortran bindings for TSTORMS)
 * A C++ Compiler (for Tempest Extremes)
 * A Fortran Compiler (for TSTORMS) -- ifort is assumed,
   though :ref:`others are available <tracking-algorithms/tstorms:installation>`
-
 
 From your cloned version of TCTrack navigate to the ``tutorial/`` directory at the top
 level::
