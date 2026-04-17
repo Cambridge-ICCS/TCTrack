@@ -3,10 +3,10 @@ Getting Started
 
 This getting started guide is intended for new users of TCTrack to get them up
 and running as quickly as possible whilst introducing the main concepts.
-More advanced users should consult the full :doc:`api documentation`<../api/index>`.
+More advanced users should consult the full :doc:`api documentation <../api/index>`.
 
 After reading the installation information here new users may wish to work through the
-:doc:`tutorial `<tutorial>` to see examples of how TCTrack is used and familiarise
+:doc:`tutorial <tutorial>` to see examples of how TCTrack is used and familiarise
 themselves with the workflow before using their own data.
 
 .. toctree::
@@ -17,23 +17,50 @@ themselves with the workflow before using their own data.
 Installation
 ------------
 
-Installation Instructions
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Environment
+~~~~~~~~~~~
 
-Before using TCTrack ensure that any external :ref:`getting-started/index:dependencies` as required are
-installed as :ref:`described below <getting-started/index:dependencies>`.
+TCTrack is a Python package and requires Python version 3.10 or later.
 
-TCTrack is a Python package (Python 3.10+).
-It can be obtained by cloning the repository from GitHub::
+Before installing TCTrack ensure that any external :ref:`dependencies
+<getting-started/index:dependencies>` are installed. This can be done manually as
+:ref:`described below <getting-started/index:dependencies>`. However, the recommended
+approach is to install these non-python dependencies using a conda virtual environment.
+
+To install conda we recommend using `miniforge
+<https://github.com/conda-forge/miniforge>`_. Once miniforge is installed conda can be
+initialised with the below command. This can also be added to your shell rc file. ::
+
+    source /path/to/miniforge3/etc/profile.d/conda.sh
+
+Then create and activate the conda virtual environment with the relevant dependencies
+installed::
+
+    conda create -n tctrack-env -c conda-forge cf-python cf-plot udunits2 esmpy
+    conda activate tctrack-env
+
+When finished using TCTrack this environment can be turned off with ``conda deactivate``.
+
+The individual tracking algorithms will also need to be :ref:`installed separately
+<getting-started/index:tracking algorithms>`.
+
+
+Installation from PyPI
+~~~~~~~~~~~~~~~~~~~~~~
+
+Once the environment has been set up TCTrack can be installed. It is easiest to do this
+from PyPI using pip::
+
+     pip install tctrack
+
+
+Installation from source
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Alternatively, it can be installed from source by cloning the repository from GitHub::
 
     git clone https://github.com/Cambridge-ICCS/TCTrack
     cd TCTrack
-
-Installation is performed using pip, run from within the cloned source directory.
-It is recommended that this is done from within a virtual environment::
-
-    python3 -m venv .venv
-    source .venv/bin/activate
 
 pip can then be run to install the code from the source into the environment::
 
@@ -69,6 +96,20 @@ or on mac one can use homebrew::
 noting that we may need to add the library to the dynamic path e.g.::
 
     export DYLD_LIBRARY_PATH=/opt/homebrew/Cellar/udunits/2.2.28/lib
+
+
+esmpy
+~~~~~
+
+Any regridding of data with cf-python requires `esmpy
+<https://earthsystemmodeling.org/esmpy/>`_ and `ESMF
+<https://earthsystemmodeling.org/>`_ as dependencies. This is not needed directly in the
+TCTrack package but may be needed for initial pre-processing of data, such as in the
+tutorial and described in the :doc:`../data/preprocessing_data` page.
+
+These are not pip-installable but can be installed in a conda environment::
+
+    conda install -c conda-forge esmpy
 
 
 Tracking algorithms
