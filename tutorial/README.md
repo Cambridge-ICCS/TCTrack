@@ -1,9 +1,8 @@
 # TCTrack Tutorial
 
-This directory contains a number of scripts used in the
-[TCTrack tutorial](https://github.com/Cambridge-ICCS/TCTrack/tree/main/docs).
-
-For full details please see the [online tutorial documentation](https://github.com/Cambridge-ICCS/TCTrack/tree/main/docs).
+This directory contains a number of scripts used in the TCTrack tutorial. For full
+details please see the [online tutorial
+documentation](https://tctrack.readthedocs.io/en/latest/getting-started/tutorial.html).
 
 Contained in this directory are:
 
