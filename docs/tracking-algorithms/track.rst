@@ -1,6 +1,12 @@
 TRACK
 =====
 
+.. attention::
+   The output tracks from TRACK are not currently correct. This is due to TCTrack using
+   incorrect input parameters. See `this issue
+   <https://github.com/Cambridge-ICCS/TCTrack/issues/81>`_ for details or if you are able
+   to contribute to help fix the issue.
+
 TRACK is a software package and algorithm for tracking and analysing tropical
 cyclones and other weather systems in meteorological and oceanic datasets. It
 is developed by Kevin Hodges at the University of Reading, UK, and released
