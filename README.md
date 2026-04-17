@@ -18,9 +18,6 @@ cyclones in an accessible manner to generate high-quality and
 It can be used for tracking cyclones in simulations and observations, and to compare
 the output of different algorithms for a variety of data sources.
 
-> [!WARNING]  
-> The software is currently in pre-release and may therefore be subject to changes.
-
 
 ## Installation
 

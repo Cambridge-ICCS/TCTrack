@@ -18,7 +18,7 @@ license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Natural Language :: English",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3 :: Only",
