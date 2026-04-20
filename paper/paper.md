@@ -122,40 +122,6 @@ and available via GitHub at https://github.com/Cambridge-ICCS/TCTrack.
 The documentation includes installation guidance for the external tracking codes, API
 reference, and worked examples.
 
-
-# Comparison to other approaches
-
-The three tracking algorithms wrapped by TCTrack—TRACK, TempestExtremes, and
-TSTORMS—represent established, peer-reviewed methods widely used in the climate science
-community.
-TRACK uses a feature-tracking approach based on vorticity maxima and has been applied
-to assess tropical cyclones in reanalysis datasets [@Hodges2017],
-TempestExtremes employs geometric criteria on multiple variables [@Ullrich2021],
-and TSTORMS searches for co-located vorticity and temperature maxima and sea-level
-pressure minima [@Vitart1997].
-Each has been validated against observations and used in numerous climate studies.
-However, their native interfaces are command-line based with algorithm-specific input
-formats and minimal output metadata, creating barriers to adoption and intercomparison.
-
-Alternative Python-based tracking tools exist, such as tobac [@Heikenfeld2019], which
-provides general feature tracking capabilities primarily for meteorological applications.
-However, tobac implements new tracking methodologies rather than providing access to the
-established algorithms that have been extensively used and validated in the climate community.
-TCTrack's approach differs fundamentally: it enables researchers to use proven methods
-whilst addressing the practical challenges of usability, interoperability, and metadata
-standards.
-The package architecture is also extensible—additional tracking algorithms can be integrated
-following the contributor guidelines, as the abstract base class design accommodates
-diverse implementations.
-
-The emphasis on CF-compliant output distinguishes TCTrack from wrapper scripts or
-informal tools that researchers may develop for personal use.
-By leveraging cf-python [@Hassell2020] for data handling and strictly adhering to
-CF conventions for trajectory data, TCTrack ensures that outputs meet community standards
-for FAIR (Findable, Accessible, Interoperable, and Reusable) data
-[@Wilkinson2016; @Barker2022].
-This is particularly important for CMIP-related workflows and institutional data
-repositories.
 # Research Impact Statement
 
 TCTrack addresses a need within the community for simple accessible tooling for exploring
@@ -166,6 +132,36 @@ by researchers at the University of Cambridge, the results of which were present
 the scientific community in @Atkinson2026.
 It is also being used in industry by INIGO Insurance to generate tracks in a
 robust, standardised format for downstream use in data analysis and presentation.
+
+
+# State of the Field
+
+The three tracking algorithms provided by TCTrack (TRACK, TempestExtremes, and
+TSTORMS) are established, peer-reviewed methods used in the climate science
+community.
+TRACK uses a feature-tracking approach based on vorticity maxima and has been applied
+to assess tropical cyclones in reanalysis datasets [@Hodges2017],
+TempestExtremes employs geometric criteria on multiple variables [@Ullrich2021],
+and TSTORMS searches for co-located vorticity and temperature maxima and sea-level
+pressure minima [@Vitart1997].
+However, their native interfaces are command-line based with algorithm-specific input
+formats and minimal output metadata, creating barriers to adoption and intercomparison.
+
+Alternative Python-based tracking tools exist, such as tobac [@Heikenfeld2019], which
+provides general feature tracking capabilities primarily for meteorological applications.
+However, tobac implements new tracking methodologies rather than providing access to the
+established algorithms that have been extensively used and validated in the climate community.
+TCTrack's approach differs fundamentally: it enables researchers to use proven methods
+whilst addressing the practical challenges of usability, interoperability, and metadata
+standards.
+TCTrack is also extensible in that additional tracking algorithms can be integrated
+following the contributor guidelines and building on the abstract base class design.
+
+The decision to build TCTrack rather than change the data format/running procedures of
+multiple existing projects comes the desire to also provide a unified interface
+for researchers as well as improved data representation.
+TCTrack's focus on usability and FAIR data builds on what the existing tools offer,
+making it a valuable part of the ecosystem.
 
 # Examples of Use
 
