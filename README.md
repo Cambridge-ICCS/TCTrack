@@ -26,7 +26,7 @@ The package requires Python 3 (>=3.10).
 
 ### Package Installation
 We recommend using a Conda virtual environment for TCTrack in order to simplify the
-installation of dependencies.
+installation of dependencies (cf-python, esmpy/ESMF, UDUNITS).
 ```sh
 conda create -n tctrack-env -c conda-forge cf-python cf-plot udunits2 esmpy
 conda activate tctrack-env
@@ -38,9 +38,10 @@ TCTrack can then be installed using `pip`:
 pip install tctrack
 ```
 
-Futher details about installation, including how to install the individual tracking
-algorithms, are available in the
+See the
 [documentation](https://tctrack.readthedocs.io/en/latest/getting-started/index.html#installation).
+for futher details about installation and dependencies, including how to install the
+individual tracking algorithms.
 
 
 ## Using TCTrack
