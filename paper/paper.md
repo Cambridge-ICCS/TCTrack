@@ -12,10 +12,10 @@ authors:
   - name: Jack W. Atkinson
     orcid: 0000-0001-5001-4812
     affiliation: "1"
-    corresponding: true
   - name: Sam Avis
     affiliation: "1"
     orcid: 0000-0001-9637-9489
+    corresponding: true
 affiliations:
  - name: Institute of Computing for Climate Science, University of Cambridge, UK
    index: 1
