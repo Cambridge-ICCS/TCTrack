@@ -38,7 +38,7 @@ CF-compliant [@EarthScienceDataSystems2024] using the discrete sampling
 geometry trajectory format, ensuring that all metadata from input data and processing
 parameters are preserved.
 This approach makes TCTrack particularly valuable for climate model evaluation studies,
-such as those in CMIP, and for tracking algorithm intercomparison work.
+such as those in CMIP (the Coupled Model Intercomparison Project), and for tracking algorithm intercomparison work.
 By providing standardised, metadata-rich outputs, TCTrack aligns with the FAIR
 principles for research data and software [@Wilkinson2016; @Barker2022], ensuring outputs are
 Findable, Accessible, Interoperable, and Reusable.
@@ -156,6 +156,16 @@ for FAIR (Findable, Accessible, Interoperable, and Reusable) data
 [@Wilkinson2016; @Barker2022].
 This is particularly important for CMIP-related workflows and institutional data
 repositories.
+# Research Impact Statement
+
+TCTrack addresses a need within the community for simple accessible tooling for exploring
+tropical cyclone tracks and statistics from model runs and conducting intercomparison
+studies.
+It has been used in climate science research as part of CMIP6 model comparison studies
+by researchers at the University of Cambridge, the results of which were presented to
+the scientific community in @Atkinson2026.
+It is also being used in industry by INIGO Insurance to generate tracks in a
+robust, standardised format for downstream use in data analysis and presentation.
 
 # Examples of Use
 
