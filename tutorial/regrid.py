@@ -19,7 +19,8 @@ ASO_1950 = cf.wi(cf.dt("1950-08-01"), cf.dt("1950-11-01"), open_upper=True)
 # Extract ASO from annual data files
 print("Extracting subspace from psl...", end="", flush=True)
 field_psl = cf.read(
-    f"{data_dir}/psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500101-19501230.nc"
+    f"{data_dir}/psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500101-19501230.nc",
+    netcdf_backend="netCDF4",
 )[0]
 field_psl = field_psl.subspace(T=ASO_1950)
 print("writing data...", end="", flush=True)
@@ -31,7 +32,8 @@ print("done.")
 
 print("Extracting subspace from sfcWind...", end="", flush=True)
 field_sfcWind = cf.read(
-    f"{data_dir}/sfcWind_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500101-19501230.nc"
+    f"{data_dir}/sfcWind_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500101-19501230.nc",
+    netcdf_backend="netCDF4",
 )[0]
 field_sfcWind = field_sfcWind.subspace(T=ASO_1950)
 print("writing data...", end="", flush=True)
@@ -50,7 +52,7 @@ input_files = [
     f"{data_dir}/zg7h_Prim3hrPt_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_195010010000-195010302100.nc",
 ]
 
-field_zg_in = cf.read(input_files)[0]
+field_zg_in = cf.read(input_files, netcdf_backend="netCDF4")[0]
 # zg is 3hr data from 00:00 but we want daily at 12:00, so subspace with a slice
 field_zg = field_zg_in.subspace(T=slice(4, None, 8))
 del field_zg_in
@@ -83,7 +85,8 @@ print("done.")
 
 print("Extracting subspace from uas and renaming...", end="", flush=True)
 field_uas_in = cf.read(
-    f"{data_dir}/uas_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500101-19501230.nc"
+    f"{data_dir}/uas_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500101-19501230.nc",
+    netcdf_backend="netCDF4",
 )[0]
 field_uas = field_uas_in.subspace(T=ASO_1950)
 del field_uas_in
@@ -97,7 +100,8 @@ print("done.")
 
 print("Extracting subspace from vas and renaming...", end="", flush=True)
 field_vas_in = cf.read(
-    f"{data_dir}/vas_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500701-19501230.nc"
+    f"{data_dir}/vas_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500701-19501230.nc",
+    netcdf_backend="netCDF4",
 )[0]
 field_vas = field_vas_in.subspace(T=ASO_1950)
 field_vas.regrids(field_uas, method="linear", inplace=True)
@@ -116,7 +120,8 @@ print("done.")
 print("Extracting subspace from ua and va to calculate vorticity and renaming...")
 print("\tExtracting subspace from ua for u850...", end="", flush=True)
 field_ua = cf.read(
-    f"{data_dir}/ua_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500701-19501230.nc"
+    f"{data_dir}/ua_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500701-19501230.nc",
+    netcdf_backend="netCDF4",
 )[0]
 field_u850 = field_ua.subspace(T=ASO_1950, Z=[1])
 del field_ua
@@ -134,7 +139,8 @@ print("done.")
 
 print("\tExtracting subspace from va for v850...", end="", flush=True)
 field_va = cf.read(
-    f"{data_dir}/va_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500701-19501230.nc"
+    f"{data_dir}/va_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500701-19501230.nc",
+    netcdf_backend="netCDF4",
 )[0]
 field_v850 = field_va.subspace(T=ASO_1950, Z=[1])
 del field_va
@@ -171,7 +177,8 @@ print("done.")
 
 print("Extracting subspace and taking mean of ta and renaming...", end="", flush=True)
 field_ta_full = cf.read(
-    f"{data_dir}/ta_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500701-19501230.nc"
+    f"{data_dir}/ta_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500701-19501230.nc",
+    netcdf_backend="netCDF4",
 )[0]
 # Extract 500 and 250 pressure levels and take mean
 field_ta = field_ta_full.subspace(T=ASO_1950, Z=slice(3, -3))
