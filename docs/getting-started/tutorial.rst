@@ -23,6 +23,9 @@ you may choose to follow just one.
 Installation
 ------------
 
+.. warning::
+   The tutorial currently only works for python 3.11 and above.
+
 First, follow the :ref:`installation instructions <getting-started/index:installation>`.
 Make sure to use a conda environment and install TCTrack from source (not from PyPI) so
 that the tutorial scripts are downloaded.
