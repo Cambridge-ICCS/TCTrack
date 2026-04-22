@@ -31,7 +31,7 @@ threshold_filters = [
     te.TEThreshold(var="sfcWind", op=">=", value=10, count=10),
 ]
 
-dn_params = te.DetectNodesParameters(
+dn_params = te.TEDetectParameters(
     in_data=input_files,
     search_by_min="psl",
     time_filter="6hr",
@@ -42,7 +42,7 @@ dn_params = te.DetectNodesParameters(
     output_dir="te_outputs",
 )
 
-sn_params = te.StitchNodesParameters(
+sn_params = te.TEStitchParameters(
     caltype="360_day",
     max_sep=8.0,
     min_time="54h",

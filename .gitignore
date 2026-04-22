@@ -175,3 +175,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Tutorial execution
+tutorial/*/
+tutorial/*.nc
+tutorial/*.png
