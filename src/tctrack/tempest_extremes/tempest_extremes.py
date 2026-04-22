@@ -1037,7 +1037,11 @@ class TETracker(TCTracker):
             or self.detect_parameters.search_by_max
             or "PSL"
         )
-        fields = cf.read(input_files, select=f"ncvar%{variable_name}")  # type: ignore[operator]
+        fields = cf.read(
+            input_files,
+            select=f"ncvar%{variable_name}",  # type: ignore[operator]
+            netcdf_backend="netCDF4",
+        )
         if not fields:
             msg = f"Variable '{variable_name}' not found in input files."
             raise ValueError(msg)
@@ -1070,7 +1074,11 @@ class TETracker(TCTracker):
             var_name = var_output["var"]
 
             # Get the variable field from the netcdf file
-            fields = cf.read(input_files, select=f"ncvar%{var_name}")  # type: ignore[operator]
+            fields = cf.read(
+                input_files,
+                select=f"ncvar%{var_name}",  # type: ignore[operator]
+                netcdf_backend="netCDF4",
+            )
             if not fields:
                 msg = f"Variable '{var_name}' not found in input files."
                 raise ValueError(msg)
