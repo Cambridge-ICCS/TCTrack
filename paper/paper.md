@@ -183,6 +183,12 @@ development.
 
 # AI Usage Disclosure
 
-TODO
+During the development of this software AI tools (ChatGPT, Devstral) were used to understand usage
+of functions, review written code to suggest issues and improvements, and for generating
+boilerplate and parameterisation of tests. Any code suggestions by AI were thoroughly
+checked and double checked during code review by a second person.
+During the preparation of this paper, AI was used to refactor an initial draft to align
+with the changes to the JOSS scope. This was thoroughly checked and built upon
+thereafter.
 
 # References
