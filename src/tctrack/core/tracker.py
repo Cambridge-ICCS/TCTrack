@@ -427,7 +427,7 @@ class TCTracker(ABC):
         lat_coord = cf.AuxiliaryCoordinate(
             data=lat_data,
             properties={
-                "standard_name": "lat",
+                "standard_name": "latitude",
                 "long_name": "latitude",
                 "units": "degrees_north",
                 "missing_value": lat_lon_fill,
@@ -444,7 +444,7 @@ class TCTracker(ABC):
         lon_coord = cf.AuxiliaryCoordinate(
             data=lon_data,
             properties={
-                "standard_name": "lon",
+                "standard_name": "longitude",
                 "long_name": "longitude",
                 "units": "degrees_east",
                 "missing_value": lat_lon_fill,
