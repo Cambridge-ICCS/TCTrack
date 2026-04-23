@@ -131,9 +131,11 @@ TCTrack addresses a need within the community for simple, accessible tooling for
 the differences in tropical cyclone tracks and statistics produced by different tracking
 algorithms and conducting intercomparison studies.
 It has been used in climate science research as part of CMIP6 model comparison studies
-by researchers at the University of Cambridge, the results of which were presented to
-the scientific community in @Atkinson2026.
-It is also being used in industry by INIGO Insurance to generate tracks in a
+by researchers at the University of Cambridge, with results presented to
+the scientific community in @Atkinson2026. This work also aims to reproduce and
+update the findings of @Knutson2020 to project the response of tropical cyclone activity
+to future climate change using more recent CMIP6 data.
+TCTrack is also being used in industry by INIGO Insurance to generate tracks in a
 robust, standardised format for downstream use in data analysis and presentation.
 
 
