@@ -12,7 +12,7 @@ authors:
   - name: Jack W. Atkinson
     orcid: 0000-0001-5001-4812
     affiliation: "1"
-  - name: Sam Avis
+  - name: Samuel J. Avis
     affiliation: "1"
     orcid: 0000-0001-9637-9489
     corresponding: true
@@ -34,9 +34,9 @@ own unique interface, input requirements, and output format, making intercompari
 studies and routine application challenging. \mbox{TCTrack} addresses these usability issues by
 wrapping each algorithm with a consistent Python API based on abstract base classes.
 Crucially, TCTrack transforms the output from each algorithm into a standardised NetCDF format that is fully
-CF-compliant [@EarthScienceDataSystems2024] using the discrete sampling
-geometry trajectory format, ensuring that all metadata from input data and processing
-parameters are preserved.
+compliant with the Climate and Forecasting (CF) conventions [@EarthScienceDataSystems2024]
+using the discrete sampling geometry trajectory format, ensuring that all metadata from
+input data and processing parameters are preserved.
 This approach makes TCTrack particularly valuable for climate model evaluation studies,
 such as those in CMIP (the Coupled Model Intercomparison Project), and for tracking algorithm intercomparison work.
 By providing standardised, metadata-rich outputs, TCTrack aligns with the FAIR
@@ -98,12 +98,11 @@ in future, and we are in discussions with researchers about adding novel approac
 to the package.
 
 A particularly important aspect of TCTrack is its standardised, CF-compliant output
-format.
-We transform tracks from all algorithm outputs into compliant NetCDF files before presenting
+format into which we transform output tracks from all algorithms before presenting
 them to the end-user to ensure that outputs are FAIR and immediately usable in downstream
 analysis without additional processing.
 This reflects the growing importance of FAIR principles in climate science, and is
-achieved by building on the cf-python software package [Hassell2017, @Hassell2020].
+achieved by building on the cf-python software package [@Hassell2017, @Hassell2020].
 Each tracker class captures metadata from input files and augments it with details about
 processing including the tracking algorithm used, TCTrack version, and complete
 parameter specifications for reproducibility.
@@ -125,9 +124,9 @@ reference, and worked examples.
 
 # Research Impact Statement
 
-TCTrack addresses a need within the community for simple accessible tooling for exploring
-tropical cyclone tracks and statistics from model runs and conducting intercomparison
-studies.
+TCTrack addresses a need within the community for simple, accessible tooling for exploring
+the differences in tropical cyclone tracks and statistics produced by different tracking
+algorithms and conducting intercomparison studies.
 It has been used in climate science research as part of CMIP6 model comparison studies
 by researchers at the University of Cambridge, the results of which were presented to
 the scientific community in @Atkinson2026.

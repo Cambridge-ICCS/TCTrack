@@ -1,4 +1,4 @@
-# Workflow to render the FTorch submission to JOSS
+# Workflow to render the TCTrack submission to JOSS
 name: Render JOSS paper
 
 # Controls when the workflow will run
@@ -9,7 +9,7 @@ on:
 
   # Triggers the workflow on pushes to open pull requests to main with paper changes
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "joss" ]
     paths:
       - '.github/workflows/JOSS_paper_pdf.yml'
       - 'paper/*'
