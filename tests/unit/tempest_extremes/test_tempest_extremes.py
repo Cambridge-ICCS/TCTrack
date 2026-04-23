@@ -637,8 +637,8 @@ class TestTETracker:
 
         # Validate key variables like time, latitude, and longitude
         time_coord = fields[0].construct("time")
-        lat_coord = fields[0].construct("lat")
-        lon_coord = fields[0].construct("lon")
+        lat_coord = fields[0].construct("latitude")
+        lon_coord = fields[0].construct("longitude")
 
         assert time_coord.shape == (trajectory_ids, observation_count)
         assert lat_coord.shape == lon_coord.shape == (trajectory_ids, observation_count)

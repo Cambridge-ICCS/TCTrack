@@ -340,8 +340,8 @@ class TestTCTracker:
 
         # Validate key coordinates like time, latitude, and longitude exist
         time_coord = field.construct("time")
-        lat_coord = field.construct("lat")
-        lon_coord = field.construct("lon")
+        lat_coord = field.construct("latitude")
+        lon_coord = field.construct("longitude")
         assert time_coord.shape == (trajectory_ids, observation_count)
         assert lat_coord.shape == lon_coord.shape == (trajectory_ids, observation_count)
 
@@ -380,14 +380,14 @@ class TestTCTracker:
 
         # Check the constructs (coordinates)
         expected_construct_metadata = {
-            "lat": {
-                "standard_name": "lat",
+            "latitude": {
+                "standard_name": "latitude",
                 "long_name": "latitude",
                 "units": "degrees_north",
                 "missing_value": -999.9,
             },
-            "lon": {
-                "standard_name": "lon",
+            "longitude": {
+                "standard_name": "longitude",
                 "long_name": "longitude",
                 "units": "degrees_east",
                 "missing_value": -999.9,
