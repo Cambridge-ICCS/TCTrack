@@ -64,12 +64,14 @@ Users need only:
 3) use the CF-compliant netCDF output data.
 
 All output files follow the CF conventions' discrete sampling geometry trajectory format
-(sections 9 and H4 of CF-1.13), with coordinate variables, auxiliary coordinates, and
-complete metadata including algorithm name, TCTrack version, and all parameters required
-for reproducibility.
-Cell methods are correctly specified when algorithms compute area means, maxima, or minima.
+(sections 9 and H4 of CF-1.13 [@EarthScienceDataSystems2024]), with coordinate variables,
+auxiliary coordinates, and complete metadata including algorithm name, TCTrack version,
+and all parameters required for reproducibility.
 
-This standardised approach is particularly valuable for two key use cases.
+This standardised framework that TCTrack provides will support researchers, forecasters,
+and the natural hazard industry (e.g. insurers) for using different algorithms to project
+the impact of tropical cyclones.
+It is particularly valuable for two key use cases.
 First, climate model evaluation studies—such as the assessment of tropical cyclones in
 Neural GCM [@Kochkov2024]—require consistent application of tracking algorithms to model
 outputs.
@@ -78,6 +80,7 @@ statistics between different CMIP models [@Bourdin2024], tracking methods [@Robe
 and reanalysis datasets [@Hodges2017].
 TCTrack facilitates such studies by providing a common framework whilst preserving the
 distinct characteristics of each underlying algorithm.
+
 
 # Software Design
 
@@ -96,8 +99,8 @@ this to a tracker class which provides standard methods including `run_tracker()
 
 The use of abstract base classes introduces modularity to make it straightforward to add
 additional tracking algorithms, with clear interfaces to the rest of the package.
-This is designed so that new algorithms can either wrap existing, proven software — as
-with those currently implemented — or be implemented directly in TCTrack. For example,
+This is designed so that new algorithms can either wrap existing, proven software—as
+with those currently implemented—or be implemented directly in TCTrack. For example,
 we are in currently in discussions with researchers to add a new machine-learning based
 detection algorithm to the package.
 
@@ -109,8 +112,9 @@ additional processing.
 This reflects the growing importance of FAIR principles in climate science, and is
 achieved by building on the cf-python software package [@Hassell2017, @Hassell2020].
 Each tracker class preserves the metadata from input files and augments it to reflect any
-processing of variables. It also provides the tracking algorithm used, TCTrack version,
-and complete parameter specifications for reproducibility.
+processing of variables, such as spatial aggregation. It also provides the tracking
+algorithm used, TCTrack version, and complete parameter specifications for
+reproducibility.
 
 TCTrack is packaged using modern Python standards with a `pyproject.toml` configuration
 and supports Python 3.10 and above.
