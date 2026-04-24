@@ -14,8 +14,8 @@ TCTRACK_DATA = "tracks_tempest_extremes.nc"
 # Open the NetCDF file
 with netCDF4.Dataset(TCTRACK_DATA) as ncfile:
     # Read variables
-    lat_var = ncfile.variables["lat"]
-    lon_var = ncfile.variables["lon"]
+    lat_var = ncfile.variables["latitude"]
+    lon_var = ncfile.variables["longitude"]
     time_var = ncfile.variables["time"]
     intensity_var = ncfile.variables["wind_speed"]
     traj_var = ncfile.variables["trajectory"]
