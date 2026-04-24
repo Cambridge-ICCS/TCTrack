@@ -19,7 +19,7 @@ authors:
 affiliations:
  - name: Institute of Computing for Climate Science, University of Cambridge, UK
    index: 1
-date: 02 January 2026
+date: 24 April 2026
 bibliography: paper.bib
 
 ---
@@ -84,50 +84,36 @@ distinct characteristics of each underlying algorithm.
 
 # Software Design
 
-TCTrack is implemented as a Python package built around abstract base classes
-`TCTrackerParameters` and `TCTracker`.
-The first captures the unique aspects of each algorithm in a dataclass as
-standardised inputs.
-The second is the interface to a tracking algorithm itself, which makes use of
-`subprocess` calls to the underlying Fortran and C++ codes. This abstracts away the diverse
-native interfaces of each algorithm from the end user.
-Each supported tracking algorithm has concrete implementations of these classes that
-handle algorithm-specific details whilst presenting a standardised Python API.
-Users configure tracking by instantiating the appropriate parameter class, then pass
-this to a tracker class which provides standard methods including `run_tracker()` and
-`to_netcdf()`.
+TCTrack is implemented as a Python package built using object-oriented design.
+Users select an appropriate parameter class to configure tracking, then pass this to a
+tracker class in order to run and output results.
+These use abstract base classes to present a standardised API across the different
+tracking algorithms and clear interfaces for adding new algorithms.
+Meanwhile, the algorithm-specific details are abstracted away from the end user by the
+concrete implementations of these classes.
 
-The use of abstract base classes introduces modularity to make it straightforward to add
-additional tracking algorithms, with clear interfaces to the rest of the package.
-This is designed so that new algorithms can either wrap existing, proven software—as
-with those currently implemented—or be implemented directly in TCTrack. For example,
-we are in currently in discussions with researchers to add a new machine-learning based
-detection algorithm to the package.
+It is possible for tracking algorithms to be implemented directly in TCTrack, but when
+building on existing tracking codes we utilise `subprocess` calls to reduce the software
+maintenance required and give users access to the proven underlying programs.
 
-A particularly important aspect of TCTrack is its standardised, CF-compliant output
-format into which we transform output tracks from all algorithms before presenting
-them to the end-user.
-This ensures that outputs are FAIR and immediately usable in downstream analysis without
-additional processing.
-This reflects the growing importance of FAIR principles in climate science, and is
-achieved by building on the cf-python software package [@Hassell2017, @Hassell2020].
-Each tracker class preserves the metadata from input files and augments it to reflect any
-processing of variables, such as spatial aggregation. It also provides the tracking
-algorithm used, TCTrack version, and complete parameter specifications for
-reproducibility.
+A particularly important aspect of TCTrack is the standardised, CF-compliant output
+format into which the output tracks are transformed; achieved using the cf-python
+software package [@Hassell2017, @Hassell2020].
+This ensures that outputs are FAIR (which is of increasing importance in climate science)
+and immediately usable in downstream analysis, something that is not a feature of
+existing approaches.
+Metadata is added to the output by capturing the metadata from input files and
+augmenting it to reflect any processing of variables, such as spatial aggregation.
+It also provides the tracking algorithm used, TCTrack version, and complete parameter
+specifications for reproducibility.
 
-TCTrack is packaged using modern Python standards with a `pyproject.toml` configuration
-and supports Python 3.10 and above.
-The codebase includes comprehensive unit tests using pytest to verify the interface
-implementations, and continuous integration via GitHub Actions ensures compatibility
-across multiple Python versions.
-Code quality is maintained through automated checks with ruff for linting and mypy for
-static type checking, ensuring robustness and maintainability.
+The codebase includes comprehensive unit tests using pytest and continuous integration
+via GitHub Actions to ensure validity and compatibility across multiple Python versions.
+Code quality is maintained through static analysis to provide robustness and maintainability.
 
-The package is open source, extensively documented at https://tctrack.readthedocs.io/,
-and available via GitHub at https://github.com/Cambridge-ICCS/TCTrack.
-The documentation includes installation guidance for the external tracking codes, API
-reference, and worked examples.
+The package is available via GitHub at https://github.com/Cambridge-ICCS/TCTrack and
+extensively documented at https://tctrack.readthedocs.io/.
+This includes installation guidance, API reference, and worked examples.
 
 # Research Impact Statement
 
