@@ -98,7 +98,7 @@ maintenance required and give users access to the proven underlying programs.
 
 A particularly important aspect of TCTrack is the standardised, CF-compliant output
 format into which the output tracks are transformed; achieved using the cf-python
-software package [@Hassell2017, @Hassell2020].
+software package [@Hassell2017; @Hassell2020].
 This ensures that outputs are FAIR (which is of increasing importance in climate science)
 and immediately usable in downstream analysis, something that is not a feature of
 existing approaches.
