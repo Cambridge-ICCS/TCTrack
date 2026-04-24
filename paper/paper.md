@@ -153,7 +153,7 @@ TCTrack is also extensible in that additional tracking algorithms can be integra
 following the contributor guidelines and building on the abstract base class design.
 
 The decision to build TCTrack rather than change the data format/running procedures of
-multiple existing projects comes the desire to also provide a unified interface
+multiple existing projects comes from the desire to also provide a unified interface
 for researchers as well as improved data representation.
 TCTrack's focus on usability and FAIR data builds on what the existing tools offer,
 making it a valuable part of the ecosystem.
