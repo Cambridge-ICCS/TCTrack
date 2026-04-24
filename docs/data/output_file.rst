@@ -93,12 +93,12 @@ These coordinate variables are always present in a dataset:
   - Auxiliary coordinate.
   - *Attributes* include ``units`` and ``calendar`` amongst others
 
-- **lat**: Latitude of the observation.
+- **latitude**: Latitude of the observation.
   
   - *Dimensions*: ``(trajectory, observation)``
   - Auxiliary coordinate.
 
-- **lon**: Longitude of the observation.
+- **longitude**: Longitude of the observation.
   
   - *Dimensions*: ``(trajectory, observation)``
   - Auxiliary coordinate.
@@ -181,7 +181,7 @@ Perhaps the quickest way of inspecting the metadata is to use the
                     time:units = "days since 1950-01-01 12:00:00.000000" ;
                     time:missing_value = -100000000. ;
                     time:calendar = "360_day" ;
-            double lat(trajectory, observation) ;
+            double latitude(trajectory, observation) ;
             ...
 
 Here we show how to inspect a file using cf-python which highlights the structure
@@ -264,17 +264,17 @@ described above:
         units = 'days since 1950-01-01 12:00:00.000000'
         Data(trajectory(2), observation(13)) = [[1950-01-06 00:00:00, ..., -275828-03-21 12:00:00]] 360_day
 
-    Auxiliary coordinate: lat
+    Auxiliary coordinate: latitude
         long_name = 'latitude'
         missing_value = np.float64(-999.9)
-        standard_name = 'lat'
+        standard_name = 'latitude'
         units = 'degrees_north'
         Data(trajectory(2), observation(13)) = [[-9.26, ..., nan]] degrees_north
 
-    Auxiliary coordinate: lon
+    Auxiliary coordinate: longitude
         long_name = 'longitude'
         missing_value = np.float64(-999.9)
-        standard_name = 'lon'
+        standard_name = 'longitude'
         units = 'degrees_east'
         Data(trajectory(2), observation(13)) = [[67.32, ..., nan]] degrees_east
 
@@ -298,8 +298,8 @@ explore cf-python, xarray, or `hurucanpy <https://huracanpy.readthedocs.io>`_.
     # Open the NetCDF file
     with netCDF4.Dataset("my_tctrack_output.nc") as ncfile:
         # Read variables
-        lat_var = ncfile.variables["lat"]
-        lon_var = ncfile.variables["lon"]
+        lat_var = ncfile.variables["latitude"]
+        lon_var = ncfile.variables["longitude"]
         time_var = ncfile.variables["time"]
         intensity_var = ncfile.variables["wind_speed"]
         traj_var = ncfile.variables["trajectory"]
