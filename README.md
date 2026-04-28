@@ -69,7 +69,7 @@ address an [open issue](https://github.com/Cambridge-ICCS/TCTrack/issues), pleas
 [fork the repository](https://github.com/Cambridge-ICCS/TCTrack/fork) and open a
 pull request.
 
-Additional dependencies for deleopment can be installed as follows:
+Additional dependencies for development can be installed as follows:
 ```sh
 pip install --editable .[dev]
 ```
