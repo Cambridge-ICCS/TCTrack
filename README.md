@@ -40,7 +40,7 @@ pip install tctrack
 
 See the
 [documentation](https://tctrack.readthedocs.io/en/latest/getting-started/index.html#installation).
-for futher details about installation and dependencies, including how to install the
+for further details about installation and dependencies, including how to install the
 individual tracking algorithms.
 
 
