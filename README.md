@@ -40,7 +40,7 @@ pip install tctrack
 
 See the
 [documentation](https://tctrack.readthedocs.io/en/latest/getting-started/index.html#installation).
-for futher details about installation and dependencies, including how to install the
+for further details about installation and dependencies, including how to install the
 individual tracking algorithms.
 
 
@@ -69,7 +69,7 @@ address an [open issue](https://github.com/Cambridge-ICCS/TCTrack/issues), pleas
 [fork the repository](https://github.com/Cambridge-ICCS/TCTrack/fork) and open a
 pull request.
 
-Additional dependencies for deleopment can be installed as follows:
+Additional dependencies for development can be installed as follows:
 ```sh
 pip install --editable .[dev]
 ```
