@@ -245,6 +245,95 @@ class TCTracker(ABC):
             "tctrack_tracker": type(self).__name__,
         }
 
+    def _run_tracker_subprocess(
+        self,
+        command_name: str,
+        command_list: list[str],
+        input_file: str | None = None,
+        input_str: str | None = None,
+        cwd: str | None = None,
+        verbose: bool = False,
+    ) -> dict:
+        """Run a subprocess command for a cyclone tracking algorithm.
+        Parameters
+        ----------
+        command_name : str
+            The name of the command, used in logging and error messages.
+        command_list : list[str]
+            The command and its arguments to execute.
+        input_file : str | None
+            Path to a file to pass to the process via stdin (e.g. a namelist).
+            Cannot be used together with input_str. Defaults to None.
+        input_str : str | None
+            A string to pass to the process via stdin (e.g. interactive inputs).
+            Cannot be used together with input_file. Defaults to None.
+        cwd : str | None
+            Working directory in which to execute the command. Defaults to None.
+        verbose : bool
+            If True, stream stdout to screen in real-time using Popen.
+            Only valid when input_file is provided. Defaults to False.
+
+        Returns
+        -------
+        dict
+            Dictionary with keys 'stdout', 'stderr', and 'returncode'.
+        
+        Raises
+        ------
+        ValueError
+            If both input_file and input_str are provided simultaneously.
+        FileNotFoundError
+            If the executable cannot be found.
+        RuntimeError
+            If the process returns a non-zero exit code.
+        """
+        import subprocess
+
+        if input_file and input_str:
+            raise ValueError("Cannot use both input_file and input_str together.")
+
+        if verbose and not input_file:
+            raise ValueError("Verbose mode is only valid when input_file is provided.")
+
+        try:
+            if verbose:
+                with open(input_file, "r") as f:
+                    process = subprocess.Popen(
+                        command_list,
+                        stdin=f,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        cwd=cwd,
+                        text=True,
+                    )
+                    for line in process.stdout:
+                        print(line, end="")
+                    stdout, stderr = process.communicate()
+            else:
+                process = subprocess.run(
+                    command_list,
+                    input=input_str,
+                    capture_output=True,
+                    text=True,
+                    cwd=cwd,
+                )
+                stdout = process.stdout
+                stderr = process.stderr
+
+            return {
+                "stdout": stdout,
+                "stderr": stderr,
+                "returncode": process.returncode,
+            }
+        except FileNotFoundError as e:
+            raise FileNotFoundError(
+                f"Command '{command_name}' not found. Ensure it is installed and in the PATH."
+            ) from e
+        except Exception as e:
+            raise RuntimeError(
+                f"An error occurred while running command '{command_name}': {str(e)}"
+            ) from e
+
     @abstractmethod
     def read_trajectories(self) -> list[Trajectory]:
         """
