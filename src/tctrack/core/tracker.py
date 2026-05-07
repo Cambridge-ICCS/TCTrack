@@ -252,7 +252,7 @@ class TCTracker(ABC):
         input_file: str | None = None,
         input_str: str | None = None,
         cwd: str | None = None,
-        verbose: bool = False,
+        verbosity: int = 1,
     ) -> dict:
         """Run a subprocess command for a cyclone tracking algorithm.
         Parameters
@@ -269,28 +269,30 @@ class TCTracker(ABC):
             Cannot be used together with input_file. Defaults to None.
         cwd : str | None
             Working directory in which to execute the command. Defaults to None.
-        verbose : bool
-            If True, stream stdout to screen in real-time using Popen.
-            Only valid when input_file is provided. Defaults to False.
+        verbosity : int
+            Controls how much output is shown:
+            0 = No output gets printed.
+            1 = summary, first and last 12 lines printed (default).
+            2 = Entire output is streamed in real-time.
+            Defaults to 1.
 
         Returns
         -------
         dict
-            Dictionary with keys 'stdout', 'stderr', and 'returncode'.
+            Dictionary of subprocess output to 'stdout', 'stderr', and 'returncode'.
         
         Raises
         ------
         ValueError
             If both input_file and input_str are provided simultaneously.
-        FileNotFoundError
-            If the executable cannot be found.
-        RuntimeError
-            If the process returns a non-zero exit code.
+        ValueError
+            If verbosity is not 0, 1, or 2.
         """
-        import subprocess
 
         if input_file and input_str:
             raise ValueError("Please provide either input_file or input_str, not both.") 
+        if verbosity not in (0, 1, 2):
+            raise ValueError("Verbosity must be 0, 1, or 2.")
 
     @abstractmethod
     def read_trajectories(self) -> list[Trajectory]:
