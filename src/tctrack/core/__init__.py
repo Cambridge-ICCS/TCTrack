@@ -1,5 +1,6 @@
 """Package providing core utilities used throughout TCTrack."""
 
+from .netcdf import lat_lon_sizes
 from .tracker import (
     TCTracker,
     TCTrackerMetadata,
@@ -16,4 +17,5 @@ __all__ = [
     "TCTrackerParameters",
     "TCTrackerTimeMetadata",
     "Trajectory",
+    "lat_lon_sizes",
 ]
