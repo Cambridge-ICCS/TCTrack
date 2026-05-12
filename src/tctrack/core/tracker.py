@@ -359,6 +359,34 @@ class TCTracker(ABC):
                     f"Last 12 lines of output:\n"
                     f"{''.join(stdout.splitlines(True)[-12:])}"
                 )
+                
+            elif verbosity == 2:
+                with open(input_file, "r") as stdin:  # type: ignore[arg-type]
+                    process = subprocess.Popen(
+                        command_list,
+                        stdin=stdin,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        shell=False,
+                        bufsize=1,
+                        cwd=cwd,
+                    )
+                    stdout_lines = []  # ← collect lines here
+                    for line in iter(process.stdout.readline, ""):  # type: ignore[union-attr]
+                        print(line, end="")  # print to screen
+                        stdout_lines.append(line)  # also collect it
+                    
+                    stdout = "".join(stdout_lines)  # ← combine lines into string
+                    stderr, _ = process.communicate()
+                    returncode = process.returncode
+
+                    if returncode != 0:
+                        raise RuntimeError(
+                            f"{command_name} failed with a non-zero exit code: "
+                            f"{returncode}:\n{stderr}"
+                        )
+                                    
             # Return after all levels
             return {"stdout": stdout, "stderr": stderr, "returncode": returncode}
        
