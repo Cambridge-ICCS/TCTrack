@@ -300,30 +300,37 @@ class TCTracker(ABC):
                 "not input_str. With input_str, use either verbosity=0 or 1."
         )
         
-        # ── Level 0: Silent — no output ──
-        if verbosity == 0:
-            stdin_file = open(input_file, "r") if input_file is not None else None
-            try:
-                result = subprocess.run(
-                    command_list,
-                    stdin=stdin_file,
-                    input=input_str,
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                    cwd=cwd,
-                )
-            finally:
-                if stdin_file is not None:
-                    stdin_file.close()
+        try:
+            # ── Level 0: Silent — no output ──
+            if verbosity == 0:
+                stdin_file = open(input_file, "r") if input_file is not None else None
+                try:
+                    result = subprocess.run(
+                        command_list,
+                        stdin=stdin_file,
+                        input=input_str,
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                        cwd=cwd,
+                    )
+                finally:
+                    if stdin_file is not None:
+                        stdin_file.close()
 
-            stdout, stderr, returncode = (
-                result.stdout,
-                result.stderr,
-                result.returncode,
-            )
-            
-            
+                stdout, stderr, returncode = (
+                    result.stdout,
+                    result.stderr,
+                    result.returncode,
+                )
+            return {"stdout": stdout, "stderr": stderr, "returncode": returncode}
+        
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(
+                f"{command_name} failed because the executable could not be found.\n"
+                "Did you provide the full executable path or add it to $PATH?\n"
+            ) from exc       
+                
     @abstractmethod
     def read_trajectories(self) -> list[Trajectory]:
         """
