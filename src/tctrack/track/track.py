@@ -17,8 +17,13 @@ from pathlib import Path
 
 import cf
 
-from tctrack.core import TCTracker, TCTrackerMetadata, TCTrackerParameters, Trajectory
-from tctrack.utils import lat_lon_sizes
+from tctrack.core import (
+    TCTracker,
+    TCTrackerMetadata,
+    TCTrackerParameters,
+    Trajectory,
+    lat_lon_sizes,
+)
 
 
 @dataclass(repr=False)

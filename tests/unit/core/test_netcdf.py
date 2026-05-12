@@ -3,7 +3,7 @@
 import pytest
 from netCDF4 import Dataset
 
-from tctrack.utils import lat_lon_sizes
+from tctrack.core import lat_lon_sizes
 
 
 class TestNetCDF:
