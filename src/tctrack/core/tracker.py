@@ -245,7 +245,7 @@ class TCTracker(ABC):
             "tctrack_tracker": type(self).__name__,
         }
 
-    def _run_tracker_subprocess(
+    def run_tracker_subprocess(
         self,
         command_name: str,
         command_list: list[str],
@@ -288,12 +288,42 @@ class TCTracker(ABC):
         ValueError
             If verbosity is not 0, 1, or 2.
         """
+        import subprocess
 
         if input_file and input_str:
             raise ValueError("Please provide either input_file or input_str, not both.") 
         if verbosity not in (0, 1, 2):
             raise ValueError("Verbosity must be 0, 1, or 2.")
+        if verbosity == 2 and input_str is not None:
+            raise ValueError(
+                "verbosity=2 (real-time output streaming) requires input_file, "
+                "not input_str. With input_str, use either verbosity=0 or 1."
+        )
+        
+        # ── Level 0: Silent — no output ──
+        if verbosity == 0:
+            stdin_file = open(input_file, "r") if input_file is not None else None
+            try:
+                result = subprocess.run(
+                    command_list,
+                    stdin=stdin_file,
+                    input=input_str,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    cwd=cwd,
+                )
+            finally:
+                if stdin_file is not None:
+                    stdin_file.close()
 
+            stdout, stderr, returncode = (
+                result.stdout,
+                result.stderr,
+                result.returncode,
+            )
+            
+            
     @abstractmethod
     def read_trajectories(self) -> list[Trajectory]:
         """
