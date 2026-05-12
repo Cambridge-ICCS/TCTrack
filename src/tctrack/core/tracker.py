@@ -1,5 +1,7 @@
 """Module providing an abstract base classes for creating specific trackers."""
 
+from sys import stderr, stdout
+
 import importlib.metadata
 import warnings
 from abc import ABC, abstractmethod
@@ -323,13 +325,54 @@ class TCTracker(ABC):
                     result.stderr,
                     result.returncode,
                 )
+                
+            # ── Level 1: Summary — first and last 12 lines ──
+            elif verbosity == 1:
+                print(f"Executing {command_name}...")
+                
+                stdin_file = open(input_file, "r") if input_file is not None else None
+                try:
+                    result = subprocess.run(
+                        command_list,
+                        stdin=stdin_file,
+                        input=input_str,
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                        cwd=cwd,
+                    )
+                finally:
+                    if stdin_file is not None:
+                        stdin_file.close()
+
+                stdout, stderr, returncode = (
+                    result.stdout,
+                    result.stderr,
+                    result.returncode,
+                )
+
+                print(f"{command_name} completed successfully.")
+                print(
+                    f"First 12 lines of output:\n"
+                    f"{''.join(stdout.splitlines(True)[:12])}"
+                    f"\n...\n\n"
+                    f"Last 12 lines of output:\n"
+                    f"{''.join(stdout.splitlines(True)[-12:])}"
+                )
+            # Return after all levels
             return {"stdout": stdout, "stderr": stderr, "returncode": returncode}
-        
+       
         except FileNotFoundError as exc:
             raise FileNotFoundError(
                 f"{command_name} failed because the executable could not be found.\n"
                 "Did you provide the full executable path or add it to $PATH?\n"
-            ) from exc       
+            ) from exc
+        except subprocess.CalledProcessError as exc:
+            raise RuntimeError(
+                f"{command_name} failed with a non-zero exit code: "
+                f"({exc.returncode}):\n{exc.stderr}"
+            ) from exc
+
                 
     @abstractmethod
     def read_trajectories(self) -> list[Trajectory]:
