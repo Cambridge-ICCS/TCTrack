@@ -119,9 +119,8 @@ class TestTCTracker:
         def _parameters(self) -> list[TCTrackerParameters]:
             return [self.params]
 
-        def set_metadata(self, bad_time_data=None) -> None:
-            """Implement a dummy of the set_metadata abstractmethod."""
-            super().set_metadata()
+        def _set_metadata(self, bad_time_data=None) -> None:
+            """Implement a dummy of the _set_metadata abstractmethod."""
             self._variable_metadata = example_variable_metadata()
             if bad_time_data:
                 self._time_metadata = bad_time_data
@@ -213,7 +212,7 @@ class TestTCTracker:
             "start_time": datetime(1950, 1, 1, 0, calendar="360_day"),
             "endingat": datetime(1950, 1, 30, 0, calendar="360_day"),
         }
-        tracker.set_metadata(bad_time_data=bad_time_metadata)
+        tracker._set_metadata(bad_time_data=bad_time_metadata)  # noqa:SLF001
         with pytest.raises(
             TypeError,
             match=(

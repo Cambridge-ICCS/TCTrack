@@ -694,17 +694,14 @@ class TRACKTracker(TCTracker):
 
         return trajectories
 
-    def set_metadata(self) -> None:
-        """
-        Set the global, time, and variable metadata attributes.
+    def _set_metadata(self) -> None:
+        """Set the time and variable metadata attributes.
 
         Raises
         ------
         ValueError
             If a variable with time coordinate is not found in the input file.
         """
-        super().set_metadata()
-
         vars_with_time = cf.read(self.parameters.input_file).select_by_construct("time")  # type: ignore[operator]  # type: ignore[operator]
         if len(vars_with_time) == 0:
             msg = r"No variable with 'time' coordinate found in TRACK input file."
