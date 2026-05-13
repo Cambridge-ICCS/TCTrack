@@ -126,6 +126,11 @@ class TRACKTracker(TCTracker):
         shutil.copy(base_dir + "/data/zone.dat", base_dir + "/data/zone.dat0")
         shutil.copy(base_dir + "/data/adapt.dat", base_dir + "/data/adapt.dat0")
 
+    @property
+    def _parameters(self) -> list[TCTrackerParameters]:
+        """A list of the parameter objects that is accessible from the base class."""
+        return [self.parameters]
+
     def _get_initialisation_inputs(self, inputs: list[str]):
         """Add "initialisation" inputs common to both tracking and filter_tracks calls.
 

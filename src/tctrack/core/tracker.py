@@ -131,6 +131,12 @@ class TCTracker(ABC):
     _global_metadata: dict[str, str]
 
     @property
+    @abstractmethod
+    def _parameters(self) -> list[TCTrackerParameters]:
+        """A list of the parameter objects that is accessible from the base class."""
+        return []
+
+    @property
     def variable_metadata(self) -> dict:
         """
         dict: Read-only property containing NetCDF metadata for variables.
