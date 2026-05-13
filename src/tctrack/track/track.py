@@ -8,11 +8,10 @@ References
   <https://doi.org/10.1175/JCLI-D-16-0557.1>`__
 """
 
-import json
 import shutil
 import subprocess
 import warnings
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 
 import cf
@@ -705,8 +704,6 @@ class TRACKTracker(TCTracker):
             If a variable with time coordinate is not found in the input file.
         """
         super().set_metadata()
-
-        self.global_metadata["track_parameters"] = json.dumps(asdict(self.parameters))
 
         vars_with_time = cf.read(self.parameters.input_file).select_by_construct("time")  # type: ignore[operator]  # type: ignore[operator]
         if len(vars_with_time) == 0:

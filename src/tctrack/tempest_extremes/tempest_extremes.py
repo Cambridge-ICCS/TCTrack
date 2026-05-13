@@ -8,10 +8,9 @@ References
 """
 
 import csv
-import json
 import subprocess
 import tempfile
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
 
@@ -1028,11 +1027,6 @@ class TETracker(TCTracker):
         }
         """
         super().set_metadata()
-
-        detect_params_json = json.dumps(asdict(self.detect_parameters))
-        stitch_params_json = json.dumps(asdict(self.stitch_parameters))
-        self.global_metadata["detect_parameters"] = detect_params_json
-        self.global_metadata["stitch_parameters"] = stitch_params_json
 
         input_files = self.detect_parameters.in_data
 

@@ -324,8 +324,12 @@ class TestTETracker:
         assert tracker.global_metadata == {
             "tctrack_version": importlib.metadata.version("tctrack"),
             "tctrack_tracker": "TETracker",
-            "detect_parameters": json.dumps(asdict(tracker.detect_parameters)),
-            "stitch_parameters": json.dumps(asdict(tracker.stitch_parameters)),
+            "tctrack_parameters": json.dumps(
+                {
+                    "TEDetectParameters": asdict(tracker.detect_parameters),
+                    "TEStitchParameters": asdict(tracker.stitch_parameters),
+                }
+            ),
         }
 
     def _mock_trajectories_data(self):
