@@ -447,5 +447,7 @@ class TestTrackTracker:
         assert tracker.global_metadata == {
             "tctrack_version": importlib.metadata.version("tctrack"),
             "tctrack_tracker": "TRACKTracker",
-            "track_parameters": json.dumps(asdict(tracker.parameters)),
+            "tctrack_parameters": json.dumps(
+                {"TRACKParameters": asdict(tracker.parameters)}
+            ),
         }

@@ -1,9 +1,10 @@
 """Module providing an abstract base classes for creating specific trackers."""
 
 import importlib.metadata
+import json
 import warnings
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, fields
+from dataclasses import asdict, dataclass, fields
 from datetime import timedelta
 from typing import TypedDict
 
@@ -242,13 +243,18 @@ class TCTracker(ABC):
         ...                 yyyy, mm, dd, hh, calendar=self.example_calendar
         ...             ),
         ...         }
-        ...         self.global_metadata["mytracker_parameters"] = json.dumps(
-        ...             asdict(MyTrackerParameters)
-        ...         ),
         """
+        # Create a two-level dictionary containing the parameters
+        parameters = {}
+        for parameter_obj in self._parameters:
+            parameter_class = type(parameter_obj).__name__
+            parameters[parameter_class] = asdict(parameter_obj)
+
+        # Store the global metadata, including the parameters in a json format
         self._global_metadata = {
             "tctrack_version": importlib.metadata.version("tctrack"),
             "tctrack_tracker": type(self).__name__,
+            "tctrack_parameters": json.dumps(parameters),
         }
 
     @abstractmethod

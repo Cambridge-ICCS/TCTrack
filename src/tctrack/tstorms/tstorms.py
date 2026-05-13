@@ -5,13 +5,12 @@ References
 - TSTORMS NOAA page: https://www.gfdl.noaa.gov/tstorms/
 """
 
-import json
 import os
 import subprocess
 import tempfile
 import textwrap
 import warnings
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 
 import cf
 from cftime import num2date
@@ -739,13 +738,6 @@ class TSTORMSTracker(TCTracker):
         }
         """
         super().set_metadata()
-
-        tstorms_params_json = json.dumps(asdict(self.tstorms_parameters))
-        detect_params_json = json.dumps(asdict(self.detect_parameters))
-        stitch_params_json = json.dumps(asdict(self.stitch_parameters))
-        self.global_metadata["tstorms_parameters"] = tstorms_params_json
-        self.global_metadata["detect_parameters"] = detect_params_json
-        self.global_metadata["stitch_parameters"] = stitch_params_json
 
         if not self._time_metadata:
             self._set_time_metadata()

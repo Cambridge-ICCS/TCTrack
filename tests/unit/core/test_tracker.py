@@ -1,5 +1,6 @@
 """Unit tests for tracker.py of the TCTrack Core Python package."""
 
+import importlib.metadata
 import json
 import pathlib
 import re
@@ -120,15 +121,12 @@ class TestTCTracker:
 
         def set_metadata(self, bad_time_data=None) -> None:
             """Implement a dummy of the set_metadata abstractmethod."""
+            super().set_metadata()
             self._variable_metadata = example_variable_metadata()
             if bad_time_data:
                 self._time_metadata = bad_time_data
             else:
                 self._time_metadata = example_time_metadata()
-            self._global_metadata = {
-                "tctrack_tracker": type(self).__name__,
-                "parameters": json.dumps(asdict(ExampleParameters(42, "test"))),
-            }
 
         def read_trajectories(self) -> list[Trajectory]:
             """Implement a dummy of the read_trajectories abstractmethod."""
@@ -237,9 +235,13 @@ class TestTCTracker:
         """Test that `global_metadata` is correctly initialized by the subclass."""
         tracker = self.ExampleTracker(example_trajectories=None)
         tracker.set_metadata()
+
         expected_metadata = {
+            "tctrack_version": importlib.metadata.version("tctrack"),
             "tctrack_tracker": "ExampleTracker",
-            "parameters": json.dumps(asdict(ExampleParameters(42, "test"))),
+            "tctrack_parameters": json.dumps(
+                {"ExampleParameters": asdict(tracker.params)}
+            ),
         }
         assert tracker.global_metadata == expected_metadata
 
@@ -451,9 +453,11 @@ class TestTCTracker:
 
         # Check the global metadata is written correctly
         global_metadata = field.nc_global_attributes(values=True)
+        parameters = self.ExampleTracker(None).params
         expected_global_metadata = {
+            "tctrack_version": importlib.metadata.version("tctrack"),
             "tctrack_tracker": "ExampleTracker",
-            "parameters": json.dumps(asdict(ExampleParameters(42, "test"))),
+            "tctrack_parameters": json.dumps({"ExampleParameters": asdict(parameters)}),
         }
         for key, expected_value in expected_global_metadata.items():
             assert global_metadata[key] == expected_value
