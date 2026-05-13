@@ -297,6 +297,11 @@ class TSTORMSTracker(TCTracker):
         output_dir = self.tstorms_parameters.output_dir
         os.makedirs(output_dir, exist_ok=True)
 
+    @property
+    def _parameters(self) -> list[TCTrackerParameters]:
+        """A list of the parameter objects that is accessible from the base class."""
+        return [self.tstorms_parameters, self.detect_parameters, self.stitch_parameters]
+
     def _run_tstorms_process(
         self,
         command_name: str,

@@ -112,6 +112,11 @@ class TestTCTracker:
 
         def __init__(self, example_trajectories):
             self._example_trajectories = example_trajectories
+            self.params = ExampleParameters(42, "test")
+
+        @property
+        def _parameters(self) -> list[TCTrackerParameters]:
+            return [self.params]
 
         def set_metadata(self, bad_time_data=None) -> None:
             """Implement a dummy of the set_metadata abstractmethod."""
@@ -139,6 +144,16 @@ class TestTCTracker:
             TypeError, match="Can't instantiate abstract class TCTracker"
         ):
             TCTracker()
+
+    def test_parameters_property(self):
+        """Test that _parameters correctly accesses the parameter objects."""
+        tracker = self.ExampleTracker(example_trajectories=None)
+        assert len(tracker._parameters) == 1  # noqa:SLF001
+        assert tracker._parameters[0] == tracker.params  # noqa:SLF001
+
+        # Check there is still consistency after modification
+        tracker.params.param_a = -1
+        assert tracker._parameters[0] == tracker.params  # noqa:SLF001
 
     def test_variable_metadata_uninitialized(self):
         """Test accessing `variable_metadata` before initialization raises an error."""
