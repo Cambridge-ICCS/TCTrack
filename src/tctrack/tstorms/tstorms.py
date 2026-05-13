@@ -704,15 +704,15 @@ class TSTORMSTracker(TCTracker):
 
         return process_output
 
-    def set_metadata(self) -> None:
+    def _set_metadata(self) -> None:
         """
-        Set the global and variable (reading from input files) metadata attributes.
+        Set the time and variable metadata attributes by reading from input files.
 
         Reads metadata for each variable from the input NetCDF files
         defined in :attr:`detect_parameters`.
         These will be stored in the :attr:`variable_metadata` attribute as a
         dictionary of :class:`TCTrackerMetadata` objects.
-        This will be called from the :meth:`to_netcdf` method.
+        This will be called from the :meth:`set_metadata` method.
 
         Raises
         ------
@@ -737,8 +737,6 @@ class TSTORMSTracker(TCTracker):
             ...
         }
         """
-        super().set_metadata()
-
         if not self._time_metadata:
             self._set_time_metadata()
 

@@ -988,16 +988,15 @@ class TETracker(TCTracker):
 
         return list(trajectories.values())
 
-    def set_metadata(self) -> None:
-        """
-        Set the global and variable (reading from input files) metadata attributes.
+    def _set_metadata(self) -> None:
+        """Set the time and variable metadata attributes by reading from input files.
 
         Reads metadata for each variable listed in
         :attr:`detect_parameters.output_commands` from the input NetCDF files
         defined in :attr:`detect_parameters.in_data` (matching the NetCDF variable
         name). These will be stored in the :attr:`variable_metadata` attribute as a
         dictionary of :class:`TCTrackerMetadata` objects. This will be called from the
-        :meth:`to_netcdf` method.
+        :meth:`set_metadata` method.
 
         Raises
         ------
@@ -1026,8 +1025,6 @@ class TETracker(TCTracker):
             ),
         }
         """
-        super().set_metadata()
-
         input_files = self.detect_parameters.in_data
 
         # set time metadata
