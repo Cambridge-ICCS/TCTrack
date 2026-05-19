@@ -7,6 +7,13 @@ import pytest
 from netCDF4 import Dataset
 
 from tctrack.tempest_extremes import TEDetectParameters, TEStitchParameters, TETracker
+from tctrack.track import TRACKParameters, TRACKTracker
+from tctrack.tstorms import (
+    TSTORMSBaseParameters,
+    TSTORMSDetectParameters,
+    TSTORMSStitchParameters,
+    TSTORMSTracker,
+)
 from tctrack.utils import load_tracker_metadata
 
 
@@ -19,23 +26,47 @@ class TestMetadata:
             for name, value in attrs.items():
                 ds.setncattr(name, value)
 
-    def test_load_tracker_metadata(self, tmp_path):
+    @pytest.mark.parametrize(
+        "tracker_cls,expected_parameters",
+        [
+            pytest.param(
+                TETracker,
+                [TEDetectParameters(in_data=["input.nc"]), TEStitchParameters()],
+                id="tempest_extremes",
+            ),
+            pytest.param(
+                TSTORMSTracker,
+                [
+                    TSTORMSBaseParameters(tstorms_dir="", output_dir=""),
+                    TSTORMSDetectParameters(
+                        u_in_file="u.nc",
+                        v_in_file="v.nc",
+                        vort_in_file="vort.nc",
+                        tm_in_file="tm.nc",
+                        slp_in_file="slp.nc",
+                    ),
+                    TSTORMSStitchParameters(),
+                ],
+                id="tstorms",
+            ),
+            pytest.param(
+                TRACKTracker,
+                [TRACKParameters(base_dir="track_dir", input_file="input.nc")],
+                id="track",
+            ),
+        ],
+    )
+    def test_load_tracker_metadata(self, tmp_path, tracker_cls, expected_parameters):
         """Test load_tracker_metadata reconstructs tracker and parameter objects."""
         ncfile = tmp_path / "metadata.nc"
-        expected_detect = TEDetectParameters(in_data=["input.nc"])
-        expected_stitch = TEStitchParameters()
-        expected_tracker = TETracker(expected_detect, expected_stitch)
 
         self.create_metadata_file(
             ncfile,
             {
                 "tctrack_version": "test-version",
-                "tctrack_tracker": "TETracker",
+                "tctrack_tracker": tracker_cls.__name__,
                 "tctrack_parameters": json.dumps(
-                    {
-                        "TEDetectParameters": asdict(expected_detect),
-                        "TEStitchParameters": asdict(expected_stitch),
-                    }
+                    {type(p).__name__: asdict(p) for p in expected_parameters}
                 ),
             },
         )
@@ -43,13 +74,22 @@ class TestMetadata:
         tracker, parameters = load_tracker_metadata(str(ncfile))
 
         # Check parameters are the same
-        assert len(parameters) == 2
-        assert parameters[0] == expected_detect
-        assert parameters[1] == expected_stitch
+        assert len(parameters) == len(expected_parameters)
+        for params, expected_params in zip(
+            parameters, expected_parameters, strict=True
+        ):
+            # Each parameter needs to be compared individually because tuples don't
+            # survive the json.dumps-json.loads round-trip
+            for field in fields(expected_params):
+                value = getattr(params, field.name)
+                expected_value = getattr(expected_params, field.name)
+                if isinstance(expected_value, tuple):
+                    assert tuple(value) == expected_value
+                else:
+                    assert value == expected_value
 
         # Check the tracker is the same
-        assert type(tracker) is type(expected_tracker)
-        assert tracker._parameters == expected_tracker._parameters  # noqa:SLF001
+        assert tracker is tracker_cls
 
     def test_load_tracker_metadata_missing_attrs(self, tmp_path):
         """Test load_tracker_metadata raises a clear error for missing metadata."""
