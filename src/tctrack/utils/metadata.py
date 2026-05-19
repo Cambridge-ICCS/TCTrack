@@ -4,7 +4,7 @@ import json
 
 from netCDF4 import Dataset
 
-from tctrack.core import TCTracker, TCTrackerParameters
+from tctrack.core import TCTrackerParameters
 from tctrack.tempest_extremes import TEDetectParameters, TEStitchParameters, TETracker
 from tctrack.track import TRACKParameters, TRACKTracker
 from tctrack.tstorms import (
@@ -66,7 +66,7 @@ def read_tracker_metadata(filename: str) -> None:
             print(f"\t{name}: {parameter}")
 
 
-def load_tracker_metadata(filename: str) -> tuple[TCTracker, list[TCTrackerParameters]]:
+def load_tracker_metadata(filename: str) -> tuple[type, list[TCTrackerParameters]]:
     """Read the TCTrack metadata from an output file, returns the parameters.
 
     Parameters
@@ -76,10 +76,20 @@ def load_tracker_metadata(filename: str) -> tuple[TCTracker, list[TCTrackerParam
 
     Returns
     -------
-    tracker : TCTracker
-        A tracker object that uses the parameters from the metadata.
+    tracker_cls : type
+        The relevant TCTracker type. This can be initialised by:
+        `tracker_cls(*parameters)`.
     parameters : list[TCTrackerParameters]
         A list of parameter objects that duplicate the information in the metadata.
+
+    Examples
+    --------
+    To read in the metadata from an output file, instantiate a tracker and reproduce the
+    results:
+
+    >>> tracker_cls, parameters = load_tracker_metadata("tracks.nc")
+    >>> tracker = tracker_cls(*parameters)
+    >>> tracker.run_tracker("tracks_new.nc")
     """
     _, tracker_name, parameter_dicts = _read_metadata(filename)
 
@@ -89,6 +99,6 @@ def load_tracker_metadata(filename: str) -> tuple[TCTracker, list[TCTrackerParam
         parameter_cls = _PARAMETER_CLASSES[name]
         parameters.append(parameter_cls(**parameter_dict))
 
-    tracker = _TRACKER_CLASSES[tracker_name](*parameters)
+    tracker = _TRACKER_CLASSES[tracker_name]
 
     return tracker, parameters
