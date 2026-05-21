@@ -14,7 +14,36 @@ from tctrack.tstorms import (
     TSTORMSStitchParameters,
     TSTORMSTracker,
 )
-from tctrack.utils import load_tracker_metadata
+from tctrack.utils import load_tracker_metadata, read_tracker_metadata
+from tctrack.utils.metadata import _read_metadata
+
+METADATA_CASES = [
+    pytest.param(
+        TETracker,
+        [TEDetectParameters(in_data=["input.nc"]), TEStitchParameters()],
+        id="tempest_extremes",
+    ),
+    pytest.param(
+        TSTORMSTracker,
+        [
+            TSTORMSBaseParameters(tstorms_dir="", output_dir=""),
+            TSTORMSDetectParameters(
+                u_in_file="u.nc",
+                v_in_file="v.nc",
+                vort_in_file="vort.nc",
+                tm_in_file="tm.nc",
+                slp_in_file="slp.nc",
+            ),
+            TSTORMSStitchParameters(),
+        ],
+        id="tstorms",
+    ),
+    pytest.param(
+        TRACKTracker,
+        [TRACKParameters(base_dir="track_dir", input_file="input.nc")],
+        id="track",
+    ),
+]
 
 
 class TestMetadata:
@@ -26,67 +55,77 @@ class TestMetadata:
             for name, value in attrs.items():
                 ds.setncattr(name, value)
 
-    @pytest.mark.parametrize(
-        "tracker_cls,expected_parameters",
-        [
-            pytest.param(
-                TETracker,
-                [TEDetectParameters(in_data=["input.nc"]), TEStitchParameters()],
-                id="tempest_extremes",
-            ),
-            pytest.param(
-                TSTORMSTracker,
-                [
-                    TSTORMSBaseParameters(tstorms_dir="", output_dir=""),
-                    TSTORMSDetectParameters(
-                        u_in_file="u.nc",
-                        v_in_file="v.nc",
-                        vort_in_file="vort.nc",
-                        tm_in_file="tm.nc",
-                        slp_in_file="slp.nc",
-                    ),
-                    TSTORMSStitchParameters(),
-                ],
-                id="tstorms",
-            ),
-            pytest.param(
-                TRACKTracker,
-                [TRACKParameters(base_dir="track_dir", input_file="input.nc")],
-                id="track",
-            ),
-        ],
-    )
-    def test_load_tracker_metadata(self, tmp_path, tracker_cls, expected_parameters):
-        """Test load_tracker_metadata reconstructs tracker and parameter objects."""
-        ncfile = tmp_path / "metadata.nc"
+    def create_file_and_dict(self, tracker_cls, parameters, ncfile):
+        """Create the dummy NetCDF file and a parameter dictionary for comparison."""
+        parameter_dict = {type(p).__name__: asdict(p) for p in parameters}
 
+        # Convert tuples to lists for comparison as json.dumps doesn't preserve tuples
+        for k1, v1 in parameter_dict.items():
+            for k2, v2 in v1.items():
+                if isinstance(v2, tuple):
+                    parameter_dict[k1][k2] = list(v2)
+
+        # Create the netcdf file
         self.create_metadata_file(
             ncfile,
             {
                 "tctrack_version": "test-version",
                 "tctrack_tracker": tracker_cls.__name__,
-                "tctrack_parameters": json.dumps(
-                    {type(p).__name__: asdict(p) for p in expected_parameters}
-                ),
+                "tctrack_parameters": json.dumps(parameter_dict),
             },
         )
 
-        tracker, parameters = load_tracker_metadata(str(ncfile))
+        return parameter_dict
+
+    @pytest.mark.parametrize("tracker_cls,parameters", METADATA_CASES)
+    def test_read_metadata(self, tmp_path, tracker_cls, parameters):
+        """Test _read_metadata returns the stored metadata unchanged."""
+        ncfile = tmp_path / "metadata.nc"
+        parameter_dict = self.create_file_and_dict(tracker_cls, parameters, ncfile)
+
+        version, tracker_name, loaded_parameter_dict = _read_metadata(str(ncfile))
+
+        assert version == "test-version"
+        assert tracker_name == tracker_cls.__name__
+        assert loaded_parameter_dict == parameter_dict
+
+    @pytest.mark.parametrize("tracker_cls,parameters", METADATA_CASES)
+    def test_read_tracker_metadata(self, tmp_path, capsys, tracker_cls, parameters):
+        """Test read_tracker_metadata prints the metadata in the expected format."""
+        ncfile = tmp_path / "metadata.nc"
+        parameter_dict = self.create_file_and_dict(tracker_cls, parameters, ncfile)
+
+        # Build up the expected standard output message
+        expected_output_list = [
+            "",
+            "TCTrack version: test-version",
+            f"TCTrack tracker: {tracker_cls.__name__}",
+        ]
+        for parameter_class, values in parameter_dict.items():
+            expected_output_list.append("")
+            expected_output_list.append(f"{parameter_class}:")
+            for name, value in values.items():
+                expected_output_list.append(f"\t{name}: {value}")
+        expected_output = "\n".join(expected_output_list) + "\n"
+
+        # Capture the standard output and check it is expected
+        read_tracker_metadata(str(ncfile))
+        assert capsys.readouterr().out == expected_output
+
+    @pytest.mark.parametrize("tracker_cls,parameters", METADATA_CASES)
+    def test_load_tracker_metadata(self, tmp_path, tracker_cls, parameters):
+        """Test load_tracker_metadata reconstructs tracker and parameter objects."""
+        ncfile = tmp_path / "metadata.nc"
+        parameter_dict = self.create_file_and_dict(tracker_cls, parameters, ncfile)
+
+        tracker, loaded_parameters = load_tracker_metadata(str(ncfile))
 
         # Check parameters are the same
-        assert len(parameters) == len(expected_parameters)
-        for params, expected_params in zip(
-            parameters, expected_parameters, strict=True
+        assert len(loaded_parameters) == len(parameters)
+        for loaded_params, expected_params in zip(
+            loaded_parameters, parameter_dict.values(), strict=True
         ):
-            # Each parameter needs to be compared individually because tuples don't
-            # survive the json.dumps-json.loads round-trip
-            for field in fields(expected_params):
-                value = getattr(params, field.name)
-                expected_value = getattr(expected_params, field.name)
-                if isinstance(expected_value, tuple):
-                    assert tuple(value) == expected_value
-                else:
-                    assert value == expected_value
+            assert asdict(loaded_params) == expected_params
 
         # Check the tracker is the same
         assert tracker is tracker_cls
