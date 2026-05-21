@@ -145,12 +145,12 @@ class TestTCTracker:
     def test_parameters_property(self):
         """Test that _parameters correctly accesses the parameter objects."""
         tracker = self.ExampleTracker(example_trajectories=None)
-        assert len(tracker._parameters) == 1  # noqa:SLF001
-        assert tracker._parameters[0] == tracker.params  # noqa:SLF001
+        assert len(tracker._parameters) == 1  # noqa:SLF001 - private member access
+        assert tracker._parameters[0] == tracker.params  # noqa:SLF001 - private member access
 
         # Check there is still consistency after modification
         tracker.params.param_a = -1
-        assert tracker._parameters[0] == tracker.params  # noqa:SLF001
+        assert tracker._parameters[0] == tracker.params  # noqa:SLF001 - private member access
 
     def test_variable_metadata_uninitialized(self):
         """Test accessing `variable_metadata` before initialization raises an error."""
@@ -212,7 +212,7 @@ class TestTCTracker:
             "start_time": datetime(1950, 1, 1, 0, calendar="360_day"),
             "endingat": datetime(1950, 1, 30, 0, calendar="360_day"),
         }
-        tracker._set_metadata(bad_time_data=bad_time_metadata)  # noqa:SLF001
+        tracker._set_metadata(bad_time_data=bad_time_metadata)  # noqa:SLF001 - private member access
         with pytest.raises(
             TypeError,
             match=(
@@ -309,7 +309,7 @@ class TestTCTracker:
 
         # Optionally remove the standard_name from the ExampleTracker metadata
         if delete_std_name:
-            for var_metadata in tracker._variable_metadata.values():  # type: ignore  # noqa: SLF001
+            for var_metadata in tracker._variable_metadata.values():  # type: ignore  # noqa: SLF001 - private member access
                 var_metadata.properties.pop("standard_name", None)
 
         # Write to NetCDF
