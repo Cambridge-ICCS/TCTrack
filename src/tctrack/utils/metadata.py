@@ -49,7 +49,7 @@ def _read_metadata(filename: str) -> tuple[str, str, dict[str, dict]]:
 
 
 def read_tracker_metadata(filename: str) -> None:
-    """Print the TCTrack metadata from an output file in a readable format.
+    """Print the TCTrack metadata from an output file to stdout in a readable format.
 
     Parameters
     ----------
