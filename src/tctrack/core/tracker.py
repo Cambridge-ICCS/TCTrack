@@ -1,8 +1,7 @@
 """Module providing an abstract base classes for creating specific trackers."""
 
-from sys import stderr, stdout
-
 import importlib.metadata
+import subprocess
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields
@@ -247,7 +246,7 @@ class TCTracker(ABC):
             "tctrack_tracker": type(self).__name__,
         }
 
-    def run_tracker_subprocess(
+    def run_tracker_subprocess( # noqa: PLR0912, PLR0913, PLR0915
         self,
         command_name: str,
         command_list: list[str],
@@ -257,6 +256,7 @@ class TCTracker(ABC):
         verbosity: int = 1,
     ) -> dict:
         """Run a subprocess command for a cyclone tracking algorithm.
+
         Parameters
         ----------
         command_name : str
@@ -282,7 +282,7 @@ class TCTracker(ABC):
         -------
         dict
             Dictionary of subprocess output to 'stdout', 'stderr', and 'returncode'.
-        
+
         Raises
         ------
         ValueError
@@ -290,24 +290,28 @@ class TCTracker(ABC):
         ValueError
             If verbosity is not 0, 1, or 2.
         """
-        import subprocess
-
         if input_file and input_str:
-            raise ValueError("Please provide either input_file or input_str, not both.") 
+            msg = "Please provide either input_file or input_str, not both."
+            raise ValueError(msg)
         if verbosity not in (0, 1, 2):
-            raise ValueError("Verbosity must be 0, 1, or 2.")
-        if verbosity == 2 and input_str is not None:
-            raise ValueError(
-                "verbosity=2 (real-time output streaming) requires input_file, "
-                "not input_str. With input_str, use either verbosity=0 or 1."
-        )
-        
+            msg = "Verbosity must be 0, 1, or 2."
+            raise ValueError(msg)
+        if verbosity == 2 and input_str is not None: # noqa: PLR2004
+            msg = (
+                    "verbosity=2 (real-time output streaming) requires input_file, "
+                    "not input_str"
+            )
+            raise ValueError(msg)
+
         try:
             # ── Level 0: Silent — no output ──
             if verbosity == 0:
-                stdin_file = open(input_file, "r") if input_file is not None else None
+                stdin_file = open(input_file, "r") if input_file is not None else None # noqa: SIM115
                 try:
-                    result = subprocess.run(
+                    if not command_list:
+                        msg = "command_list cannot be empty"
+                        raise ValueError(msg)
+                    result = subprocess.run( # noqa: S603
                         command_list,
                         stdin=stdin_file,
                         input=input_str,
@@ -325,14 +329,14 @@ class TCTracker(ABC):
                     result.stderr,
                     result.returncode,
                 )
-                
+
             # ── Level 1: Summary — first and last 12 lines ──
             elif verbosity == 1:
                 print(f"Executing {command_name}...")
-                
-                stdin_file = open(input_file, "r") if input_file is not None else None
+
+                stdin_file = open(input_file, "r") if input_file is not None else None # noqa: SIM115
                 try:
-                    result = subprocess.run(
+                    result = subprocess.run( # noqa: S603
                         command_list,
                         stdin=stdin_file,
                         input=input_str,
@@ -359,10 +363,10 @@ class TCTracker(ABC):
                     f"Last 12 lines of output:\n"
                     f"{''.join(stdout.splitlines(True)[-12:])}"
                 )
-                
-            elif verbosity == 2:
+
+            elif verbosity == 2: # noqa: PLR2004
                 with open(input_file, "r") as stdin:  # type: ignore[arg-type]
-                    process = subprocess.Popen(
+                    process = subprocess.Popen( # noqa: S603
                         command_list,
                         stdin=stdin,
                         stdout=subprocess.PIPE,
@@ -376,32 +380,34 @@ class TCTracker(ABC):
                     for line in iter(process.stdout.readline, ""):  # type: ignore[union-attr]
                         print(line, end="")  # print to screen
                         stdout_lines.append(line)  # also collect it
-                    
+
                     stdout = "".join(stdout_lines)  # ← combine lines into string
                     stderr, _ = process.communicate()
                     returncode = process.returncode
 
                     if returncode != 0:
-                        raise RuntimeError(
+                        msg = (
                             f"{command_name} failed with a non-zero exit code: "
                             f"{returncode}:\n{stderr}"
-                        )
-                                    
+                         )
+                        raise RuntimeError(msg)
+
             # Return after all levels
             return {"stdout": stdout, "stderr": stderr, "returncode": returncode}
-       
+
         except FileNotFoundError as exc:
-            raise FileNotFoundError(
+            msg = (
                 f"{command_name} failed because the executable could not be found.\n"
                 "Did you provide the full executable path or add it to $PATH?\n"
-            ) from exc
+                )
+            raise FileNotFoundError(msg) from exc
         except subprocess.CalledProcessError as exc:
-            raise RuntimeError(
+            msg = (
                 f"{command_name} failed with a non-zero exit code: "
                 f"({exc.returncode}):\n{exc.stderr}"
-            ) from exc
+            )
+            raise RuntimeError(msg) from exc
 
-                
     @abstractmethod
     def read_trajectories(self) -> list[Trajectory]:
         """
