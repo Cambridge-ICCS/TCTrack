@@ -480,3 +480,22 @@ class TestTCTracker:
 
             finally:
                 Path(temp_file).unlink()
+
+        def test_run_tracker_subprocess_invalid_verbosity(self, tracker):
+            """Test that invalid verbosity raises ValueError."""
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".txt", delete=False
+            ) as f:
+                f.write("test\n")
+                temp_file = f.name
+
+            try:
+                with pytest.raises(ValueError):
+                    tracker.run_tracker_subprocess(
+                        command_name="TestCommand",
+                        command_list=["cat"],
+                        input_file=temp_file,
+                        verbosity=5,
+                    )
+            finally:
+                Path(temp_file).unlink()
