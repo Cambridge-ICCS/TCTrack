@@ -3,7 +3,9 @@
 import json
 import pathlib
 import re
+import tempfile
 from dataclasses import asdict, dataclass
+from pathlib import Path
 
 import cf
 import numpy as np
@@ -17,6 +19,7 @@ from tctrack.core import (
     TCTrackerTimeMetadata,
     Trajectory,
 )
+from tctrack.tempest_extremes import TEDetectParameters, TETracker
 
 
 @dataclass(repr=False)
@@ -442,3 +445,38 @@ class TestTCTracker:
         }
         for key, expected_value in expected_global_metadata.items():
             assert global_metadata[key] == expected_value
+
+    class TestRunTrackerSubprocess:
+        """Test suite for run_tracker_subprocess."""
+
+        @pytest.fixture
+        def tracker(self):
+            """Create a tracker instance for testing."""
+            detect_params = TEDetectParameters(in_data=["dummy.nc"])
+            return TETracker(detect_params)
+
+        def test_run_tracker_subprocess_returns_dict(self, tracker):
+            """Test that function returns correct dict with all keys."""
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".txt", delete=False
+            ) as f:
+                f.write("test line\n")
+                temp_file = f.name
+
+            try:
+                result = tracker.run_tracker_subprocess(
+                    command_name="TestCommand",
+                    command_list=["cat"],
+                    input_file=temp_file,
+                    verbosity=0,
+                )
+
+                assert isinstance(result, dict), "Should return a dict"
+                assert "stdout" in result, "Dict should have stdout key"
+                assert "stderr" in result, "Dict should have stderr key"
+                assert "returncode" in result, "Dict should have returncode key"
+                assert result["returncode"] == 0, "Command should succeed"
+                assert "test line" in result["stdout"], "stdout should contain input"
+
+            finally:
+                Path(temp_file).unlink()
