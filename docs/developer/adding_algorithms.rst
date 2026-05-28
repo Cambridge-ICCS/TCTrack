@@ -98,8 +98,7 @@ The class must contain a number of methods prescribed by the base Tracker class:
   :meth:`~TCTracker.read_trajectories` to a :doc:`CF-conventions compliant NetCDF file
   <../data/output_file>`.
 
-The detailed method signatures for these can be seen in the :class:`TCTracker` abstract
-class.
+A template with these methods is provided in ``src/tctrack/core/tracker_template.py``.
 
 The coding style described in the :ref:`developer guidelines <linting>` should be
 followed for all new code.
