@@ -13,16 +13,32 @@ FilePaths: TypeAlias = str | Sequence[str]
 
 @dataclass(frozen=True)
 class FieldSelect:
-    """File name(s) plus the NetCDF variable name to select."""
+    """Class containing the file name(s) plus the NetCDF variable name to select.
 
-    files: FilePaths
+    Necessary for choosing a variable from files which contain multiple.
+
+    Parameters
+    ----------
+    files : str | Sequence[str]
+        Input file path(s) to read from. ``glob`` pattern matching allowed.
+    var_name : str
+        NetCDF variable name to select from the input files.
+    """
+
+    files: str | Sequence[str]
     var_name: str
 
 
-FieldSource: TypeAlias = FilePaths | FieldSelect | cf.Field
+FieldSource: TypeAlias = str | Sequence[str] | FieldSelect | cf.Field
+"""Type alias for the allowed sources for ``cf.Field`` arguments.
+
+The ``cf.Field`` can be passed directly or using the path(s) CF-NetCDF file(s).
+If the file(s) contain multiple fields then :class:`FieldSelect` should be used to
+specify which to use.
+"""
 
 
-def _expand_input_paths(paths: FilePaths) -> list[str]:
+def _expand_input_paths(paths: str | Sequence[str]) -> list[str]:
     """Expand wildcard input paths into a list of file paths."""
     path_list = [paths] if isinstance(paths, str) else list(paths)
     expanded_paths: list[str] = []
@@ -51,22 +67,52 @@ def _write_output(result: T, output_file: str | None) -> T:
 
 
 def read_files(
-    input_files: FilePaths,
+    input_files: str | Sequence[str],
     output_file: str | None = None,
     *,
     select: str | None = None,
 ) -> list[cf.Field]:
-    """Read fields from separate files. Optionally write to a single output file."""
+    """Read fields from one or more files.
+
+    Parameters
+    ----------
+    input_files : str | Sequence[str]
+        Input file path(s) to read. ``glob`` pattern matching allowed.
+    output_file : str | None, optional
+        Output file to write the loaded fields to.
+    select : str | None, optional
+        Optional field selection for ``cf.read``.
+
+    Returns
+    -------
+    list[cf.Field]
+        The list of fields read from the input files.
+    """
     fields = list(cf.read(_expand_input_paths(input_files), select=select))  # type: ignore[operator]
     return _write_output(fields, output_file)
 
 
 def combine_time(
-    input_files: FilePaths,
+    input_files: str | Sequence[str],
     time_bounds: tuple[str, str] | None = None,
     output_file: str | None = None,
 ) -> list[cf.Field]:
-    """Combine files in time, with optional time bounds of [start, end)."""
+    """Combine files in time.
+
+    Parameters
+    ----------
+    input_files : str | Sequence[str]
+        Input file path(s) to combine. ``glob`` pattern matching allowed.
+    time_bounds : tuple[str, str] | None, optional
+        Optional start and end datetime strings. The end bound is open / exclusive.
+    output_file : str | None, optional
+        Output file to write the result to.
+
+    Returns
+    -------
+    list[cf.Field]
+        The list of combined fields.
+    """
     fields = read_files(input_files)
 
     if time_bounds is not None:
@@ -79,10 +125,23 @@ def combine_time(
 
 
 def separate_variables(
-    input_files: FilePaths,
+    input_files: str | Sequence[str],
     output_files: dict[str, str],
 ) -> list[cf.Field]:
-    """Split variables into separate files. The output keys are nc variable names."""
+    """Split variables into separate files.
+
+    Parameters
+    ----------
+    input_files : str | Sequence[str]
+        Input file path(s) to read. ``glob`` pattern matching allowed.
+    output_files : dict[str, str]
+        Mapping from NetCDF variable name to output file path.
+
+    Returns
+    -------
+    list[cf.Field]
+        The list of fields read from the input files.
+    """
     fields = {field.nc_get_variable(): field for field in read_files(input_files)}
 
     for var_name, output_file in output_files.items():
@@ -95,7 +154,7 @@ def separate_variables(
 
 
 def _load_field(source: FieldSource) -> cf.Field:
-    """Load a field from NetCDF file(s) ."""
+    """Load a single field from an in-memory field or file input."""
     if isinstance(source, cf.Field):
         return source
 
@@ -130,7 +189,24 @@ def subsample_field(
     *,
     squeeze: bool = True,
 ) -> cf.Field:
-    """Subsample a field using ``cf.Field.subspace``."""
+    """Subsample a field using ``cf.Field.subspace``.
+
+    Parameters
+    ----------
+    input_ : FieldSource
+        A field, file path(s), or :class:`FieldSelect` describing which field to load.
+    subspace_kwargs : dict[str, Any]
+        Keyword arguments passed to ``cf.Field.subspace``.
+    output_file : str | None, optional
+        Output file to write the result to.
+    squeeze : bool, optional
+        Whether to squeeze size-1 dimensions after subspacing.
+
+    Returns
+    -------
+    cf.Field
+        The subsampled field.
+    """
     if not subspace_kwargs:
         msg = "At least one subspace selector must be provided to 'subspace_kwargs'."
         raise ValueError(msg)
@@ -150,7 +226,26 @@ def collapse_field(
     *,
     squeeze: bool = True,
 ) -> cf.Field:
-    """Collapse a field over one or more axes."""
+    """Collapse a field over one or more axes.
+
+    Parameters
+    ----------
+    input_ : FieldSource
+        A field, file path(s), or :class:`FieldSelect` describing which field to load.
+    method : str
+        Collapse method passed to ``cf.Field.collapse``. E.g. ``"mean"``, ``"minimum"``.
+    axes : str | Sequence[str]
+        Axis or axes to collapse over.
+    output_file : str | None, optional
+        Output file to write the collapsed field to.
+    squeeze : bool, optional
+        Whether to squeeze size-1 dimensions after collapsing.
+
+    Returns
+    -------
+    cf.Field
+        The collapsed field.
+    """
     field = _load_field(input_)
     collapsed = field.collapse(method, axes=axes)
     if squeeze:
@@ -165,7 +260,26 @@ def calculate_curl_xy(
     variable_info: dict[str, str],
     output_file: str | None = None,
 ) -> cf.Field:
-    """Calculate the curl of two fields which are x and y components of a vector."""
+    """Calculate the curl of x and y vector components.
+
+    Parameters
+    ----------
+    input_x : FieldSource
+        Field for the x component.
+    input_y : FieldSource
+        Field for the y component.
+    variable_name : str
+        NetCDF variable name for the output field.
+    variable_info : dict[str, str]
+        Field properties to set on the output.
+    output_file : str | None, optional
+        Output file to write the curl field to.
+
+    Returns
+    -------
+    cf.Field
+        Curl field derived from the two inputs.
+    """
     field_x = _load_field(input_x)
     field_y = _load_field(input_y)
 
@@ -184,7 +298,22 @@ def calculate_vorticity(
     input_v: FieldSource,
     output_file: str | None = None,
 ) -> cf.Field:
-    """Calculate vorticity from colocated velocity fields."""
+    """Calculate vorticity from colocated velocity fields.
+
+    Parameters
+    ----------
+    input_u : FieldSource
+        Field for the eastward velocity component.
+    input_v : FieldSource
+        Field for the northward velocity component.
+    output_file : str | None, optional
+        Output file to write the vorticity field to.
+
+    Returns
+    -------
+    cf.Field
+        Vorticity field.
+    """
     return calculate_curl_xy(
         input_u,
         input_v,
@@ -202,7 +331,22 @@ def replace_fill_value(
     fill_value: float,
     output_file: str | None = None,
 ) -> cf.Field:
-    """Replace masked values in a field using ``cf.Field.filled``."""
+    """Replace masked values in a field using ``cf.Field.filled``.
+
+    Parameters
+    ----------
+    input_ : FieldSource
+        A field, file path(s), or :class:`FieldSelect` describing which field to load.
+    fill_value : float
+        Value for missing data.
+    output_file : str | None, optional
+        Output file to write the updated field to.
+
+    Returns
+    -------
+    cf.Field
+        Field with fill value replaced.
+    """
     field = _load_field(input_)
     field.filled(fill_value=fill_value, inplace=True)
     return _write_output(field, output_file)
@@ -215,7 +359,25 @@ def set_netcdf_variable_name(
     *,
     coord_names: dict[str, str] | None = None,
 ) -> cf.Field:
-    """Set NetCDF variable names for a field and (optionally) its coordinates."""
+    """Set NetCDF variable names for a field and, optionally, its coordinates.
+
+    Parameters
+    ----------
+    input_ : FieldSource
+        A field, file path(s), or :class:`FieldSelect` describing which field to load.
+    field_name : str
+        NetCDF variable name for the field.
+    output_file : str | None, optional
+        Output file to write the updated field to.
+    coord_names : dict[str, str] | None, optional
+        Optional updated NetCDF variable names for coordinates. Keys are the standard
+        names.
+
+    Returns
+    -------
+    cf.Field
+        Field with updated NetCDF variable names.
+    """
     field = _load_field(input_)
     field.nc_set_variable(field_name)
     for coordinate, variable_name in (coord_names or {}).items():
@@ -230,7 +392,24 @@ def regrid_to_field(
     *,
     method: str = "linear",
 ) -> cf.Field:
-    """Regrid a field onto the grid of another field / domain."""
+    """Regrid a field onto the grid of another field or domain.
+
+    Parameters
+    ----------
+    input_ : FieldSource
+        A field, file path(s), or :class:`FieldSelect` describing the field to regrid.
+    target : FieldSource | cf.Domain
+        Target field or domain that supplies the destination grid.
+    output_file : str | None, optional
+        Output file to write the regridded field to.
+    method : str, optional
+        Regridding method passed to ``cf.Field.regrids``.
+
+    Returns
+    -------
+    cf.Field
+        Regridded field.
+    """
     field = _load_field(input_)
     if not isinstance(target, cf.Domain):
         target = _load_field(target)
@@ -248,7 +427,26 @@ def regrid_to_lat_lon(
     *,
     method: str = "linear",
 ) -> cf.Field:
-    """Regrid a field onto a latitude-longitude grid."""
+    """Regrid a field onto a latitude-longitude grid.
+
+    Parameters
+    ----------
+    input_ : FieldSource
+        A field, file path(s), or :class:`FieldSelect` describing the field to regrid.
+    latitude : np.ndarray
+        Latitude coordinate values for the target grid.
+    longitude : np.ndarray
+        Longitude coordinate values for the target grid.
+    output_file : str | None, optional
+        Output file to write the regridded field to.
+    method : str, optional
+        Regridding method passed to ``cf.Field.regrids``.
+
+    Returns
+    -------
+    cf.Field
+        Regridded field on the requested latitude-longitude grid.
+    """
     field = _load_field(input_)
 
     domain = field.domain.copy()
@@ -265,7 +463,18 @@ def regrid_to_lat_lon(
 
 
 def gaussian_grid(n: int) -> tuple[np.ndarray, np.ndarray]:
-    """Create regular Gaussian latitude and longitude coordinates."""
+    """Create regular Gaussian latitude and longitude coordinates.
+
+    Parameters
+    ----------
+    n : int
+        Number of latitude points per hemisphere.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        Latitude and longitude coordinate arrays.
+    """
     latitude = np.degrees(np.arcsin(np.polynomial.legendre.leggauss(2 * n)[0]))
     longitude = np.arange(0.0, 360.0, 360.0 / (4 * n))
     return latitude, longitude
@@ -278,24 +487,42 @@ def regrid_to_gaussian(
     *,
     method: str = "linear",
 ) -> cf.Field:
-    """Regrid a field onto a regular Gaussian grid with n lat points per hemisphere."""
+    """Regrid a field onto a regular Gaussian grid.
+
+    Parameters
+    ----------
+    input_ : FieldSource
+        A field, file path(s), or :class:`FieldSelect` describing the field to regrid.
+    n : int
+        Number of latitude points per hemisphere for the target gaussian grid.
+    output_file : str | None, optional
+        Output file to write the regridded field to.
+    method : str, optional
+        Regridding method passed to ``cf.Field.regrids``.
+
+    Returns
+    -------
+    cf.Field
+        Regridded field on the Gaussian grid.
+    """
     lat, lon = gaussian_grid(n)
     return regrid_to_lat_lon(input_, lat, lon, output_file=output_file, method=method)
 
 
-__all__ = [
-    "FieldSelect",
+__all__ = [  # noqa: RUF022  # Prevent reorder for a more logical order in the api docs
+    "read_files",
+    "combine_time",
+    "separate_variables",
+    "subsample_field",
+    "collapse_field",
     "calculate_curl_xy",
     "calculate_vorticity",
-    "collapse_field",
-    "combine_time",
-    "gaussian_grid",
-    "read_files",
-    "regrid_to_field",
-    "regrid_to_gaussian",
-    "regrid_to_lat_lon",
     "replace_fill_value",
-    "separate_variables",
     "set_netcdf_variable_name",
-    "subsample_field",
+    "regrid_to_field",
+    "regrid_to_lat_lon",
+    "gaussian_grid",
+    "regrid_to_gaussian",
+    "FieldSource",
+    "FieldSelect",
 ]
