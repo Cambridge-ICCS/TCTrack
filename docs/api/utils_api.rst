@@ -6,10 +6,3 @@ Utility functions
 .. autofunction:: load_tracker_metadata
 
 .. autofunction:: read_tracker_metadata
-
-Preprocessing functions
------------------------
-
-.. automodule:: tctrack.utils.preprocessing
-   :members:
-   :member-order: bysource

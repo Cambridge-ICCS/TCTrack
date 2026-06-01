@@ -1,4 +1,4 @@
-"""Unit tests for preprocessing helper utilities."""
+"""Unit tests for preprocessing functions."""
 
 from pathlib import Path
 
@@ -6,7 +6,7 @@ import cf
 import numpy as np
 import pytest
 
-from tctrack.utils.preprocessing import (
+from tctrack.preprocessing import (
     FieldSelect,
     _load_field,
     calculate_vorticity,
