@@ -1,5 +1,6 @@
 """Module with preprocessing functions that can be used with batching."""
 
+import glob
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, TypeAlias, TypeVar
@@ -21,6 +22,24 @@ class FieldSelect:
 FieldSource: TypeAlias = FilePaths | FieldSelect | cf.Field
 
 
+def _expand_input_paths(paths: FilePaths) -> list[str]:
+    """Expand wildcard input paths into a list of file paths."""
+    path_list = [paths] if isinstance(paths, str) else list(paths)
+    expanded_paths: list[str] = []
+
+    for path in path_list:
+        matches = sorted(glob.glob(path))
+        if matches:
+            expanded_paths.extend(matches)
+            continue
+        if glob.has_magic(path):
+            msg = f"No files matched input pattern '{path}'."
+            raise FileNotFoundError(msg)
+        expanded_paths.append(path)
+
+    return expanded_paths
+
+
 T = TypeVar("T", cf.Field, list[cf.Field])
 
 
@@ -38,7 +57,7 @@ def read_files(
     select: str | None = None,
 ) -> list[cf.Field]:
     """Read fields from separate files. Optionally write to a single output file."""
-    fields = list(cf.read(input_files, select=select))  # type: ignore[operator]
+    fields = list(cf.read(_expand_input_paths(input_files), select=select))  # type: ignore[operator]
     return _write_output(fields, output_file)
 
 
