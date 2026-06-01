@@ -200,7 +200,7 @@ def subsample_field(
     output_file : str | None, optional
         Output file to write the result to.
     squeeze : bool, optional
-        Whether to squeeze size-1 dimensions after subspacing.
+        Whether to squeeze size-1 dimensions after subspacing. Default: ``False``.
 
     Returns
     -------
