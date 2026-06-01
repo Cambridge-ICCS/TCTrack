@@ -88,7 +88,11 @@ def read_files(
     list[cf.Field]
         The list of fields read from the input files.
     """
-    fields = list(cf.read(_expand_input_paths(input_files), select=select))  # type: ignore[operator]
+    fields = list(
+        cf.read(  # type: ignore[operator]
+            _expand_input_paths(input_files), select=select, netcdf_backend="netCDF4"
+        )
+    )
     return _write_output(fields, output_file)
 
 
