@@ -6,6 +6,11 @@ we detail how to perform some of the typically required preprocessing steps usin
 cf-python library. Other tools can be used for the same tasks, however we focus on
 cf-python since it provides a uniform interface and it is a dependency of TCTrack.
 
+We also provide simple wrapper functions in :mod:`tctrack.preprocessing` that can
+simplify each of these tasks. Examples of these are given in each of the subsections
+below. These functions also return the fields so the output files do not need to be
+written every time.
+
 For full documentation of the routines described on these pages and more see the
 `cf python documentation <https://ncas-cms.github.io/cf-python/>`_.
 
@@ -31,6 +36,14 @@ cf-python:
     # Write the combined data to a single file
     cf.write(field, "combined-output.nc")
 
+Or, equivalently, using TCTrack:
+
+.. code-block:: python
+
+    tctrack.preprocessing.combine_time(
+        input_files, ["1950-01-01", "1950-04-01"], "combined-output.nc"
+    )
+
 Combine Variables
 -----------------
 
@@ -46,6 +59,14 @@ read them in separately and then write them together:
     # Write the combined fields to a single file
     cf.write([field1, field2], "combined_file.nc")
 
+Using TCTrack:
+
+.. code-block:: python
+
+    tctrack.preprocessing.read_files(
+        ["var1_file.nc", "var2_file.nc"], "combined_file.nc"
+    )
+
 Separating Variables
 --------------------
 
@@ -60,6 +81,15 @@ If variables instead need to be separated into multiple files, such as in :doc:`
     # Write to separate files
     cf.write(field1, "var1_file.nc")
     cf.write(field2, "var2_file.nc")
+
+Using TCTrack:
+
+.. code-block:: python
+
+    tctrack.preprocessing.separate_variables(
+        "combined_file.nc",
+        {"var1": "var1_file.nc", "var2": "var2_file.nc"},
+    )
 
 Subsampling
 -----------
@@ -99,6 +129,19 @@ To remove the single-valued coordinate from the field use cf-python's
     # or, for a new field
     field3 = field2.squeeze()
 
+Using TCTrack, single-valued coordinates can be removed using the ``squeeze`` argument
+(see the first example below).
+
+.. code-block:: python
+
+    field2 = tctrack.preprocessing.subsample_field(
+        "var1_file.nc", {"Z": [5]}, squeeze=True
+    )
+    field3 = tctrack.preprocessing.subsample_field("var1_file.nc", {"X": [0, 5]})
+    field4 = tctrack.preprocessing.subsample_field(
+        "var1_file.nc", {"Y": slice(3, -3, 2)}
+    )
+
 Operations
 ----------
 
@@ -122,6 +165,14 @@ For example, to calculate vorticity from coincident velocity data we can use ``c
     # Save the new variable to NetCDF
     cf.write(w_field, "vorticity_file.nc")
 
+Using TCTrack:
+
+.. code-block:: python
+
+    tctrack.preprocessing.calculate_vorticity(
+        "u_file.nc", "v_file.nc", "vorticity_file.nc"
+    )
+
 Or to take a mean over a coordinate:
 
 .. code-block:: python
@@ -136,19 +187,29 @@ Or to take a mean over a coordinate:
     # Save the new variable to NetCDF
     cf.write(field_zonal_mean, "zonal_mean_file.nc")
 
+Using TCTrack:
+
+.. code-block:: python
+
+    tctrack.preprocessing.collapse_field("file.nc", "mean", "X", "zonal_mean_file.nc")
+
 Setting Fill Values
 ^^^^^^^^^^^^^^^^^^^
 
 Sometimes it us useful to replace fill values after an operation before writing to file.
 This can be done using cf-python's ``filled`` routine.
 For example, after to set any null or masked values to ``0.0`` after calculating
-vorticity above use:
+vorticity above use the following before writing to file.
 
 .. code-block:: python
 
     w_field.filled(fill_value=0.0, inplace=True)
 
-before writing to file.
+Using TCTrack:
+
+.. code-block:: python
+
+    tctrack.preprocessing.replace_fill_value(w_field, 0.0, "output.nc")
 
 Set NetCDF Variable Name
 ------------------------
@@ -166,6 +227,14 @@ To set specfic NetCDF variable names for the fields and coordinates you can use 
 
     # Save with the new netcdf variable names
     cf.write(field, "slp_file.nc")
+
+Using TCTrack:
+
+.. code-block:: python
+
+    tctrack.preprocessing.set_netcdf_variable_name(
+        "var1_file.nc", "slp", "slp_file.nc", coord_names={"latitude": "lat"}
+    )
 
 Regridding
 ----------
@@ -208,6 +277,22 @@ To regrid onto a new grid:
 
 Note that regridding can be performed inplace using ``inplace=True``.
 
+Using TCTrack:
+
+.. code-block:: python
+
+    # Regrid onto a different variable
+    tctrack.preprocessing.regrid_to_field(
+        "var1_file.nc", "var2_file.nc", "var1_regridded.nc"
+    )
+
+    # Regrid onto a new grid
+    latitude = np.arange(-90, 91, 1)
+    longitude = np.arange(-180, 181, 1)
+    tctrack.preprocessing.regrid_to_lat_lon(
+        "var1_file.nc", latitude, longitude, "var1_regridded.nc"
+    )
+
 Gaussian Grid
 ^^^^^^^^^^^^^
 
@@ -238,3 +323,9 @@ objects to be used for the regridding.
     # Regrid
     field = field.regrids((lat_coord, lon_coord), method="linear")
     field.nc_clear_dataset_chunksizes()  # Avoids a possible error when writing
+
+Using TCTrack:
+
+.. code-block:: python
+
+    tctrack.preprocessing.regrid_to_gaussian("var1_file.nc", 256, "var1_regridded.nc")

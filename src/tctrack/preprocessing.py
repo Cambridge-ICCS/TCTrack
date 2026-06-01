@@ -187,7 +187,7 @@ def subsample_field(
     subspace_kwargs: dict[str, Any],
     output_file: str | None = None,
     *,
-    squeeze: bool = True,
+    squeeze: bool = False,
 ) -> cf.Field:
     """Subsample a field using ``cf.Field.subspace``.
 
