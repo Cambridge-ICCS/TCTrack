@@ -44,7 +44,7 @@ not required.
 .. code-block:: python
 
     tctrack.preprocessing.select_time_range(
-        input_files, ["1950-01-01", "1950-04-01"], "combined-output.nc"
+        input_files, ["1950-01-01", "1950-04-01"], output_file="combined-output.nc"
     )
 
 Combine Variables
@@ -67,7 +67,7 @@ Using TCTrack:
 .. code-block:: python
 
     tctrack.preprocessing.read_files(
-        ["var1_file.nc", "var2_file.nc"], "combined_file.nc"
+        ["var1_file.nc", "var2_file.nc"], output_file="combined_file.nc"
     )
 
 Separating Variables
@@ -173,7 +173,7 @@ Using TCTrack:
 .. code-block:: python
 
     tctrack.preprocessing.calculate_vorticity(
-        "u_file.nc", "v_file.nc", "vorticity_file.nc"
+        "u_file.nc", "v_file.nc", output_file="vorticity_file.nc"
     )
 
 Or to take a mean over a coordinate:
@@ -194,7 +194,9 @@ Using TCTrack:
 
 .. code-block:: python
 
-    tctrack.preprocessing.collapse_field("file.nc", "mean", "X", "zonal_mean_file.nc")
+    tctrack.preprocessing.collapse_field(
+        "file.nc", "mean", "X", output_file="zonal_mean_file.nc"
+    )
 
 Setting Fill Values
 ^^^^^^^^^^^^^^^^^^^
@@ -212,7 +214,7 @@ Using TCTrack:
 
 .. code-block:: python
 
-    tctrack.preprocessing.replace_fill_value(w_field, 0.0, "output.nc")
+    tctrack.preprocessing.replace_fill_value(w_field, 0.0, output_file="output.nc")
 
 Set NetCDF Variable Name
 ------------------------
@@ -236,7 +238,10 @@ Using TCTrack:
 .. code-block:: python
 
     tctrack.preprocessing.set_netcdf_variable_name(
-        "var1_file.nc", "slp", "slp_file.nc", coord_names={"latitude": "lat"}
+        "var1_file.nc",
+        "slp",
+        coord_names={"latitude": "lat"},
+        output_file="slp_file.nc",
     )
 
 Regridding
@@ -286,14 +291,14 @@ Using TCTrack:
 
     # Regrid onto a different variable
     tctrack.preprocessing.regrid_to_field(
-        "var1_file.nc", "var2_file.nc", "var1_regridded.nc"
+        "var1_file.nc", "var2_file.nc", output_file="var1_regridded.nc"
     )
 
     # Regrid onto a new grid
     latitude = np.arange(-90, 91, 1)
     longitude = np.arange(-180, 181, 1)
     tctrack.preprocessing.regrid_to_lat_lon(
-        "var1_file.nc", latitude, longitude, "var1_regridded.nc"
+        "var1_file.nc", latitude, longitude, output_file="var1_regridded.nc"
     )
 
 Gaussian Grid
@@ -331,4 +336,6 @@ Using TCTrack:
 
 .. code-block:: python
 
-    tctrack.preprocessing.regrid_to_gaussian("var1_file.nc", 256, "var1_regridded.nc")
+    tctrack.preprocessing.regrid_to_gaussian(
+        "var1_file.nc", 256, output_file="var1_regridded.nc"
+    )
