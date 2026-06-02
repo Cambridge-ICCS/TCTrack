@@ -83,8 +83,8 @@ def _write_output(result: T, output_file: str | None) -> T:
 
 def read_files(
     input_files: str | Sequence[str],
-    output_file: str | None = None,
     *,
+    output_file: str | None = None,
     select: str | None = None,
 ) -> list[cf.Field]:
     """Read fields from one or more files.
@@ -114,6 +114,7 @@ def read_files(
 def select_time_range(
     input_files: str | Sequence[str],
     time_bounds: tuple[str, str],
+    *,
     output_file: str | None = None,
 ) -> list[cf.Field]:
     """Combine files in time and select a time range.
@@ -202,8 +203,8 @@ def _load_field(source: FieldSource) -> cf.Field:
 def subsample_field(
     input_: FieldSource,
     subspace_kwargs: dict[str, Any],
-    output_file: str | None = None,
     *,
+    output_file: str | None = None,
     squeeze: bool = False,
 ) -> cf.Field:
     """Subsample a field using ``cf.Field.subspace``.
@@ -239,8 +240,8 @@ def collapse_field(
     input_: FieldSource,
     method: str,
     axes: str | Sequence[str],
-    output_file: str | None = None,
     *,
+    output_file: str | None = None,
     squeeze: bool = True,
 ) -> cf.Field:
     """Collapse a field over one or more axes.
@@ -275,6 +276,7 @@ def calculate_curl_xy(
     input_y: FieldSource,
     variable_name: str,
     variable_info: dict[str, str],
+    *,
     output_file: str | None = None,
 ) -> cf.Field:
     """Calculate the curl of x and y vector components.
@@ -313,6 +315,7 @@ def calculate_curl_xy(
 def calculate_vorticity(
     input_u: FieldSource,
     input_v: FieldSource,
+    *,
     output_file: str | None = None,
 ) -> cf.Field:
     """Calculate vorticity from colocated velocity fields.
@@ -346,6 +349,7 @@ def calculate_vorticity(
 def replace_fill_value(
     input_: FieldSource,
     fill_value: float,
+    *,
     output_file: str | None = None,
 ) -> cf.Field:
     """Replace masked values in a field using ``cf.Field.filled``.
@@ -372,8 +376,8 @@ def replace_fill_value(
 def set_netcdf_variable_name(
     input_: FieldSource,
     field_name: str,
-    output_file: str | None = None,
     *,
+    output_file: str | None = None,
     coord_names: dict[str, str] | None = None,
 ) -> cf.Field:
     """Set NetCDF variable names for a field and, optionally, its coordinates.
@@ -405,8 +409,8 @@ def set_netcdf_variable_name(
 def regrid_to_field(
     input_: FieldSource,
     target: FieldSource | cf.Domain,
-    output_file: str | None = None,
     *,
+    output_file: str | None = None,
     method: str = "linear",
 ) -> cf.Field:
     """Regrid a field onto the grid of another field or domain.
@@ -441,8 +445,8 @@ def regrid_to_lat_lon(
     input_: FieldSource,
     latitude: np.ndarray,
     longitude: np.ndarray,
-    output_file: str | None = None,
     *,
+    output_file: str | None = None,
     method: str = "linear",
 ) -> cf.Field:
     """Regrid a field onto a latitude-longitude grid.
@@ -502,8 +506,8 @@ def gaussian_grid(n: int) -> tuple[np.ndarray, np.ndarray]:
 def regrid_to_gaussian(
     input_: FieldSource,
     n: int,
-    output_file: str | None = None,
     *,
+    output_file: str | None = None,
     method: str = "linear",
 ) -> cf.Field:
     """Regrid a field onto a regular Gaussian grid.

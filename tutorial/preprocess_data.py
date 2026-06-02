@@ -24,7 +24,7 @@ print("Extracting subspace from psl...", end="", flush=True)
 field_psl = preprocessing.select_time_range(
     f"{data_dir}/psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500101-19501230.nc",
     time_bounds,
-    f"{data_out}/psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
+    output_file=f"{data_out}/psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
 )[0]
 print("done.")
 
@@ -32,7 +32,7 @@ print("Extracting subspace from sfcWind...", end="", flush=True)
 preprocessing.select_time_range(
     f"{data_dir}/sfcWind_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500101-19501230.nc",
     time_bounds,
-    f"{data_out}/sfcWind_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
+    output_file=f"{data_out}/sfcWind_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
 )
 print("done.")
 
@@ -42,7 +42,7 @@ print("Combining zg files into one...", end="", flush=True)
 preprocessing.subsample_field(
     f"{data_dir}/zg7h_*.nc",
     {"T": slice(4, None, 8)},
-    f"{data_out}/zg7h_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
+    output_file=f"{data_out}/zg7h_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
 )
 print("done.")
 
@@ -59,7 +59,7 @@ print("Renaming slp...", end="", flush=True)
 preprocessing.set_netcdf_variable_name(
     field_psl,
     "slp",
-    f"{data_out}/slp_day_ASO50.nc",
+    output_file=f"{data_out}/slp_day_ASO50.nc",
 )
 del field_psl
 print("done.")
@@ -72,7 +72,7 @@ field_uas = preprocessing.select_time_range(
 field_uas = preprocessing.set_netcdf_variable_name(
     field_uas,
     "u_ref",
-    f"{data_out}/u_ref_day_ASO50.nc",
+    output_file=f"{data_out}/u_ref_day_ASO50.nc",
 )
 print("done.")
 
@@ -85,7 +85,7 @@ field_vas = preprocessing.regrid_to_field(field_vas, field_uas, method="linear")
 preprocessing.set_netcdf_variable_name(
     field_vas,
     "v_ref",
-    f"{data_out}/v_ref_day_ASO50.nc",
+    output_file=f"{data_out}/v_ref_day_ASO50.nc",
 )
 del field_vas
 print("done.")
@@ -102,7 +102,7 @@ field_u850 = preprocessing.regrid_to_field(field_u850, field_uas, method="linear
 field_u850 = preprocessing.set_netcdf_variable_name(
     field_u850,
     "u850",
-    f"{data_out}/u850_day_ASO50.nc",
+    output_file=f"{data_out}/u850_day_ASO50.nc",
 )
 print("done.")
 
@@ -117,7 +117,7 @@ del field_uas
 field_v850 = preprocessing.set_netcdf_variable_name(
     field_v850,
     "v850",
-    f"{data_out}/v850_day_ASO50.nc",
+    output_file=f"{data_out}/v850_day_ASO50.nc",
 )
 print("done.")
 
@@ -129,7 +129,7 @@ field_vort850 = preprocessing.replace_fill_value(field_vort850, 0.0)
 preprocessing.set_netcdf_variable_name(
     field_vort850,
     "vort850",
-    f"{data_out}/vort850_day_ASO50.nc",
+    output_file=f"{data_out}/vort850_day_ASO50.nc",
 )
 del field_vort850
 print("done.")
@@ -145,7 +145,7 @@ field_ta = preprocessing.collapse_field(field_ta, "mean", axes="Z")
 preprocessing.set_netcdf_variable_name(
     field_ta,
     "tm",
-    f"{data_out}/tm_day_ASO50.nc",
+    output_file=f"{data_out}/tm_day_ASO50.nc",
 )
 del field_ta
 print("done.")

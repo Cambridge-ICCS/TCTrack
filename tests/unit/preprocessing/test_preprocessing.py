@@ -91,7 +91,7 @@ class TestPreprocessing:
         input_file = write_fields(make_field("mslp"), tmp_path / "input.nc")
         output_file = tmp_path / "output.nc"
 
-        fields = read_files(input_file, str(output_file))
+        fields = read_files(input_file, output_file=str(output_file))
 
         assert len(fields) == 1
         assert output_file.exists()
