@@ -1,12 +1,27 @@
 """Module with preprocessing functions that can be used with batching."""
 
 import glob
+import importlib.util
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, TypeAlias, TypeVar
 
 import cf
 import numpy as np
+
+ESMPY_AVAILABLE = importlib.util.find_spec("esmpy") is not None
+
+
+def _require_esmpy() -> None:
+    """Guard to ensure that esmpy is installed for regridding."""
+    if not ESMPY_AVAILABLE:
+        msg = (
+            "Regridding requires esmpy to be installed. "
+            "See the dependency installation documentation:\n"
+            "https://tctrack.readthedocs.io/en/latest/getting-started/index.html#esmpy"
+        )
+        raise ImportError(msg)
+
 
 FilePaths: TypeAlias = str | Sequence[str]
 
@@ -412,6 +427,7 @@ def regrid_to_field(
     cf.Field
         Regridded field.
     """
+    _require_esmpy()
     field = _load_field(input_)
     if not isinstance(target, cf.Domain):
         target = _load_field(target)
@@ -449,6 +465,7 @@ def regrid_to_lat_lon(
     cf.Field
         Regridded field on the requested latitude-longitude grid.
     """
+    _require_esmpy()
     field = _load_field(input_)
 
     domain = field.domain.copy()
