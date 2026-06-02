@@ -246,7 +246,7 @@ class TCTracker(ABC):
             "tctrack_tracker": type(self).__name__,
         }
 
-    def run_tracker_subprocess( # noqa: PLR0912, PLR0913, PLR0915
+    def run_tracker_subprocess( # noqa: PLR0912, PLR0913
         self,
         command_name: str,
         command_list: list[str],
@@ -306,26 +306,20 @@ class TCTracker(ABC):
             )
             raise ValueError(msg)
 
+        stdin_file = open(input_file, "r") if input_file is not None else None  # noqa: SIM115
+
         try:
             # ── Level 0: Silent — no output ──
             if verbosity == 0:
-                stdin_file = open(input_file, "r") if input_file is not None else None # noqa: SIM115
-                try:
-                    if not command_list:
-                        msg = "command_list cannot be empty"
-                        raise ValueError(msg)
-                    result = subprocess.run( # noqa: S603
-                        command_list,
-                        stdin=stdin_file,
-                        input=input_str,
-                        check=True,
-                        capture_output=True,
-                        text=True,
-                        cwd=cwd,
-                    )
-                finally:
-                    if stdin_file is not None:
-                        stdin_file.close()
+                result = subprocess.run( # noqa: S603
+                    command_list,
+                    stdin=stdin_file,
+                    input=input_str,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    cwd=cwd,
+                )
 
                 stdout, stderr, returncode = (
                     result.stdout,
@@ -337,9 +331,7 @@ class TCTracker(ABC):
             elif verbosity == 1:
                 print(f"Executing {command_name}...")
 
-                stdin_file = open(input_file, "r") if input_file is not None else None # noqa: SIM115
-                try:
-                    result = subprocess.run( # noqa: S603
+                result = subprocess.run( # noqa: S603
                         command_list,
                         stdin=stdin_file,
                         input=input_str,
@@ -348,9 +340,6 @@ class TCTracker(ABC):
                         text=True,
                         cwd=cwd,
                     )
-                finally:
-                    if stdin_file is not None:
-                        stdin_file.close()
 
                 stdout, stderr, returncode = (
                     result.stdout,
@@ -368,10 +357,9 @@ class TCTracker(ABC):
                 )
 
             elif verbosity == 2: # noqa: PLR2004
-                with open(input_file, "r") as stdin:  # type: ignore[arg-type]
                     process = subprocess.Popen( # noqa: S603
                         command_list,
-                        stdin=stdin,
+                        stdin=stdin_file,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                         text=True,
@@ -392,7 +380,7 @@ class TCTracker(ABC):
                         msg = (
                             f"{command_name} failed with a non-zero exit code: "
                             f"{returncode}:\n{stderr}"
-                         )
+                            )
                         raise RuntimeError(msg)
 
             # Return after all levels
@@ -410,6 +398,10 @@ class TCTracker(ABC):
                 f"({exc.returncode}):\n{exc.stderr}"
             )
             raise RuntimeError(msg) from exc
+
+        finally:
+            if stdin_file is not None:
+                stdin_file.close()
 
     @abstractmethod
     def read_trajectories(self) -> list[Trajectory]:
