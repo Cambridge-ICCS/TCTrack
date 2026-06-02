@@ -38,10 +38,10 @@ print("done.")
 
 # Combine the monthly zg files into one, subspacing in time
 print("Combining zg files into one...", end="", flush=True)
-# zg is 3hr data from 00:00 but we want daily at 12:00, so set time of lower bound
-preprocessing.select_time_range(
+# zg is 3hr data from 00:00 but we want daily at 12:00, so subspace with a slice
+preprocessing.subsample_field(
     f"{data_dir}/zg7h_*.nc",
-    (time_bounds[0] + " 12:00", time_bounds[1]),
+    {"T": slice(4, None, 8)},
     f"{data_out}/zg7h_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
 )
 print("done.")
