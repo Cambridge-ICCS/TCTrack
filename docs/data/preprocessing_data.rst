@@ -36,11 +36,14 @@ cf-python:
     # Write the combined data to a single file
     cf.write(field, "combined-output.nc")
 
-Or, equivalently, using TCTrack:
+Or, equivalently, in TCTrack you can use
+:func:`tctrack.preprocessing.select_time_range`, as below. All of the other
+preprocessing functions can also be used to combine files if a specific time range is
+not required.
 
 .. code-block:: python
 
-    tctrack.preprocessing.combine_time(
+    tctrack.preprocessing.select_time_range(
         input_files, ["1950-01-01", "1950-04-01"], "combined-output.nc"
     )
 

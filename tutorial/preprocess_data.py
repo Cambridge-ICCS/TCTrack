@@ -21,7 +21,7 @@ time_window = cf.wi(cf.dt(time_bounds[0]), cf.dt(time_bounds[1]), open_upper=Tru
 # ======== Tempest Extremes ========
 # Extract ASO from annual data files
 print("Extracting subspace from psl...", end="", flush=True)
-field_psl = preprocessing.combine_time(
+field_psl = preprocessing.select_time_range(
     f"{data_dir}/psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500101-19501230.nc",
     time_bounds,
     f"{data_out}/psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
@@ -29,7 +29,7 @@ field_psl = preprocessing.combine_time(
 print("done.")
 
 print("Extracting subspace from sfcWind...", end="", flush=True)
-preprocessing.combine_time(
+preprocessing.select_time_range(
     f"{data_dir}/sfcWind_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500101-19501230.nc",
     time_bounds,
     f"{data_out}/sfcWind_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
@@ -39,7 +39,7 @@ print("done.")
 # Combine the monthly zg files into one, subspacing in time
 print("Combining zg files into one...", end="", flush=True)
 # zg is 3hr data from 00:00 but we want daily at 12:00, so set time of lower bound
-preprocessing.combine_time(
+preprocessing.select_time_range(
     f"{data_dir}/zg7h_*.nc",
     (time_bounds[0] + " 12:00", time_bounds[1]),
     f"{data_out}/zg7h_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
@@ -65,7 +65,7 @@ del field_psl
 print("done.")
 
 print("Extracting subspace from uas and renaming...", end="", flush=True)
-field_uas = preprocessing.combine_time(
+field_uas = preprocessing.select_time_range(
     f"{data_dir}/uas_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500101-19501230.nc",
     time_bounds,
 )[0]
@@ -77,7 +77,7 @@ field_uas = preprocessing.set_netcdf_variable_name(
 print("done.")
 
 print("Extracting subspace from vas and renaming...", end="", flush=True)
-field_vas = preprocessing.combine_time(
+field_vas = preprocessing.select_time_range(
     f"{data_dir}/vas_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500701-19501230.nc",
     time_bounds,
 )[0]
