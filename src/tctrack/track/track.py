@@ -550,7 +550,7 @@ class TRACKTracker(TCTracker):
         input_filename = Path(params.input_file).name
         # Run TRACK to perform the calculation
         inputs = self._get_calculate_vorticity_inputs()
-        self._run_track_process("calculate_vorticity", input_filename, inputs)
+        self.run_tracker_subprocess("calculate_vorticity", input_filename, inputs)
 
     def spectral_filtering(self):
         """Use TRACK to perform the spectral filtering of the vorticity.
@@ -571,7 +571,7 @@ class TRACKTracker(TCTracker):
         """
         params = self.parameters
         inputs = self._get_spectral_filtering_inputs()
-        self._run_track_process("spectral_filtering", params.vorticity_file, inputs)
+        self.run_tracker_subprocess("spectral_filtering", params.vorticity_file, inputs)
         shutil.copy(
             f"{params.base_dir}/outdat/specfil.{params.file_extension}_band001",
             f"{params.base_dir}/indat/{params.filt_vorticity_file}",
@@ -597,7 +597,7 @@ class TRACKTracker(TCTracker):
         """
         params = self.parameters
         inputs = self._get_tracking_inputs()
-        self._run_track_process("tracking", params.filt_vorticity_file, inputs)
+        self.run_tracker_subprocess("tracking", params.filt_vorticity_file, inputs)
 
     def filter_trajectories(self):
         """Use TRACK to filter the identified trajectories.
@@ -623,7 +623,7 @@ class TRACKTracker(TCTracker):
         """
         input_file = self.parameters.filt_vorticity_file
         inputs = self._get_filter_trajectories_inputs()
-        self._run_track_process("filter_trajectories", input_file, inputs)
+        self.run_tracker_subprocess("filter_trajectories", input_file, inputs)
 
     def read_trajectories(self) -> list[Trajectory]:
         """Parse outputs from TRACK to list of :class:`tctrack.core.Trajectory`.

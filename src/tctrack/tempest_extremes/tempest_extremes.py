@@ -699,7 +699,7 @@ class TETracker(TCTracker):
         """
         Path(self.detect_parameters.output_dir).mkdir(parents=True, exist_ok=True)
         dn_call_list = self._make_detect_nodes_call()
-        return self._run_te_process("DetectNodes", dn_call_list)
+        return self.run_tracker_subprocess("DetectNodes", dn_call_list)
 
     def _make_stitch_nodes_call(self):
         """
@@ -802,7 +802,7 @@ class TETracker(TCTracker):
         """
         Path(self.stitch_parameters.output_dir).mkdir(parents=True, exist_ok=True)
         sn_call_list = self._make_stitch_nodes_call()
-        return self._run_te_process("StitchNodes", sn_call_list)
+        return self.run_tracker_subprocess("StitchNodes", sn_call_list)
 
     def read_trajectories(self) -> list[Trajectory]:
         """

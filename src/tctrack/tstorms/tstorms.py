@@ -542,7 +542,7 @@ class TSTORMSTracker(TCTracker):
         """
         namelist_filepath = self._write_driver_namelist()
         driver_call_list = self._make_driver_call()
-        process_output = self._run_tstorms_process(
+        process_output = self.run_tracker_subprocess(
             "Detect", driver_call_list, namelist_filepath, verbose=verbose
         )
 
@@ -694,7 +694,7 @@ class TSTORMSTracker(TCTracker):
 
         namelist_filepath = self._write_trajectory_analysis_namelist()
         trajectory_call_list = self._make_trajectory_analysis_call()
-        process_output = self._run_tstorms_process(
+        process_output = self.run_tracker_subprocess(
             "Stitch", trajectory_call_list, namelist_filepath, verbose=verbose
         )
 
