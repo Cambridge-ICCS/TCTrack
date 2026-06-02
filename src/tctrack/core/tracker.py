@@ -373,7 +373,7 @@ class TCTracker(ABC):
                         stdout_lines.append(line)  # also collect it
 
                     stdout = "".join(stdout_lines)  # ← combine lines into string
-                    stderr, _ = process.communicate()
+                    _, stderr = process.communicate()
                     returncode = process.returncode
 
                     if returncode != 0:
