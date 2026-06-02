@@ -309,9 +309,39 @@ class TCTracker(ABC):
         stdin_file = open(input_file, "r") if input_file is not None else None  # noqa: SIM115
 
         try:
-            # ── Level 0: Silent — no output ──
-            if verbosity == 0:
-                result = subprocess.run( # noqa: S603
+            if verbosity == 2:  # noqa: PLR2004
+                process = subprocess.Popen(  # noqa: S603
+                    command_list,
+                    stdin=stdin_file,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    shell=False,
+                    bufsize=1,
+                    cwd=cwd,
+                )
+
+                stdout_lines = []
+                for line in iter(process.stdout.readline, ""):  # type: ignore[union-attr]
+                    print(line, end="")
+                    stdout_lines.append(line)
+
+                stdout = "".join(stdout_lines)
+                _, stderr = process.communicate()
+                returncode = process.returncode
+
+                if returncode != 0:
+                    msg = (
+                        f"{command_name} failed with a non-zero exit code: "
+                        f"{returncode}:\n{stderr}"
+                    )
+                    raise RuntimeError(msg)
+
+            else:
+                if verbosity == 1:
+                    print(f"Executing {command_name}...")
+
+                result = subprocess.run(  # noqa: S603
                     command_list,
                     stdin=stdin_file,
                     input=input_str,
@@ -327,65 +357,17 @@ class TCTracker(ABC):
                     result.returncode,
                 )
 
-            # ── Level 1: Summary — first and last 12 lines ──
-            elif verbosity == 1:
-                print(f"Executing {command_name}...")
-
-                result = subprocess.run( # noqa: S603
-                        command_list,
-                        stdin=stdin_file,
-                        input=input_str,
-                        check=True,
-                        capture_output=True,
-                        text=True,
-                        cwd=cwd,
+                if verbosity == 1:
+                    print(f"{command_name} completed successfully.")
+                    print(
+                        f"First 12 lines of output:\n"
+                        f"{''.join(stdout.splitlines(True)[:12])}"
+                        f"\n...\n\n"
+                        f"Last 12 lines of output:\n"
+                        f"{''.join(stdout.splitlines(True)[-12:])}"
                     )
 
-                stdout, stderr, returncode = (
-                    result.stdout,
-                    result.stderr,
-                    result.returncode,
-                )
-
-                print(f"{command_name} completed successfully.")
-                print(
-                    f"First 12 lines of output:\n"
-                    f"{''.join(stdout.splitlines(True)[:12])}"
-                    f"\n...\n\n"
-                    f"Last 12 lines of output:\n"
-                    f"{''.join(stdout.splitlines(True)[-12:])}"
-                )
-
-            elif verbosity == 2: # noqa: PLR2004
-                    process = subprocess.Popen( # noqa: S603
-                        command_list,
-                        stdin=stdin_file,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        shell=False,
-                        bufsize=1,
-                        cwd=cwd,
-                    )
-                    stdout_lines = []  # ← collect lines here
-                    for line in iter(process.stdout.readline, ""):  # type: ignore[union-attr]
-                        print(line, end="")  # print to screen
-                        stdout_lines.append(line)  # also collect it
-
-                    stdout = "".join(stdout_lines)  # ← combine lines into string
-                    _, stderr = process.communicate()
-                    returncode = process.returncode
-
-                    if returncode != 0:
-                        msg = (
-                            f"{command_name} failed with a non-zero exit code: "
-                            f"{returncode}:\n{stderr}"
-                            )
-                        raise RuntimeError(msg)
-
-            # Return after all levels
             return {"stdout": stdout, "stderr": stderr, "returncode": returncode}
-
         except FileNotFoundError as exc:
             msg = (
                 f"{command_name} failed because the executable could not be found.\n"
