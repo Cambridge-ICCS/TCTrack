@@ -2,8 +2,10 @@
 
 import importlib.metadata
 import subprocess
+import tempfile
 import warnings
 from abc import ABC, abstractmethod
+from contextlib import nullcontext
 from dataclasses import dataclass, fields
 from datetime import timedelta
 from typing import TypedDict
@@ -299,16 +301,21 @@ class TCTracker(ABC):
         if verbosity not in (0, 1, 2):
             msg = "Verbosity must be 0, 1, or 2."
             raise ValueError(msg)
-        if verbosity == 2 and input_str is not None: # noqa: PLR2004
-            msg = (
-                    "verbosity=2 (real-time output streaming) requires input_file, "
-                    "not input_str"
-            )
-            raise ValueError(msg)
+        if input_file is not None:
+            stdin_context = open(input_file, "r")  # noqa: SIM115
+        elif verbosity == 2 and input_str is not None:  # noqa: PLR2004
+            stdin_context = tempfile.TemporaryFile(mode="w+") # noqa: SIM115
+        else:
+            stdin_context = nullcontext(None)
 
-        stdin_file = open(input_file, "r") if input_file is not None else None  # noqa: SIM115
+        stdin_file = None
 
         try:
+            with stdin_context as stdin_file:
+                if verbosity == 2 and input_str is not None and stdin_file is not None: # noqa: PLR2004
+                    stdin_file.write(input_str)
+                    stdin_file.seek(0)
+
             if verbosity == 2:  # noqa: PLR2004
                 process = subprocess.Popen(  # noqa: S603
                     command_list,
@@ -380,10 +387,6 @@ class TCTracker(ABC):
                 f"({exc.returncode}):\n{exc.stderr}"
             )
             raise RuntimeError(msg) from exc
-
-        finally:
-            if stdin_file is not None:
-                stdin_file.close()
 
     @abstractmethod
     def read_trajectories(self) -> list[Trajectory]:
