@@ -11,12 +11,12 @@ from tctrack.preprocessing import (
     _load_field,
     calculate_vorticity,
     collapse_field,
-    combine_time,
     gaussian_grid,
     read_files,
     regrid_to_field,
     regrid_to_gaussian,
     replace_fill_value,
+    select_time_range,
     separate_variables,
     set_netcdf_variable_name,
     subsample_field,
@@ -96,14 +96,14 @@ class TestPreprocessing:
         assert output_file.exists()
         assert cf.read(str(output_file))[0].nc_get_variable() == "mslp"
 
-    def test_combine_time_bounds(self, tmp_path):
-        """Test combine_time correctly selects data in time bounds."""
+    def test_select_time_range_bounds(self, tmp_path):
+        """Test select_time_range correctly selects data in time bounds."""
         input_files = [
             write_fields(make_field("mslp", "2000-01-01"), tmp_path / "a.nc"),
             write_fields(make_field("mslp", "2000-01-02"), tmp_path / "b.nc"),
         ]
 
-        fields = combine_time(input_files, ("2000-01-01", "2000-01-02"))
+        fields = select_time_range(input_files, ("2000-01-01", "2000-01-02"))
 
         assert len(fields) == 1  # Same field (mslp)
         assert fields[0].coordinate("T").size == 1  # Upper bound is excluded
