@@ -96,19 +96,20 @@ def read_files(
     return _write_output(fields, output_file)
 
 
-def combine_time(
+def select_time_range(
     input_files: str | Sequence[str],
-    time_bounds: tuple[str, str] | None = None,
+    time_bounds: tuple[str, str],
     output_file: str | None = None,
 ) -> list[cf.Field]:
-    """Combine files in time.
+    """Combine files in time and select a time range.
 
     Parameters
     ----------
     input_files : str | Sequence[str]
         Input file path(s) to combine. ``glob`` pattern matching allowed.
-    time_bounds : tuple[str, str] | None, optional
-        Optional start and end datetime strings. The end bound is open / exclusive.
+    time_bounds : tuple[str, str]
+        Start and end datetime strings in format ``"YYYY-MM-DD[ HH:MM]"``.
+        The end bound is open / exclusive.
     output_file : str | None, optional
         Output file to write the result to.
 
@@ -119,11 +120,8 @@ def combine_time(
     """
     fields = read_files(input_files)
 
-    if time_bounds is not None:
-        time_interval = cf.wi(
-            cf.dt(time_bounds[0]), cf.dt(time_bounds[1]), open_upper=True
-        )
-        fields = [field.subspace(T=time_interval) for field in fields]
+    time_interval = cf.wi(cf.dt(time_bounds[0]), cf.dt(time_bounds[1]), open_upper=True)
+    fields = [field.subspace(T=time_interval) for field in fields]
 
     return _write_output(fields, output_file)
 
@@ -515,7 +513,7 @@ def regrid_to_gaussian(
 
 __all__ = [  # noqa: RUF022  # Prevent reorder for a more logical order in the api docs
     "read_files",
-    "combine_time",
+    "select_time_range",
     "separate_variables",
     "subsample_field",
     "collapse_field",
