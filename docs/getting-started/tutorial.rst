@@ -90,9 +90,9 @@ before running.
 Pre-processing of Data
 ----------------------
 
-From inside the conda environment run the regridding script to pre-process the data::
+From inside the conda environment run the script to pre-process the data::
 
-    python regrid.py
+    python preprocess_data.py
 
 This will pre-process the downloaded data as required for our codes and place it in
 ``data_processed/``.
