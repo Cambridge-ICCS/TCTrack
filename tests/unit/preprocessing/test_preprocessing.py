@@ -6,6 +6,7 @@ import cf
 import numpy as np
 import pytest
 
+import tctrack.preprocessing
 from tctrack.preprocessing import (
     FieldSelect,
     _load_field,
@@ -243,6 +244,17 @@ class TestPreprocessing:
         assert renamed.coordinate("X").nc_get_variable() == "longitude"
         assert renamed.coordinate("Y").nc_get_variable() == "latitude"
 
+    def test_regrid_esmpy_guard(self, monkeypatch):
+        """Test regridding fails clearly when esmpy is unavailable."""
+        monkeypatch.setattr(tctrack.preprocessing, "ESMPY_AVAILABLE", False)
+
+        with pytest.raises(ImportError, match="Regridding requires esmpy"):
+            regrid_to_field(make_field("v"), make_field("u"))
+
+    @pytest.mark.skipif(
+        not tctrack.preprocessing.ESMPY_AVAILABLE,
+        reason="esmpy is not pip-installable so this currently fails in CI",
+    )
     def test_regrid_to_field(self):
         """Test regrid_to_field works correctly."""
         target = make_field("u")
@@ -261,6 +273,10 @@ class TestPreprocessing:
         assert longitude[-1] == pytest.approx(337.5)
         assert latitude[0] == pytest.approx(-latitude[-1])
 
+    @pytest.mark.skipif(
+        not tctrack.preprocessing.ESMPY_AVAILABLE,
+        reason="esmpy is not pip-installable so this currently fails in CI",
+    )
     def test_regrid_to_gaussian(self):
         """Test regrid_to_gaussian works correctly."""
         field = make_field("mslp")
