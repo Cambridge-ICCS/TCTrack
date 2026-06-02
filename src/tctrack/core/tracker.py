@@ -293,6 +293,9 @@ class TCTracker(ABC):
         if input_file and input_str:
             msg = "Please provide either input_file or input_str, not both."
             raise ValueError(msg)
+        if not command_list:
+            msg = "command_list cannot be empty"
+            raise ValueError(msg)
         if verbosity not in (0, 1, 2):
             msg = "Verbosity must be 0, 1, or 2."
             raise ValueError(msg)
