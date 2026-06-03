@@ -295,6 +295,11 @@ class TSTORMSTracker(TCTracker):
         output_dir = self.tstorms_parameters.output_dir
         os.makedirs(output_dir, exist_ok=True)
 
+    @property
+    def _parameters(self) -> list[TCTrackerParameters]:
+        """A list of the parameter objects that is accessible from the base class."""
+        return [self.tstorms_parameters, self.detect_parameters, self.stitch_parameters]
+
     def _write_driver_namelist(self) -> str:
         """
         Generate the namelist file for the tstorms_driver routine.

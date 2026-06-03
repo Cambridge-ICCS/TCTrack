@@ -472,6 +472,11 @@ class TETracker(TCTracker):
             variables = [output["var"] for output in dn_params.output_commands]
             sn_params.in_fmt = ["lon", "lat", *variables]
 
+    @property
+    def _parameters(self) -> list[TCTrackerParameters]:
+        """A list of the parameter objects that is accessible from the base class."""
+        return [self.detect_parameters, self.stitch_parameters]
+
     def _make_detect_nodes_call(self):  # noqa: PLR0912 - all branches same logic
         """
         Construct a DetectNodes call based on options set in parameters.
