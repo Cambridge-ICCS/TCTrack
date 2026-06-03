@@ -1,12 +1,12 @@
 """Module providing an abstract base classes for creating specific trackers."""
 
 import importlib.metadata
+import json
 import subprocess
 import tempfile
 import warnings
-from contextlib import nullcontext
-import json
 from abc import ABC, abstractmethod
+from contextlib import nullcontext
 from dataclasses import asdict, dataclass, fields
 from datetime import timedelta
 from typing import TypedDict
@@ -264,6 +264,7 @@ class TCTracker(ABC):
             "tctrack_tracker": type(self).__name__,
             "tctrack_parameters": json.dumps(parameters),
         }
+        self._set_metadata()
 
     def run_tracker_subprocess( # noqa: PLR0912, PLR0913
         self,
