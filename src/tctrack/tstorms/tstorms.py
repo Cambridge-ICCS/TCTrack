@@ -7,7 +7,6 @@ References
 
 import json
 import os
-import subprocess
 import tempfile
 import textwrap
 import warnings
@@ -297,114 +296,6 @@ class TSTORMSTracker(TCTracker):
         output_dir = self.tstorms_parameters.output_dir
         os.makedirs(output_dir, exist_ok=True)
 
-    def _run_tstorms_process(
-        self,
-        command_name: str,
-        command_list: list[str],
-        input_file: str,
-        verbose: bool = False,
-    ):
-        """Run a TSTORMS command.
-
-        Parameters
-        ----------
-        command_name : str
-            The name of the command to be used in the log and error reporting.
-        command_list : list[str]
-            The list of strings that produce the command as given by
-            _make_driver_call and _make_trajectories_call.
-        input_file : str
-            Path to an input file to be passed to the command's stdin (e.g. namelist).
-            Defaults to None.
-        verbose : bool
-            Whether to print the entire TSTORMS output to screen in real-time or just
-            the start/end summary. Defaults to False.
-
-        Returns
-        -------
-        dict
-            dict of subprocess output corresponding to stdout, stderr, and returncode.
-
-        Raises
-        ------
-        FileNotFoundError
-            If the tstorms executable from cannot be found.
-        RuntimeError
-            If tstorms executable returns a non-zero exit code.
-        """
-        # Execute subproces commands from output_dir so outputs appear there.
-        output_dir = self.tstorms_parameters.output_dir
-        try:
-            if verbose:
-                with open(input_file, "r") as stdin:
-                    # Real-time output with Popen
-                    process = subprocess.Popen(  # noqa: S603 - no shell
-                        command_list,
-                        stdin=stdin,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        shell=False,
-                        bufsize=1,  # Line-buffered output
-                        cwd=output_dir,
-                    )
-
-                    # Print stdout in real-time
-                    for line in iter(process.stdout.readline, ""):  # type: ignore[union-attr]
-                        print(line, end="")
-
-                    stdout, stderr = process.communicate()
-                    returncode = process.returncode
-
-                    if returncode != 0:
-                        err_msg = (
-                            f"{command_name} failed with a non-zero exit code: "
-                            f"{returncode}:\n{stderr}"
-                        )
-                        raise RuntimeError(err_msg)
-            else:
-                # verbose=False: Concise output print start/end summary
-                with open(input_file, "r") as stdin:
-                    print(f"Executing {command_name}...")
-                    result = subprocess.run(  # noqa: S603 - no shell
-                        command_list,
-                        stdin=stdin,
-                        check=True,
-                        capture_output=True,
-                        text=True,
-                        cwd=output_dir,
-                    )
-                    stdout, stderr, returncode = (
-                        result.stdout,
-                        result.stderr,
-                        result.returncode,
-                    )
-
-                    print(f"{command_name} completed successfully.")
-                    print(
-                        f"First 12 lines of output:\n"
-                        f"{''.join(stdout.splitlines(True)[:12])}"
-                        f"\n...\n\n"
-                        f"Last 12 lines of output:\n"
-                        f"{''.join(stdout.splitlines(True)[-12:])}"
-                    )
-
-            return {
-                "stdout": stdout,
-                "stderr": stderr,
-                "returncode": returncode,
-            }
-        except FileNotFoundError as exc:
-            msg = f"{command_name} failed because the executable could not be found."
-            raise FileNotFoundError(msg) from exc
-        except subprocess.CalledProcessError as exc:
-            msg = (
-                f"{command_name} failed with a non-zero exit code:"
-                f"({exc.returncode}):\n"
-                f"{exc.stderr}"
-            )
-            raise RuntimeError(msg) from exc
-
     def _write_driver_namelist(self) -> str:
         """
         Generate the namelist file for the tstorms_driver routine.
@@ -480,7 +371,7 @@ class TSTORMSTracker(TCTracker):
 
         return dn_argslist
 
-    def detect(self, verbose=False):
+    def detect(self, verbosity: int = 1):
         """
         Call the driver utility of TSTORMS.
 
@@ -510,10 +401,12 @@ class TSTORMSTracker(TCTracker):
 
         Parameters
         ----------
-        verbose : bool
-            Whether to print the entire TSTORMS output to screen in real-time or just
-            the start/end summary.
-            Defaults to False.
+        verbosity : int
+            Controls how much output is shown:
+            0 = No output gets printed.
+            1 = summary, first and last 12 lines printed (default).
+            2 = Entire output is streamed in real-time.
+            Defaults to 1.
 
         Returns
         -------
@@ -543,7 +436,11 @@ class TSTORMSTracker(TCTracker):
         namelist_filepath = self._write_driver_namelist()
         driver_call_list = self._make_driver_call()
         process_output = self.run_tracker_subprocess(
-            "Detect", driver_call_list, namelist_filepath, verbose=verbose
+            "Detect",
+            driver_call_list,
+            namelist_filepath,
+            verbosity=verbosity,
+            cwd=self.tstorms_parameters.output_dir,
         )
 
         return process_output
@@ -622,7 +519,7 @@ class TSTORMSTracker(TCTracker):
 
         return stitch_argslist
 
-    def stitch(self, verbose=False):
+    def stitch(self, verbosity: int = 1):
         """
         Call the trajectory analysis utility of TSTORMS to stitch candidate storms.
 
@@ -652,10 +549,12 @@ class TSTORMSTracker(TCTracker):
 
         Parameters
         ----------
-        verbose : bool
-            Whether to print the entire TSTORMS output to screen in real-time or just
-            the start/end summary.
-            Defaults to False.
+        verbosity : int
+            Controls how much output is shown:
+            0 = No output gets printed.
+            1 = summary, first and last 12 lines printed (default).
+            2 = Entire output is streamed in real-time.
+            Defaults to 1.
 
         Returns
         -------
@@ -695,7 +594,11 @@ class TSTORMSTracker(TCTracker):
         namelist_filepath = self._write_trajectory_analysis_namelist()
         trajectory_call_list = self._make_trajectory_analysis_call()
         process_output = self.run_tracker_subprocess(
-            "Stitch", trajectory_call_list, namelist_filepath, verbose=verbose
+            "Stitch",
+            trajectory_call_list,
+            namelist_filepath,
+            verbosity=verbosity,
+            cwd=self.tstorms_parameters.output_dir,
         )
 
         return process_output

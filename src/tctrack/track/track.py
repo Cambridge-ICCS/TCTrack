@@ -10,7 +10,6 @@ References
 
 import json
 import shutil
-import subprocess
 import warnings
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -470,52 +469,18 @@ class TRACKTracker(TCTracker):
         RuntimeError
             If the TRACK executable returns a non-zero exit code.
         """
-        try:
-            params = self.parameters
-            command = [
-                params.base_dir + "/" + params.binary,
-                "-i",
-                input_file,
-                "-f",
-                params.file_extension,
-            ]
+        params = self.parameters
+        command = [
+            params.base_dir + "/" + params.binary,
+            "-i",
+            input_file,
+            "-f",
+            params.file_extension,
+        ]
 
-            input_commands = self._prepare_inputs(command_name, inputs)
+        input_commands = self._prepare_inputs(command_name, inputs)
 
-            print(f"{command_name} running...")
-            result = subprocess.run(  # noqa: S603 - no shell
-                command,
-                input=input_commands,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            print(f"{command_name} completed successfully.")
-            print(
-                f"First 12 lines of output:\n"
-                f"{''.join(result.stdout.splitlines(True)[:12])}"
-                f"\n...\n\n"
-                f"Last 12 lines of output:\n"
-                f"{''.join(result.stdout.splitlines(True)[-12:])}"
-            )
-            return {
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-                "returncode": result.returncode,
-            }
-        except FileNotFoundError as exc:
-            msg = (
-                f"{command_name} failed because the executable could not be found.\n"
-                "Did you provide the full executeable path or add it to $PATH?\n"
-            )
-            raise FileNotFoundError(msg) from exc
-        except subprocess.CalledProcessError as exc:
-            msg = (
-                f"{command_name} failed with a non-zero exit code:"
-                f"({exc.returncode}):\n"
-                f"{exc.stderr}"
-            )
-            raise RuntimeError(msg) from exc
+        self.run_tracker_subprocess(command_name, command, input_str=input_commands)
 
     def calculate_vorticity(self):
         """Use TRACK to calculate the vorticity from the wind components.
@@ -550,7 +515,7 @@ class TRACKTracker(TCTracker):
         input_filename = Path(params.input_file).name
         # Run TRACK to perform the calculation
         inputs = self._get_calculate_vorticity_inputs()
-        self.run_tracker_subprocess("calculate_vorticity", input_filename, inputs)
+        self._run_track_process("calculate_vorticity", input_filename, inputs)
 
     def spectral_filtering(self):
         """Use TRACK to perform the spectral filtering of the vorticity.
@@ -571,7 +536,7 @@ class TRACKTracker(TCTracker):
         """
         params = self.parameters
         inputs = self._get_spectral_filtering_inputs()
-        self.run_tracker_subprocess("spectral_filtering", params.vorticity_file, inputs)
+        self._run_track_process("spectral_filtering", params.vorticity_file, inputs)
         shutil.copy(
             f"{params.base_dir}/outdat/specfil.{params.file_extension}_band001",
             f"{params.base_dir}/indat/{params.filt_vorticity_file}",
@@ -597,7 +562,7 @@ class TRACKTracker(TCTracker):
         """
         params = self.parameters
         inputs = self._get_tracking_inputs()
-        self.run_tracker_subprocess("tracking", params.filt_vorticity_file, inputs)
+        self._run_track_process("tracking", params.filt_vorticity_file, inputs)
 
     def filter_trajectories(self):
         """Use TRACK to filter the identified trajectories.
@@ -623,7 +588,7 @@ class TRACKTracker(TCTracker):
         """
         input_file = self.parameters.filt_vorticity_file
         inputs = self._get_filter_trajectories_inputs()
-        self.run_tracker_subprocess("filter_trajectories", input_file, inputs)
+        self._run_track_process("filter_trajectories", input_file, inputs)
 
     def read_trajectories(self) -> list[Trajectory]:
         """Parse outputs from TRACK to list of :class:`tctrack.core.Trajectory`.
