@@ -195,6 +195,8 @@ class TestTrackTracker:
             check=True,
             capture_output=True,
             text=True,
+            stdin=None,
+            cwd=None,
         )
 
         # Check call to shutil.copy is as expected
@@ -223,6 +225,8 @@ class TestTrackTracker:
             check=True,
             capture_output=True,
             text=True,
+            stdin=None,
+            cwd=None,
         )
 
         # Check call to shutil.copy is as expected
@@ -262,6 +266,8 @@ class TestTrackTracker:
             check=True,
             capture_output=True,
             text=True,
+            stdin=None,
+            cwd=None,
         )
 
     def test_filter_trajectories(self, mocker):
@@ -288,6 +294,8 @@ class TestTrackTracker:
             check=True,
             capture_output=True,
             text=True,
+            stdin=None,
+            cwd=None,
         )
 
     def _create_nc_output_file(self, tmp_path):

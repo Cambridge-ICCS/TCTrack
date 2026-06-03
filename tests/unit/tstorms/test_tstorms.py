@@ -894,6 +894,7 @@ class TestTSTORMSTrackerDetect:
             capture_output=True,
             text=True,
             cwd=str(output_dir),
+            input=None,
         )
         stdin_file = mock_subprocess_run.call_args[1]["stdin"]
         assert stdin_file.name == f"{output_dir}/nml_driver"
@@ -904,7 +905,7 @@ class TestTSTORMSTrackerDetect:
     def test_tstorms_tracker_detect_verbose(
         self, mocker, tstorms_tracker, capsys
     ) -> None:
-        """Checks the correct tstorms_driver call is made with verbose=True."""
+        """Checks the correct tstorms_driver call is made with verbosity=2."""
         # Mock subprocess.Popen to simulate real-time output
         mock_popen = mocker.patch("subprocess.Popen")
         mock_stdout = mocker.MagicMock()
@@ -923,7 +924,7 @@ class TestTSTORMSTrackerDetect:
         tracker = tstorms_tracker[0]
         tstorms_dir = tstorms_tracker[1]
         output_dir = tracker.tstorms_parameters.output_dir
-        result = tracker.detect(verbose=True)
+        result = tracker.detect(verbosity=2)
 
         # Check subprocess.Popen call
         mock_popen.assert_called_once_with(
@@ -943,7 +944,7 @@ class TestTSTORMSTrackerDetect:
 
         # Verify returned outputs - using capsys to get the stderr feed
         captured = capsys.readouterr()
-        assert captured.out == "Line 1\nLine 2\n"
+        assert captured.out == "Executing Detect...\nLine 1\nLine 2\n"
         assert result["stderr"] == "Mocked stderr output"
         assert result["returncode"] == 0
 
@@ -968,7 +969,7 @@ class TestTSTORMSTrackerDetect:
     def test_tstorms_tracker_detect_verbose_file_not_found(
         self, mocker, tstorms_tracker
     ) -> None:
-        """Check detect raises FileNotFoundError verbose=True."""
+        """Check detect raises FileNotFoundError verbosity=2."""
         # Mock subprocess.Popen to simulate a FileNotFoundError
         mock_popen = mocker.patch("subprocess.Popen")
         mock_popen.side_effect = FileNotFoundError("Executable not found")
@@ -980,7 +981,7 @@ class TestTSTORMSTrackerDetect:
             FileNotFoundError,
             match="Detect failed because the executable could not be found",
         ):
-            tracker.detect(verbose=True)
+            tracker.detect(verbosity=2)
 
     def test_tstorms_tracker_detect_failure(self, mocker, tstorms_tracker) -> None:
         """Check detect raises RuntimeError on subprocess failure."""
@@ -1004,7 +1005,7 @@ class TestTSTORMSTrackerDetect:
         mocker,
         tstorms_tracker,
     ) -> None:
-        """Check detect raises RuntimeError on with verbose=True."""
+        """Check detect raises RuntimeError on with verbosity=2."""
         # Mock subprocess.Popen to simulate a failure
         mock_popen = mocker.patch("subprocess.Popen")
         mock_popen.side_effect = subprocess.CalledProcessError(
@@ -1017,7 +1018,7 @@ class TestTSTORMSTrackerDetect:
         with pytest.raises(
             RuntimeError, match="Detect failed with a non-zero exit code"
         ):
-            tracker.detect(verbose=True)
+            tracker.detect(verbosity=2)
 
 
 class TestTSTORMSTrackerStitch:
@@ -1053,6 +1054,7 @@ class TestTSTORMSTrackerStitch:
             capture_output=True,
             text=True,
             cwd=str(output_dir),
+            input=None,
         )
         stdin_file = mock_subprocess_run.call_args[1]["stdin"]
         assert stdin_file.name == f"{output_dir}/nml_traj"
@@ -1063,7 +1065,7 @@ class TestTSTORMSTrackerStitch:
     def test_tstorms_tracker_stitch_verbose(
         self, mocker, tstorms_tracker, capsys
     ) -> None:
-        """Checks the correct trajectory_analysis call is made with verbose=True."""
+        """Checks the correct trajectory_analysis call is made with verbosity=2."""
         # Mock subprocess.Popen to simulate real-time output
         mock_popen = mocker.patch("subprocess.Popen")
         mock_stdout = mocker.MagicMock()
@@ -1089,7 +1091,7 @@ class TestTSTORMSTrackerStitch:
         with open(generated_cyclones_file, "w") as f:
             f.write("Mock cyclones content")
 
-        result = tracker.stitch(verbose=True)
+        result = tracker.stitch(verbosity=2)
 
         # Check subprocess.Popen call
         mock_popen.assert_called_once_with(
@@ -1109,7 +1111,7 @@ class TestTSTORMSTrackerStitch:
 
         # Verify returned outputs - using capsys to get the stderr feed
         captured = capsys.readouterr()
-        assert captured.out == "Line 1\nLine 2\n"
+        assert captured.out == "Executing Stitch...\nLine 1\nLine 2\n"
         assert result["stderr"] == "Mocked stderr output"
         assert result["returncode"] == 0
 
@@ -1140,7 +1142,7 @@ class TestTSTORMSTrackerStitch:
     def test_tstorms_tracker_stitch_verbose_file_not_found(
         self, mocker, tstorms_tracker
     ) -> None:
-        """Check stitch raises FileNotFoundError verbose=True."""
+        """Check stitch raises FileNotFoundError verbosity=2."""
         # Mock subprocess.Popen to simulate a FileNotFoundError
         mock_popen = mocker.patch("subprocess.Popen")
         mock_popen.side_effect = FileNotFoundError("Executable not found")
@@ -1158,7 +1160,7 @@ class TestTSTORMSTrackerStitch:
             FileNotFoundError,
             match="Stitch failed because the executable could not be found",
         ):
-            tracker.stitch(verbose=True)
+            tracker.stitch(verbosity=2)
 
     def test_tstorms_tracker_stitch_failure(self, mocker, tstorms_tracker) -> None:
         """Check stitch raises RuntimeError on subprocess failure."""
@@ -1188,7 +1190,7 @@ class TestTSTORMSTrackerStitch:
         mocker,
         tstorms_tracker,
     ) -> None:
-        """Check stitch raises RuntimeError on with verbose=True."""
+        """Check stitch raises RuntimeError on with verbosity=2."""
         # Mock subprocess.Popen to simulate a failure
         mock_popen = mocker.patch("subprocess.Popen")
         mock_popen.side_effect = subprocess.CalledProcessError(
@@ -1207,4 +1209,4 @@ class TestTSTORMSTrackerStitch:
         with pytest.raises(
             RuntimeError, match="Stitch failed with a non-zero exit code"
         ):
-            tracker.stitch(verbose=True)
+            tracker.stitch(verbosity=2)

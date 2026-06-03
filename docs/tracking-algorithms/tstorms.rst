@@ -115,7 +115,7 @@ documentation:
     # Initialize the tracker
     tracker = TSTORMSTracker(tstorms_params, detect_params)
 
-    detect_call = tracker.detect(verbose=True)
+    detect_call = tracker.detect(verbosity=2)
 
 The result of this will be a ``cyclones`` file in the prescribed output directory with
 candidate storms organised by date in the format described in :meth:`~TSTORMSTracker.detect`.
@@ -145,7 +145,7 @@ Full details of each input are given in the :class:`TSTORMSStitchParameters` doc
         lat_bound_s=-70.0,
     )
     tracker = TSTORMSTracker(tstorms_params, detect_params, stitch_params)
-    stitching_call = tracker.stitch(verbose=True)
+    stitching_call = tracker.stitch(verbosity=2)
 
 The result of this will be the following set of files at the output location
 provided in :class:`TSTORMSStitchParameters`:

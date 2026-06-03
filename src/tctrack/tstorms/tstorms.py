@@ -480,7 +480,7 @@ class TSTORMSTracker(TCTracker):
 
         return dn_argslist
 
-    def detect(self, verbose=False):
+    def detect(self, verbosity: int = 1):
         """
         Call the driver utility of TSTORMS.
 
@@ -510,10 +510,12 @@ class TSTORMSTracker(TCTracker):
 
         Parameters
         ----------
-        verbose : bool
-            Whether to print the entire TSTORMS output to screen in real-time or just
-            the start/end summary.
-            Defaults to False.
+        verbosity : int
+            Controls how much output is shown:
+            0 = No output gets printed.
+            1 = summary, first and last 12 lines printed (default).
+            2 = Entire output is streamed in real-time.
+            Defaults to 1.
 
         Returns
         -------
@@ -543,7 +545,11 @@ class TSTORMSTracker(TCTracker):
         namelist_filepath = self._write_driver_namelist()
         driver_call_list = self._make_driver_call()
         process_output = self.run_tracker_subprocess(
-            "Detect", driver_call_list, namelist_filepath, verbose=verbose
+            "Detect",
+            driver_call_list,
+            namelist_filepath,
+            verbosity=verbosity,
+            cwd=self.tstorms_parameters.output_dir,
         )
 
         return process_output
@@ -622,7 +628,7 @@ class TSTORMSTracker(TCTracker):
 
         return stitch_argslist
 
-    def stitch(self, verbose=False):
+    def stitch(self, verbosity: int = 1):
         """
         Call the trajectory analysis utility of TSTORMS to stitch candidate storms.
 
@@ -652,10 +658,12 @@ class TSTORMSTracker(TCTracker):
 
         Parameters
         ----------
-        verbose : bool
-            Whether to print the entire TSTORMS output to screen in real-time or just
-            the start/end summary.
-            Defaults to False.
+        verbosity : int
+            Controls how much output is shown:
+            0 = No output gets printed.
+            1 = summary, first and last 12 lines printed (default).
+            2 = Entire output is streamed in real-time.
+            Defaults to 1.
 
         Returns
         -------
@@ -695,7 +703,11 @@ class TSTORMSTracker(TCTracker):
         namelist_filepath = self._write_trajectory_analysis_namelist()
         trajectory_call_list = self._make_trajectory_analysis_call()
         process_output = self.run_tracker_subprocess(
-            "Stitch", trajectory_call_list, namelist_filepath, verbose=verbose
+            "Stitch",
+            trajectory_call_list,
+            namelist_filepath,
+            verbosity=verbosity,
+            cwd=self.tstorms_parameters.output_dir,
         )
 
         return process_output
