@@ -1,5 +1,6 @@
 """Unit tests for tracker.py of the TCTrack Core Python package."""
 
+import importlib.metadata
 import json
 import pathlib
 import re
@@ -114,18 +115,19 @@ class TestTCTracker:
 
         def __init__(self, example_trajectories):
             self._example_trajectories = example_trajectories
+            self.params = ExampleParameters(42, "test")
 
-        def set_metadata(self, bad_time_data=None) -> None:
-            """Implement a dummy of the set_metadata abstractmethod."""
+        @property
+        def _parameters(self) -> list[TCTrackerParameters]:
+            return [self.params]
+
+        def _set_metadata(self, bad_time_data=None) -> None:
+            """Implement a dummy of the _set_metadata abstractmethod."""
             self._variable_metadata = example_variable_metadata()
             if bad_time_data:
                 self._time_metadata = bad_time_data
             else:
                 self._time_metadata = example_time_metadata()
-            self._global_metadata = {
-                "tctrack_tracker": type(self).__name__,
-                "parameters": json.dumps(asdict(ExampleParameters(42, "test"))),
-            }
 
         def read_trajectories(self) -> list[Trajectory]:
             """Implement a dummy of the read_trajectories abstractmethod."""
@@ -141,6 +143,16 @@ class TestTCTracker:
             TypeError, match="Can't instantiate abstract class TCTracker"
         ):
             TCTracker()
+
+    def test_parameters_property(self):
+        """Test that _parameters correctly accesses the parameter objects."""
+        tracker = self.ExampleTracker(example_trajectories=None)
+        assert len(tracker._parameters) == 1  # noqa:SLF001 - private member access
+        assert tracker._parameters[0] == tracker.params  # noqa:SLF001 - private member access
+
+        # Check there is still consistency after modification
+        tracker.params.param_a = -1
+        assert tracker._parameters[0] == tracker.params  # noqa:SLF001 - private member access
 
     def test_variable_metadata_uninitialized(self):
         """Test accessing `variable_metadata` before initialization raises an error."""
@@ -202,7 +214,7 @@ class TestTCTracker:
             "start_time": datetime(1950, 1, 1, 0, calendar="360_day"),
             "endingat": datetime(1950, 1, 30, 0, calendar="360_day"),
         }
-        tracker.set_metadata(bad_time_data=bad_time_metadata)
+        tracker._set_metadata(bad_time_data=bad_time_metadata)  # noqa:SLF001 - private member access
         with pytest.raises(
             TypeError,
             match=(
@@ -224,9 +236,13 @@ class TestTCTracker:
         """Test that `global_metadata` is correctly initialized by the subclass."""
         tracker = self.ExampleTracker(example_trajectories=None)
         tracker.set_metadata()
+
         expected_metadata = {
+            "tctrack_version": importlib.metadata.version("tctrack"),
             "tctrack_tracker": "ExampleTracker",
-            "parameters": json.dumps(asdict(ExampleParameters(42, "test"))),
+            "tctrack_parameters": json.dumps(
+                {"ExampleParameters": asdict(tracker.params)}
+            ),
         }
         assert tracker.global_metadata == expected_metadata
 
@@ -295,7 +311,7 @@ class TestTCTracker:
 
         # Optionally remove the standard_name from the ExampleTracker metadata
         if delete_std_name:
-            for var_metadata in tracker._variable_metadata.values():  # type: ignore  # noqa: SLF001
+            for var_metadata in tracker._variable_metadata.values():  # type: ignore  # noqa: SLF001 - private member access
                 var_metadata.properties.pop("standard_name", None)
 
         # Write to NetCDF
@@ -438,9 +454,11 @@ class TestTCTracker:
 
         # Check the global metadata is written correctly
         global_metadata = field.nc_global_attributes(values=True)
+        parameters = self.ExampleTracker(None).params
         expected_global_metadata = {
+            "tctrack_version": importlib.metadata.version("tctrack"),
             "tctrack_tracker": "ExampleTracker",
-            "parameters": json.dumps(asdict(ExampleParameters(42, "test"))),
+            "tctrack_parameters": json.dumps({"ExampleParameters": asdict(parameters)}),
         }
         for key, expected_value in expected_global_metadata.items():
             assert global_metadata[key] == expected_value

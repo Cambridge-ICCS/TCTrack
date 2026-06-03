@@ -158,7 +158,7 @@ class TestTETracker:
         """Test the definition of temporary files when not manually defined."""
         dn_params = TEDetectParameters(in_data=["input_file.nc"])
         tracker = TETracker(dn_params)
-        tempdir = tracker._tempdir.name  # noqa: SLF001
+        tempdir = tracker._tempdir.name  # noqa: SLF001 - private member access
         assert Path(tempdir).exists()
         assert tracker.detect_parameters.output_dir == tempdir
         assert tracker.stitch_parameters.in_file == tempdir + "/nodes.txt"
@@ -324,8 +324,12 @@ class TestTETracker:
         assert tracker.global_metadata == {
             "tctrack_version": importlib.metadata.version("tctrack"),
             "tctrack_tracker": "TETracker",
-            "detect_parameters": json.dumps(asdict(tracker.detect_parameters)),
-            "stitch_parameters": json.dumps(asdict(tracker.stitch_parameters)),
+            "tctrack_parameters": json.dumps(
+                {
+                    "TEDetectParameters": asdict(tracker.detect_parameters),
+                    "TEStitchParameters": asdict(tracker.stitch_parameters),
+                }
+            ),
         }
 
     def _mock_trajectories_data(self):
@@ -740,7 +744,7 @@ class TestTETrackerDetect:
         dn_params = TEDetectParameters(in_data=["input_file.nc"])
         tracker = TETracker(dn_params)
         result = tracker.detect()
-        outdir = tracker._tempdir.name  # noqa: SLF001
+        outdir = tracker._tempdir.name  # noqa: SLF001 - private member access
 
         # Check the mkdir call made as expected
         mock_mkdir.assert_called_once_with(Path(outdir), parents=True, exist_ok=True)
@@ -978,7 +982,7 @@ class TestTETrackerStitch:
         dn_params = TEDetectParameters(in_data=["input_data.nc"])
         tracker = TETracker(dn_params)
         result = tracker.stitch()
-        outdir = tracker._tempdir.name  # noqa: SLF001
+        outdir = tracker._tempdir.name  # noqa: SLF001 - private member access
 
         # Check the mkdir call made as expected
         mock_mkdir.assert_called_once_with(Path(outdir), parents=True, exist_ok=True)

@@ -10,7 +10,7 @@ References
 import csv
 import json
 import tempfile
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
 
@@ -926,16 +926,15 @@ class TETracker(TCTracker):
 
         return list(trajectories.values())
 
-    def set_metadata(self) -> None:
-        """
-        Set the global and variable (reading from input files) metadata attributes.
+    def _set_metadata(self) -> None:
+        """Set the time and variable metadata attributes by reading from input files.
 
         Reads metadata for each variable listed in
         :attr:`detect_parameters.output_commands` from the input NetCDF files
         defined in :attr:`detect_parameters.in_data` (matching the NetCDF variable
         name). These will be stored in the :attr:`variable_metadata` attribute as a
         dictionary of :class:`TCTrackerMetadata` objects. This will be called from the
-        :meth:`to_netcdf` method.
+        :meth:`set_metadata` method.
 
         Raises
         ------
@@ -964,13 +963,6 @@ class TETracker(TCTracker):
             ),
         }
         """
-        super().set_metadata()
-
-        detect_params_json = json.dumps(asdict(self.detect_parameters))
-        stitch_params_json = json.dumps(asdict(self.stitch_parameters))
-        self.global_metadata["detect_parameters"] = detect_params_json
-        self.global_metadata["stitch_parameters"] = stitch_params_json
-
         input_files = self.detect_parameters.in_data
 
         # set time metadata

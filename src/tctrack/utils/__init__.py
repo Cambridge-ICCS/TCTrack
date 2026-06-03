@@ -1,7 +1,8 @@
-"""Package providing utility functions used throughout TCTrack."""
+"""Package providing utility functions for the user."""
 
-from .utils import lat_lon_sizes
+from .metadata import load_tracker_metadata, read_tracker_metadata
 
 __all__ = [
-    "lat_lon_sizes",
+    "load_tracker_metadata",
+    "read_tracker_metadata",
 ]

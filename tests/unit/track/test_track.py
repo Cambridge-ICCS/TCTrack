@@ -91,8 +91,8 @@ class TestTrackTracker:
         tracker = self._setup_tracker(mocker, clear_copy=False)
 
         # Check attributes
-        assert tracker._nx == self.nx  # noqa: SLF001
-        assert tracker._ny == self.ny  # noqa: SLF001
+        assert tracker._nx == self.nx  # noqa: SLF001 - private member access
+        assert tracker._ny == self.ny  # noqa: SLF001 - private member access
 
         # Check calls to shutil.copy are as expected
         copy_calls = [
@@ -116,7 +116,7 @@ class TestTrackTracker:
         assert not file_path.exists()
 
         inputs = ["param1", "param2"]
-        result = tracker._prepare_inputs(command_name, inputs)  # noqa: SLF001
+        result = tracker._prepare_inputs(command_name, inputs)  # noqa: SLF001 - private member access
 
         expected_result = "param1\nparam2\n"
         assert result == expected_result
@@ -133,7 +133,7 @@ class TestTrackTracker:
         tracker.parameters.export_inputs = True
 
         command_name = "missing_dir"
-        _ = tracker._prepare_inputs(command_name, ["param1"])  # noqa: SLF001
+        _ = tracker._prepare_inputs(command_name, ["param1"])  # noqa: SLF001 - private member access
 
         file_path = tmp_path / "a" / "b" / f"{command_name}.in"
         assert file_path.exists()
@@ -154,7 +154,7 @@ class TestTrackTracker:
             UserWarning,
             match="TRACK inputs are being read from file for 'read'",
         ):
-            result = tracker._prepare_inputs(command_name, ["ignored"])  # noqa: SLF001
+            result = tracker._prepare_inputs(command_name, ["ignored"])  # noqa: SLF001 - private member access
 
         assert result == input_commands
 
@@ -168,7 +168,7 @@ class TestTrackTracker:
             UserWarning,
             match="Exported TRACK inputs file for 'missing_file' does not exist",
         ):
-            result = tracker._prepare_inputs("missing_file", inputs)  # noqa: SLF001
+            result = tracker._prepare_inputs("missing_file", inputs)  # noqa: SLF001 - private member access
 
         assert result == "\n".join(inputs) + "\n"
 
@@ -455,5 +455,7 @@ class TestTrackTracker:
         assert tracker.global_metadata == {
             "tctrack_version": importlib.metadata.version("tctrack"),
             "tctrack_tracker": "TRACKTracker",
-            "track_parameters": json.dumps(asdict(tracker.parameters)),
+            "tctrack_parameters": json.dumps(
+                {"TRACKParameters": asdict(tracker.parameters)}
+            ),
         }

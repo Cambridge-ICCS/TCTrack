@@ -4,9 +4,10 @@ import importlib.metadata
 import subprocess
 import tempfile
 import warnings
-from abc import ABC, abstractmethod
 from contextlib import nullcontext
-from dataclasses import dataclass, fields
+import json
+from abc import ABC, abstractmethod
+from dataclasses import asdict, dataclass, fields
 from datetime import timedelta
 from typing import TypedDict
 
@@ -115,23 +116,28 @@ class TCTracker(ABC):
     _variable_metadata : dict[str, TCTrackerMetadata] | None
         A dictionary containing metadata for variables.
         This attribute must be initialized by the subclass through the
-        :meth:`set_metadata` method, prior to which it is initialised as ``None``.
+        :meth:`_set_metadata` method, prior to which it is initialised as ``None``.
     _time_metadata : dict[str, ] | None
         A dictionary containing metadata for times including calendar, units, and start
         and end times of the dataset.
         This attribute must be initialized by the subclass through the
-        :meth:`set_metadata` method, prior to which it is initialised as ``None``.
+        :meth:`_set_metadata` method, prior to which it is initialised as ``None``.
     _global_metadata : dict[str, str]
         A dictionary containing global metadata about the data and TCTrack parameters.
-        This attribute should be initialized by the subclass through the
-        :meth:`set_metadata` method. The parameters should be output in a json format
-        using ``json.dumps(asdict(parameters))``
+        This will be populated by the base class, but additional subclass-specific
+        metadata can be added using the :meth:`_set_metadata` method.
     """
 
     # Private attributes
     _variable_metadata: dict[str, TCTrackerMetadata] | None = None
     _time_metadata: TCTrackerTimeMetadata | None = None
     _global_metadata: dict[str, str]
+
+    @property
+    @abstractmethod
+    def _parameters(self) -> list[TCTrackerParameters]:
+        """A list of the parameter objects that is accessible from the base class."""
+        return []
 
     @property
     def variable_metadata(self) -> dict:
@@ -188,17 +194,14 @@ class TCTracker(ABC):
         return self._global_metadata
 
     @abstractmethod
-    def set_metadata(self) -> None:
-        """
-        Abstract method to initialize the metadata attributes.
+    def _set_metadata(self) -> None:
+        """Abstract method to initialize subclass-specific metadata.
 
         This method must be implemented by subclasses to populate the
-        :attr:`_variable_metadata` attribute with relevant metadata for variables,
-        `:attr:`_time_metadata` with metadata about the time for the dataset, and
-        the :attr:`_global_metadata` attribute for metadata about the TCTrack
-        parameters and name of the tracker.
+        :attr:`_variable_metadata` attribute with relevant metadata for variables and
+        `:attr:`_time_metadata` with metadata about the time for the dataset.
 
-        This will be called from the :meth:`to_netcdf` method.
+        This will be called from the :meth:`set_metadata` method.
 
         Notes
         -----
@@ -211,14 +214,13 @@ class TCTracker(ABC):
         the :class:`TCTrackerTimeMetadata` form containing the calendar type and units
         of the dataset, as well as the start and end times.
 
-        The :attr:`_global_metadata` should contain each parameter object in a json
-        format using ``json.dumps(asdict(parameters))``.
+        The :attr:`_global_metadata` attribute is defined in :meth:`set_metadata`.
+        Additional key-value pairs can be added, but it should not overwritten.
 
         Examples
         --------
         >>> class MyTracker(TCTracker):
-        ...     def set_metadata(self):
-        ...         super().set_metadata()
+        ...     def _set_metadata(self):
         ...         self._variable_metadata = {
         ...             "example_variable": TCTrackerMetadata(
         ...                 properties={
@@ -227,7 +229,7 @@ class TCTracker(ABC):
         ...                     "units": "example_units",
         ...                 },
         ...                 constructs=[<CF CellMethod>],
-        ...             }
+        ...             )
         ...         }
         ...         self._time_metadata = {
         ...             "calendar": "example_calendar",
@@ -239,13 +241,28 @@ class TCTracker(ABC):
         ...                 yyyy, mm, dd, hh, calendar=self.example_calendar
         ...             ),
         ...         }
-        ...         self.global_metadata["mytracker_parameters"] = json.dumps(
-        ...             asdict(MyTrackerParameters)
-        ...         ),
         """
+
+    def set_metadata(self) -> None:
+        """Initialise the metadata attributes used in the CF-netcdf output.
+
+        This is called from the :meth:`to_netcdf` method.
+
+        This sets the :attr:`_global_metadata` attribute with the TCTrack parameters and
+        name of the tracker. It then calls the subclass-specific :meth:`_set_metadata`
+        to set :attr:`_variable_metadata` and :attr:`_time_metadata`.
+        """
+        # Create a two-level dictionary containing the parameters
+        parameters = {}
+        for parameter_obj in self._parameters:
+            parameter_class = type(parameter_obj).__name__
+            parameters[parameter_class] = asdict(parameter_obj)
+
+        # Store the global metadata, including the parameters in a json format
         self._global_metadata = {
             "tctrack_version": importlib.metadata.version("tctrack"),
             "tctrack_tracker": type(self).__name__,
+            "tctrack_parameters": json.dumps(parameters),
         }
 
     def run_tracker_subprocess( # noqa: PLR0912, PLR0913

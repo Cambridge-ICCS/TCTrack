@@ -497,9 +497,13 @@ class TestTSTORMSTracker:
         assert tracker.global_metadata == {
             "tctrack_version": importlib.metadata.version("tctrack"),
             "tctrack_tracker": "TSTORMSTracker",
-            "tstorms_parameters": json.dumps(asdict(tracker.tstorms_parameters)),
-            "detect_parameters": json.dumps(asdict(tracker.detect_parameters)),
-            "stitch_parameters": json.dumps(asdict(tracker.stitch_parameters)),
+            "tctrack_parameters": json.dumps(
+                {
+                    "TSTORMSBaseParameters": asdict(tracker.tstorms_parameters),
+                    "TSTORMSDetectParameters": asdict(tracker.detect_parameters),
+                    "TSTORMSStitchParameters": asdict(tracker.stitch_parameters),
+                }
+            ),
         }
 
         # Assert the variable metadata was read correctly

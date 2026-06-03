@@ -8,16 +8,20 @@ References
   <https://doi.org/10.1175/JCLI-D-16-0557.1>`__
 """
 
-import json
 import shutil
 import warnings
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 
 import cf
 
-from tctrack.core import TCTracker, TCTrackerMetadata, TCTrackerParameters, Trajectory
-from tctrack.utils import lat_lon_sizes
+from tctrack.core import (
+    TCTracker,
+    TCTrackerMetadata,
+    TCTrackerParameters,
+    Trajectory,
+    lat_lon_sizes,
+)
 
 
 @dataclass(repr=False)
@@ -119,6 +123,11 @@ class TRACKTracker(TCTracker):
         base_dir = self.parameters.base_dir
         shutil.copy(base_dir + "/data/zone.dat", base_dir + "/data/zone.dat0")
         shutil.copy(base_dir + "/data/adapt.dat", base_dir + "/data/adapt.dat0")
+
+    @property
+    def _parameters(self) -> list[TCTrackerParameters]:
+        """A list of the parameter objects that is accessible from the base class."""
+        return [self.parameters]
 
     def _get_initialisation_inputs(self, inputs: list[str]):
         """Add "initialisation" inputs common to both tracking and filter_tracks calls.
@@ -650,19 +659,14 @@ class TRACKTracker(TCTracker):
 
         return trajectories
 
-    def set_metadata(self) -> None:
-        """
-        Set the global, time, and variable metadata attributes.
+    def _set_metadata(self) -> None:
+        """Set the time and variable metadata attributes.
 
         Raises
         ------
         ValueError
             If a variable with time coordinate is not found in the input file.
         """
-        super().set_metadata()
-
-        self.global_metadata["track_parameters"] = json.dumps(asdict(self.parameters))
-
         vars_with_time = cf.read(self.parameters.input_file).select_by_construct("time")  # type: ignore[operator]  # type: ignore[operator]
         if len(vars_with_time) == 0:
             msg = r"No variable with 'time' coordinate found in TRACK input file."
