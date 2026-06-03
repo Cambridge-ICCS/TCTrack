@@ -19,7 +19,6 @@ from tctrack.core import (
     TCTrackerTimeMetadata,
     Trajectory,
 )
-from tctrack.tempest_extremes import TEDetectParameters, TETracker
 
 
 @dataclass(repr=False)
@@ -446,56 +445,39 @@ class TestTCTracker:
         for key, expected_value in expected_global_metadata.items():
             assert global_metadata[key] == expected_value
 
-    class TestRunTrackerSubprocess:
-        """Test suite for run_tracker_subprocess."""
+    @pytest.mark.parametrize("verbosity", [0, 1, 2])
+    def test_run_tracker_subprocess_returns_dict(self, verbosity):
+        """Test that function returns correct dict with all keys."""
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", delete=False
+        ) as f:
+            f.write("test line\n")
+            temp_file = f.name
 
-        @pytest.fixture
-        def tracker(self):
-            """Create a tracker instance for testing."""
-            detect_params = TEDetectParameters(in_data=["dummy.nc"])
-            return TETracker(detect_params)
+        try:
+            result = self.ExampleTracker([]).run_tracker_subprocess(
+                command_name="TestCommand",
+                command_list=["cat"],
+                input_file=temp_file,
+                verbosity=verbosity,
+            )
 
-        def test_run_tracker_subprocess_returns_dict(self, tracker):
-            """Test that function returns correct dict with all keys."""
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".txt", delete=False
-            ) as f:
-                f.write("test line\n")
-                temp_file = f.name
+            assert isinstance(result, dict), "Should return a dict"
+            assert "stdout" in result, "Dict should have stdout key"
+            assert "stderr" in result, "Dict should have stderr key"
+            assert "returncode" in result, "Dict should have returncode key"
+            assert result["returncode"] == 0, "Command should succeed"
+            assert "test line" in result["stdout"], "stdout should contain input"
 
-            try:
-                result = tracker.run_tracker_subprocess(
-                    command_name="TestCommand",
-                    command_list=["cat"],
-                    input_file=temp_file,
-                    verbosity=0,
-                )
+        finally:
+            Path(temp_file).unlink()
 
-                assert isinstance(result, dict), "Should return a dict"
-                assert "stdout" in result, "Dict should have stdout key"
-                assert "stderr" in result, "Dict should have stderr key"
-                assert "returncode" in result, "Dict should have returncode key"
-                assert result["returncode"] == 0, "Command should succeed"
-                assert "test line" in result["stdout"], "stdout should contain input"
-
-            finally:
-                Path(temp_file).unlink()
-
-        def test_run_tracker_subprocess_invalid_verbosity(self, tracker):
-            """Test that invalid verbosity raises ValueError."""
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".txt", delete=False
-            ) as f:
-                f.write("test\n")
-                temp_file = f.name
-
-            try:
-                with pytest.raises(ValueError):
-                    tracker.run_tracker_subprocess(
-                        command_name="TestCommand",
-                        command_list=["cat"],
-                        input_file=temp_file,
-                        verbosity=5,
-                    )
-            finally:
-                Path(temp_file).unlink()
+    def test_run_tracker_subprocess_invalid_verbosity(self):
+        """Test that invalid verbosity raises ValueError."""
+        with pytest.raises(ValueError):
+            self.ExampleTracker([]).run_tracker_subprocess(
+                command_name="TestCommand",
+                command_list=["cat"],
+                verbosity=5,
+            )
+            
