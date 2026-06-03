@@ -775,6 +775,9 @@ class TestTETrackerDetect:
             check=True,
             capture_output=True,
             text=True,
+            stdin=None,
+            input=None,
+            cwd=None,
         )
         assert result["stdout"] == "Mocked stdout output"
         assert result["stderr"] == "Mocked stderr output"
@@ -840,6 +843,9 @@ class TestTETrackerDetect:
             check=True,
             capture_output=True,
             text=True,
+            stdin=None,
+            input=None,
+            cwd=None,
         )
         assert result["stdout"] == "Mocked stdout output"
         assert result["stderr"] == "Mocked stderr output"
@@ -912,6 +918,9 @@ class TestTETrackerDetect:
             check=True,
             capture_output=True,
             text=True,
+            stdin=None,
+            input=None,
+            cwd=None,
         )
         assert result["stdout"] == "Mocked stdout output"
         assert result["stderr"] == "Mocked stderr output"
@@ -1004,6 +1013,9 @@ class TestTETrackerStitch:
             check=True,
             capture_output=True,
             text=True,
+            stdin=None,
+            input=None,
+            cwd=None,
         )
         assert result["stdout"] == "Mocked stdout output"
         assert result["stderr"] == "Mocked stderr output"
@@ -1072,6 +1084,9 @@ class TestTETrackerStitch:
             check=True,
             capture_output=True,
             text=True,
+            stdin=None,
+            input=None,
+            cwd=None,
         )
         assert result["stdout"] == "Mocked stdout output"
         assert result["stderr"] == "Mocked stderr output"
@@ -1145,6 +1160,9 @@ class TestTETrackerStitch:
             check=True,
             capture_output=True,
             text=True,
+            stdin=None,
+            input=None,
+            cwd=None,
         )
         assert result["stdout"] == "Mocked stdout output"
         assert result["stderr"] == "Mocked stderr output"

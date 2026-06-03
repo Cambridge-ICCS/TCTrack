@@ -9,7 +9,6 @@ References
 """
 
 import shutil
-import subprocess
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -479,52 +478,18 @@ class TRACKTracker(TCTracker):
         RuntimeError
             If the TRACK executable returns a non-zero exit code.
         """
-        try:
-            params = self.parameters
-            command = [
-                params.base_dir + "/" + params.binary,
-                "-i",
-                input_file,
-                "-f",
-                params.file_extension,
-            ]
+        params = self.parameters
+        command = [
+            params.base_dir + "/" + params.binary,
+            "-i",
+            input_file,
+            "-f",
+            params.file_extension,
+        ]
 
-            input_commands = self._prepare_inputs(command_name, inputs)
+        input_commands = self._prepare_inputs(command_name, inputs)
 
-            print(f"{command_name} running...")
-            result = subprocess.run(  # noqa: S603 - no shell
-                command,
-                input=input_commands,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            print(f"{command_name} completed successfully.")
-            print(
-                f"First 12 lines of output:\n"
-                f"{''.join(result.stdout.splitlines(True)[:12])}"
-                f"\n...\n\n"
-                f"Last 12 lines of output:\n"
-                f"{''.join(result.stdout.splitlines(True)[-12:])}"
-            )
-            return {
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-                "returncode": result.returncode,
-            }
-        except FileNotFoundError as exc:
-            msg = (
-                f"{command_name} failed because the executable could not be found.\n"
-                "Did you provide the full executeable path or add it to $PATH?\n"
-            )
-            raise FileNotFoundError(msg) from exc
-        except subprocess.CalledProcessError as exc:
-            msg = (
-                f"{command_name} failed with a non-zero exit code:"
-                f"({exc.returncode}):\n"
-                f"{exc.stderr}"
-            )
-            raise RuntimeError(msg) from exc
+        self.run_tracker_subprocess(command_name, command, input_str=input_commands)
 
     def calculate_vorticity(self):
         """Use TRACK to calculate the vorticity from the wind components.

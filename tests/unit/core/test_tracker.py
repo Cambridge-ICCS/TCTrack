@@ -4,7 +4,9 @@ import importlib.metadata
 import json
 import pathlib
 import re
+import tempfile
 from dataclasses import asdict, dataclass
+from pathlib import Path
 
 import cf
 import numpy as np
@@ -460,3 +462,50 @@ class TestTCTracker:
         }
         for key, expected_value in expected_global_metadata.items():
             assert global_metadata[key] == expected_value
+
+    @pytest.mark.parametrize("verbosity", [0, 1, 2])
+    def test_run_tracker_subprocess_returns_dict(self, verbosity):
+        """Test that function returns correct dict with all keys."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("test line\n")
+            temp_file = f.name
+
+        try:
+            result = self.ExampleTracker([]).run_tracker_subprocess(
+                command_name="TestCommand",
+                command_list=["cat"],
+                input_file=temp_file,
+                verbosity=verbosity,
+            )
+
+            assert isinstance(result, dict), "Should return a dict"
+            assert "stdout" in result, "Dict should have stdout key"
+            assert "stderr" in result, "Dict should have stderr key"
+            assert "returncode" in result, "Dict should have returncode key"
+            assert result["returncode"] == 0, "Command should succeed"
+            assert "test line" in result["stdout"], "stdout should contain input"
+
+        finally:
+            Path(temp_file).unlink()
+
+    def test_run_tracker_subprocess_invalid_verbosity(self):
+        """Test that invalid verbosity raises ValueError."""
+        with pytest.raises(ValueError):
+            self.ExampleTracker([]).run_tracker_subprocess(
+                command_name="TestCommand",
+                command_list=["cat"],
+                verbosity=5,
+            )
+
+    @pytest.mark.parametrize("verbosity", [0, 1, 2])
+    def test_run_tracker_subprocess_returns_stderr(self, verbosity):
+        """Test that function returns correct stderr."""
+        result = self.ExampleTracker([]).run_tracker_subprocess(
+            command_name="TestCommand",
+            command_list=["sh", "-c", 'echo "test error" >&2'],
+            verbosity=verbosity,
+        )
+
+        assert isinstance(result, dict), "Should return a dict"
+        assert "stderr" in result, "Dict should have stderr key"
+        assert "test error" in result["stderr"], "stderr should contain input"

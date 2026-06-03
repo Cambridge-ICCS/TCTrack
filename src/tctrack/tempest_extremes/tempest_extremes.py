@@ -8,7 +8,6 @@ References
 """
 
 import csv
-import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -477,63 +476,6 @@ class TETracker(TCTracker):
         """A list of the parameter objects that is accessible from the base class."""
         return [self.detect_parameters, self.stitch_parameters]
 
-    def _run_te_process(self, command_name: str, command_list: list[str]):
-        """Run a TempestExtremes command (DetectNodes or StitchNodes).
-
-        Parameters
-        ----------
-        command_name : str
-            The name of the command to be used in the log and error reporting.
-        command_list : list[str]
-            The list of strings that produce the command as given by
-            _make_detect_nodes_call and _make_stitch_nodes_call.
-
-        Returns
-        -------
-        dict
-            dict of subprocess output corresponding to stdout, stderr, and returncode.
-
-        Raises
-        ------
-        FileNotFoundError
-            If the DetectNodes executeable from TempestExtremes cannot be found.
-        RuntimeError
-            If Tempest Extremes DetectNodes returns a non-zero exit code.
-        """
-        try:
-            result = subprocess.run(  # noqa: S603 - no shell
-                command_list,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            print(f"{command_name} completed successfully.")
-            print(
-                f"First 12 lines of output:\n"
-                f"{''.join(result.stdout.splitlines(True)[:12])}"
-                f"\n...\n\n"
-                f"Last 12 lines of output:\n"
-                f"{''.join(result.stdout.splitlines(True)[-12:])}"
-            )
-            return {
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-                "returncode": result.returncode,
-            }
-        except FileNotFoundError as exc:
-            msg = (
-                f"{command_name} failed because the executable could not be found.\n"
-                "Did you provide the full executeable path or add it to $PATH?\n"
-            )
-            raise FileNotFoundError(msg) from exc
-        except subprocess.CalledProcessError as exc:
-            msg = (
-                f"{command_name} failed with a non-zero exit code:"
-                f"({exc.returncode}):\n"
-                f"{exc.stderr}"
-            )
-            raise RuntimeError(msg) from exc
-
     def _make_detect_nodes_call(self):  # noqa: PLR0912 - all branches same logic
         """
         Construct a DetectNodes call based on options set in parameters.
@@ -703,7 +645,7 @@ class TETracker(TCTracker):
         """
         Path(self.detect_parameters.output_dir).mkdir(parents=True, exist_ok=True)
         dn_call_list = self._make_detect_nodes_call()
-        return self._run_te_process("DetectNodes", dn_call_list)
+        return self.run_tracker_subprocess("DetectNodes", dn_call_list)
 
     def _make_stitch_nodes_call(self):
         """
@@ -806,7 +748,7 @@ class TETracker(TCTracker):
         """
         Path(self.stitch_parameters.output_dir).mkdir(parents=True, exist_ok=True)
         sn_call_list = self._make_stitch_nodes_call()
-        return self._run_te_process("StitchNodes", sn_call_list)
+        return self.run_tracker_subprocess("StitchNodes", sn_call_list)
 
     def read_trajectories(self) -> list[Trajectory]:
         """
