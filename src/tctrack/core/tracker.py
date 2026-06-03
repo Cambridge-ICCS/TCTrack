@@ -266,7 +266,7 @@ class TCTracker(ABC):
         }
         self._set_metadata()
 
-    def run_tracker_subprocess( # noqa: PLR0912, PLR0913
+    def run_tracker_subprocess(  # noqa: PLR0912, PLR0913
         self,
         command_name: str,
         command_list: list[str],
@@ -326,7 +326,7 @@ class TCTracker(ABC):
         if input_file is not None:
             stdin_context = open(input_file, "r")  # noqa: SIM115
         elif verbosity == 2 and input_str is not None:  # noqa: PLR2004
-            stdin_context = tempfile.TemporaryFile(mode="w+") # noqa: SIM115
+            stdin_context = tempfile.TemporaryFile(mode="w+")  # noqa: SIM115
         else:
             stdin_context = nullcontext(None)
 
@@ -334,7 +334,7 @@ class TCTracker(ABC):
 
         try:
             with stdin_context as stdin_file:
-                if verbosity == 2 and input_str is not None and stdin_file is not None: # noqa: PLR2004
+                if verbosity == 2 and input_str is not None and stdin_file is not None:  # noqa: PLR2004
                     stdin_file.write(input_str)
                     stdin_file.seek(0)
 
@@ -398,7 +398,7 @@ class TCTracker(ABC):
             msg = (
                 f"{command_name} failed because the executable could not be found.\n"
                 "Did you provide the full executable path or add it to $PATH?\n"
-                )
+            )
             raise FileNotFoundError(msg) from exc
         except subprocess.CalledProcessError as exc:
             msg = (
