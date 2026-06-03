@@ -6,10 +6,10 @@ import subprocess
 import tempfile
 import warnings
 from abc import ABC, abstractmethod
-from contextlib import nullcontext
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import asdict, dataclass, fields
 from datetime import timedelta
-from typing import TypedDict
+from typing import IO, TypedDict, Union
 
 import cf
 from cftime import date2num, datetime
@@ -310,6 +310,8 @@ class TCTracker(ABC):
         ValueError
             If verbosity is not 0, 1, or 2.
         """
+        stdin_context: Union[IO, AbstractContextManager]
+
         if input_file and input_str:
             msg = "Please provide either input_file or input_str, not both."
             raise ValueError(msg)
