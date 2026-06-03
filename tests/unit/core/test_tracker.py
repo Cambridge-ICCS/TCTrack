@@ -480,4 +480,16 @@ class TestTCTracker:
                 command_list=["cat"],
                 verbosity=5,
             )
-            
+
+    @pytest.mark.parametrize("verbosity", [0, 1, 2])
+    def test_run_tracker_subprocess_returns_stderr(self, verbosity):
+        """Test that function returns correct stderr."""
+        result = self.ExampleTracker([]).run_tracker_subprocess(
+            command_name="TestCommand",
+            command_list=["sh", "-c", 'echo "test error" >&2'],
+            verbosity=verbosity,
+        )
+
+        assert isinstance(result, dict), "Should return a dict"
+        assert "stderr" in result, "Dict should have stderr key"
+        assert "test error" in result["stderr"], "stderr should contain input"
