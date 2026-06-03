@@ -301,6 +301,8 @@ class TCTracker(ABC):
         if verbosity not in (0, 1, 2):
             msg = "Verbosity must be 0, 1, or 2."
             raise ValueError(msg)
+        if verbosity != 0:
+            print(f"Executing {command_name}...")
         if input_file is not None:
             stdin_context = open(input_file, "r")  # noqa: SIM115
         elif verbosity == 2 and input_str is not None:  # noqa: PLR2004
@@ -345,9 +347,6 @@ class TCTracker(ABC):
                     raise RuntimeError(msg)
 
             else:
-                if verbosity == 1:
-                    print(f"Executing {command_name}...")
-
                 result = subprocess.run(  # noqa: S603
                     command_list,
                     stdin=stdin_file,
