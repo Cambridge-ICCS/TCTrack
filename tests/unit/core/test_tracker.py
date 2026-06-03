@@ -148,15 +148,11 @@ class TestTCTracker:
         """Test that _parameters correctly accesses the parameter objects."""
         tracker = self.ExampleTracker(example_trajectories=None)
         assert len(tracker._parameters) == 1  # noqa:SLF001 - private member access
-        assert (
-            tracker._parameters[0] == tracker.params
-        )  # noqa:SLF001 - private member access
+        assert tracker._parameters[0] == tracker.params  # noqa:SLF001 - private member access
 
         # Check there is still consistency after modification
         tracker.params.param_a = -1
-        assert (
-            tracker._parameters[0] == tracker.params
-        )  # noqa:SLF001 - private member access
+        assert tracker._parameters[0] == tracker.params  # noqa:SLF001 - private member access
 
     def test_variable_metadata_uninitialized(self):
         """Test accessing `variable_metadata` before initialization raises an error."""
@@ -218,9 +214,7 @@ class TestTCTracker:
             "start_time": datetime(1950, 1, 1, 0, calendar="360_day"),
             "endingat": datetime(1950, 1, 30, 0, calendar="360_day"),
         }
-        tracker._set_metadata(
-            bad_time_data=bad_time_metadata
-        )  # noqa:SLF001 - private member access
+        tracker._set_metadata(bad_time_data=bad_time_metadata)  # noqa:SLF001 - private member access
         with pytest.raises(
             TypeError,
             match=(
@@ -391,9 +385,9 @@ class TestTCTracker:
         if delete_std_name:
             expected_field_properties.pop("standard_name")
         for key, value in expected_field_properties.items():
-            assert (
-                field.get_property(key) == value
-            ), f"Metadata mismatch for field data: {variable} - {key}"
+            assert field.get_property(key) == value, (
+                f"Metadata mismatch for field data: {variable} - {key}"
+            )
         # Additional constructs, eg. CellMethods
         assert "cellmethod0" in field.constructs()
         # NetCDF variable name
@@ -427,9 +421,9 @@ class TestTCTracker:
             construct = field.construct(variable)
             assert construct is not None, f"Construct for {variable} is missing"
             for key, value in metadata.items():
-                assert (
-                    construct.get_property(key) == value
-                ), f"Metadata mismatch for {variable}: {key}"
+                assert construct.get_property(key) == value, (
+                    f"Metadata mismatch for {variable}: {key}"
+                )
 
     def test_to_netcdf_track_flag(self, tmp_path):
         """Check to_netcdf correctly flags tracks at start and end of file."""
