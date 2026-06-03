@@ -318,62 +318,62 @@ class TCTracker(ABC):
                     stdin_file.write(input_str)
                     stdin_file.seek(0)
 
-            if verbosity == 2:  # noqa: PLR2004
-                process = subprocess.Popen(  # noqa: S603
-                    command_list,
-                    stdin=stdin_file,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    shell=False,
-                    bufsize=1,
-                    cwd=cwd,
-                )
-
-                stdout_lines = []
-                for line in iter(process.stdout.readline, ""):  # type: ignore[union-attr]
-                    print(line, end="")
-                    stdout_lines.append(line)
-
-                stdout = "".join(stdout_lines)
-                _, stderr = process.communicate()
-                returncode = process.returncode
-
-                if returncode != 0:
-                    msg = (
-                        f"{command_name} failed with a non-zero exit code: "
-                        f"{returncode}:\n{stderr}"
-                    )
-                    raise RuntimeError(msg)
-
-            else:
-                result = subprocess.run(  # noqa: S603
-                    command_list,
-                    stdin=stdin_file,
-                    input=input_str,
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                    cwd=cwd,
-                )
-
-                stdout, stderr, returncode = (
-                    result.stdout,
-                    result.stderr,
-                    result.returncode,
-                )
-
-                if verbosity == 1:
-                    print(f"{command_name} completed successfully.")
-                    print(
-                        f"First 12 lines of output:\n"
-                        f"{''.join(stdout.splitlines(True)[:12])}"
-                        f"\n...\n\n"
-                        f"Last 12 lines of output:\n"
-                        f"{''.join(stdout.splitlines(True)[-12:])}"
+                if verbosity == 2:  # noqa: PLR2004
+                    process = subprocess.Popen(  # noqa: S603
+                        command_list,
+                        stdin=stdin_file,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        shell=False,
+                        bufsize=1,
+                        cwd=cwd,
                     )
 
-            return {"stdout": stdout, "stderr": stderr, "returncode": returncode}
+                    stdout_lines = []
+                    for line in iter(process.stdout.readline, ""):  # type: ignore[union-attr]
+                        print(line, end="")
+                        stdout_lines.append(line)
+
+                    stdout = "".join(stdout_lines)
+                    _, stderr = process.communicate()
+                    returncode = process.returncode
+
+                    if returncode != 0:
+                        msg = (
+                            f"{command_name} failed with a non-zero exit code: "
+                            f"{returncode}:\n{stderr}"
+                        )
+                        raise RuntimeError(msg)
+
+                else:
+                    result = subprocess.run(  # noqa: S603
+                        command_list,
+                        stdin=stdin_file,
+                        input=input_str,
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                        cwd=cwd,
+                    )
+
+                    stdout, stderr, returncode = (
+                        result.stdout,
+                        result.stderr,
+                        result.returncode,
+                    )
+
+                    if verbosity == 1:
+                        print(f"{command_name} completed successfully.")
+                        print(
+                            f"First 12 lines of output:\n"
+                            f"{''.join(stdout.splitlines(True)[:12])}"
+                            f"\n...\n\n"
+                            f"Last 12 lines of output:\n"
+                            f"{''.join(stdout.splitlines(True)[-12:])}"
+                        )
+
+                return {"stdout": stdout, "stderr": stderr, "returncode": returncode}
         except FileNotFoundError as exc:
             msg = (
                 f"{command_name} failed because the executable could not be found.\n"
