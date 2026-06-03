@@ -7,7 +7,6 @@ References
 
 import json
 import os
-import subprocess
 import tempfile
 import textwrap
 import warnings
@@ -296,114 +295,6 @@ class TSTORMSTracker(TCTracker):
         # Ensure the output directory exists, create if not.
         output_dir = self.tstorms_parameters.output_dir
         os.makedirs(output_dir, exist_ok=True)
-
-    def _run_tstorms_process(
-        self,
-        command_name: str,
-        command_list: list[str],
-        input_file: str,
-        verbose: bool = False,
-    ):
-        """Run a TSTORMS command.
-
-        Parameters
-        ----------
-        command_name : str
-            The name of the command to be used in the log and error reporting.
-        command_list : list[str]
-            The list of strings that produce the command as given by
-            _make_driver_call and _make_trajectories_call.
-        input_file : str
-            Path to an input file to be passed to the command's stdin (e.g. namelist).
-            Defaults to None.
-        verbose : bool
-            Whether to print the entire TSTORMS output to screen in real-time or just
-            the start/end summary. Defaults to False.
-
-        Returns
-        -------
-        dict
-            dict of subprocess output corresponding to stdout, stderr, and returncode.
-
-        Raises
-        ------
-        FileNotFoundError
-            If the tstorms executable from cannot be found.
-        RuntimeError
-            If tstorms executable returns a non-zero exit code.
-        """
-        # Execute subproces commands from output_dir so outputs appear there.
-        output_dir = self.tstorms_parameters.output_dir
-        try:
-            if verbose:
-                with open(input_file, "r") as stdin:
-                    # Real-time output with Popen
-                    process = subprocess.Popen(  # noqa: S603 - no shell
-                        command_list,
-                        stdin=stdin,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        shell=False,
-                        bufsize=1,  # Line-buffered output
-                        cwd=output_dir,
-                    )
-
-                    # Print stdout in real-time
-                    for line in iter(process.stdout.readline, ""):  # type: ignore[union-attr]
-                        print(line, end="")
-
-                    stdout, stderr = process.communicate()
-                    returncode = process.returncode
-
-                    if returncode != 0:
-                        err_msg = (
-                            f"{command_name} failed with a non-zero exit code: "
-                            f"{returncode}:\n{stderr}"
-                        )
-                        raise RuntimeError(err_msg)
-            else:
-                # verbose=False: Concise output print start/end summary
-                with open(input_file, "r") as stdin:
-                    print(f"Executing {command_name}...")
-                    result = subprocess.run(  # noqa: S603 - no shell
-                        command_list,
-                        stdin=stdin,
-                        check=True,
-                        capture_output=True,
-                        text=True,
-                        cwd=output_dir,
-                    )
-                    stdout, stderr, returncode = (
-                        result.stdout,
-                        result.stderr,
-                        result.returncode,
-                    )
-
-                    print(f"{command_name} completed successfully.")
-                    print(
-                        f"First 12 lines of output:\n"
-                        f"{''.join(stdout.splitlines(True)[:12])}"
-                        f"\n...\n\n"
-                        f"Last 12 lines of output:\n"
-                        f"{''.join(stdout.splitlines(True)[-12:])}"
-                    )
-
-            return {
-                "stdout": stdout,
-                "stderr": stderr,
-                "returncode": returncode,
-            }
-        except FileNotFoundError as exc:
-            msg = f"{command_name} failed because the executable could not be found."
-            raise FileNotFoundError(msg) from exc
-        except subprocess.CalledProcessError as exc:
-            msg = (
-                f"{command_name} failed with a non-zero exit code:"
-                f"({exc.returncode}):\n"
-                f"{exc.stderr}"
-            )
-            raise RuntimeError(msg) from exc
 
     def _write_driver_namelist(self) -> str:
         """
