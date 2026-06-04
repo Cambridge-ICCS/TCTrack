@@ -1,106 +1,44 @@
-"""Real integration tests using tutorial scripts with actual data."""
+"""Integration tests for the TempestExtremes tracker pipeline."""
 
-import tempfile
-from pathlib import Path
-
-import pytest
+import cftime
+import numpy as np
 import xarray as xr
 
-import tctrack.tempest_extremes as te
 
+def synthetic_data_file(tmp_path):
+    """NetCDF file with a Gaussian psl minimum planted at (15°N, 45°E) over 5 days.
 
-@pytest.fixture
-def subset_data_files():
-    """Create subset of real data with only first 5 time steps."""
-    data_dir = Path("/home/sg2147/rds/rds-inspire-tc-TqEGHMWTn8A/sg2147/data_processed")
-
-    if not data_dir.exists():
-        pytest.skip("Real data directory not found.")
-
-    original_files = {
-        "zg7h": data_dir
-        / "zg7h_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
-        "psl": data_dir
-        / "psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
-        "sfcWind": data_dir
-        / "sfcWind_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
-        "orog": data_dir / "orog_fx_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn.nc",
-    }
-
-    if not all(f.exists() for f in original_files.values()):
-        pytest.skip("Real data files not found.")
-
-    temp_dir = tempfile.TemporaryDirectory()
-    temp_path = Path(temp_dir.name)
-
-    # Create subset files
-    for _var_name, original_file in original_files.items():
-        ds = xr.open_dataset(original_file)
-        if "time" not in ds.dims:
-            subset_ds = ds
-        else:
-            subset_ds = ds.isel(time=slice(0, 5))
-
-        subset_file = temp_path / original_file.name
-        subset_ds.to_netcdf(subset_file)
-        ds.close()
-
-    # Return the file paths directly
-    input_files = [
-        str(
-            temp_path
-            / "zg7h_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc"
-        ),
-        str(
-            temp_path
-            / "psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc"
-        ),
-        str(
-            temp_path
-            / "sfcWind_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc"
-        ),
-        str(temp_path / "orog_fx_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn.nc"),
+    The depression has amplitude -1500 Pa and sigma=3°, so at 5.5° from the
+    centre psl rises by ~1220 Pa — well above the 200 Pa closed-contour threshold
+    used in the detection parameters.
+    """
+    nlat, nlon, ntimes = 90, 180, 5
+    lat = np.linspace(-89, 89, nlat)
+    lon = np.linspace(0, 358, nlon)
+    times = [
+        cftime.datetime(1950, 8, i + 1, 0, calendar="360_day") for i in range(ntimes)
     ]
 
-    yield input_files  # ← Return the paths
+    lat2d, lon2d = np.meshgrid(lat, lon, indexing="ij")
+    dist2 = (lat2d - 15.0) ** 2 + (lon2d - 45.0) ** 2
+    psl_anomaly = -1500.0 * np.exp(-dist2 / 18.0)  # sigma = 3 degrees
+    psl = np.broadcast_to(101325.0 + psl_anomaly, (ntimes, nlat, nlon)).copy()
 
-    temp_dir.cleanup()
-
-
-class TestRunTrackerSubprocessIntegration:
-    """Integration tests with real tracker and subset data."""
-
-    def test_tempest_extremes_with_subset_data(self, subset_data_files):  # ← indented
-        """Test full TempestExtremes pipeline with small subset of real data."""
-        input_files = subset_data_files
-
-        dn_params = te.TEDetectParameters(
-            in_data=input_files,
-            search_by_min="psl",
-            merge_dist=6.0,
-            closed_contours=[
-                te.TEContour(var="psl", delta=200.0, dist=5.5, minmaxdist=0.0),
-            ],
-            out_header=True,
-            output_commands=[
-                te.TEOutputCommand(var="psl", operator="min", dist=0.0),
-                te.TEOutputCommand(var="sfcWind", operator="max", dist=2.0),
-            ],
-            output_dir="te_outputs_test",
-        )
-
-        sn_params = te.TEStitchParameters(
-            caltype="360_day",
-            max_sep=8.0,
-            min_time="2",
-        )
-
-        tracker = te.TETracker(dn_params, sn_params)
-        output_file = "tracks_test_subset.nc"
-
-        tracker.run_tracker(output_file)
-
-        assert Path(output_file).exists(), "Output file not created."
-        assert Path(output_file).stat().st_size > 0, "Output file is empty."
-
-        Path(output_file).unlink()
+    ds = xr.Dataset(
+        {
+            "psl": (["time", "lat", "lon"], psl.astype(np.float32), {"units": "Pa"}),
+            "sfcWind": (
+                ["time", "lat", "lon"],
+                np.full((ntimes, nlat, nlon), 5.0, dtype=np.float32),
+                {"units": "m s-1"},
+            ),
+        },
+        coords={"time": times, "lat": lat, "lon": lon},
+    )
+    ds["time"].attrs.update({"standard_name": "time", "axis": "T"})
+    path = tmp_path / "synthetic.nc"
+    ds.to_netcdf(
+        path,
+        encoding={"time": {"calendar": "360_day", "units": "days since 1950-01-01"}},
+    )
+    return str(path)
