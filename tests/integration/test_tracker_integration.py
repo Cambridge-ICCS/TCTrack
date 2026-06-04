@@ -1,4 +1,3 @@
-# ruff: noqa: E501
 
 """Real integration tests using tutorial scripts with actual data."""
 
@@ -20,10 +19,13 @@ def subset_data_files():
         pytest.skip("Real data directory not found.")
 
     original_files = {
-        "zg7h": data_dir/"zg7h_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
-        "psl": data_dir/"psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
-        "sfcWind": data_dir/"sfcWind_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
-        "orog": data_dir/"orog_fx_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn.nc",
+        "zg7h": data_dir
+        / "zg7h_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
+        "psl": data_dir
+        / "psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
+        "sfcWind": data_dir
+        / "sfcWind_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
+        "orog": data_dir / "orog_fx_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn.nc",
     }
 
     if not all(f.exists() for f in original_files.values()):
@@ -46,15 +48,25 @@ def subset_data_files():
 
     # Return the file paths directly
     input_files = [
-        str(temp_path/"zg7h_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc"),
-        str(temp_path/"psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc"),
-        str(temp_path/"sfcWind_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc"),
-        str(temp_path/"orog_fx_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn.nc"),
+        str(
+            temp_path
+            / "zg7h_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc"
+        ),
+        str(
+            temp_path
+            / "psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc"
+        ),
+        str(
+            temp_path
+            / "sfcWind_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc"
+        ),
+        str(temp_path / "orog_fx_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn.nc"),
     ]
 
     yield input_files  # ← Return the paths
 
     temp_dir.cleanup()
+
 
 class TestRunTrackerSubprocessIntegration:
     """Integration tests with real tracker and subset data."""

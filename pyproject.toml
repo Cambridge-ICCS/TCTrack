@@ -44,6 +44,7 @@ dependencies = [
 test = [
     "pytest",
     "pytest-mock",
+    "xarray",
 ]
 lint = [
     "ruff",
@@ -51,6 +52,7 @@ lint = [
     "black<=25.1.0",  # Pin version due to blackdoc incompatibility. Remove once resolved
     "mypy",
     "pytest",
+    "xarray",
 ]
 doc = [
     "sphinx<8.2.0",  # Pin version due to autodoc type hints incompatibilities
