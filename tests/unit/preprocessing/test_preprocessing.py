@@ -8,7 +8,6 @@ import pytest
 
 import tctrack.preprocessing
 from tctrack.preprocessing import (
-    FieldSelect,
     _load_field,
     calculate_vorticity,
     collapse_field,
@@ -156,20 +155,17 @@ class TestPreprocessing:
             tmp_path / "input.nc",
         )
 
-        with pytest.raises(
-            ValueError,
-            match=r"Use FieldSelect\(files, variable_name\) to select a field",
-        ):
+        with pytest.raises(ValueError, match="Use {.*} to select a field"):
             _load_field(input_file)
 
     def test_load_field_accepts_field_select(self, tmp_path):
-        """Test _load_field selects a field when given a FieldSelect object."""
+        """Test _load_field selects a field when given a FieldSelect dictionary."""
         input_file = write_fields(
             [make_field("mslp"), make_field("u")],
             tmp_path / "input.nc",
         )
 
-        field = _load_field(FieldSelect(input_file, "u"))
+        field = _load_field({"files": input_file, "var_name": "u"})
 
         assert field.nc_get_variable() == "u"
 
@@ -181,7 +177,7 @@ class TestPreprocessing:
             ValueError,
             match="No field with NetCDF variable name 'invalid' was found",
         ):
-            _load_field(FieldSelect(input_file, "invalid"))
+            _load_field({"files": input_file, "var_name": "invalid"})
 
     def test_subsample_field(self):
         """Test subsample_field works correctly."""
