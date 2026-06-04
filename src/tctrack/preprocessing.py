@@ -3,8 +3,7 @@
 import glob
 import importlib.util
 from collections.abc import Sequence
-from dataclasses import dataclass
-from typing import Any, TypeAlias, TypeVar
+from typing import Any, TypedDict, TypeAlias, TypeVar
 
 import cf
 import numpy as np
@@ -26,11 +25,10 @@ def _require_esmpy() -> None:
 FilePaths: TypeAlias = str | Sequence[str]
 
 
-@dataclass(frozen=True)
-class FieldSelect:
-    """Class containing the file name(s) plus the NetCDF variable name to select.
+class FieldSelect(TypedDict):
+    """Dictionary containing the file name(s) plus the NetCDF variable name to select.
 
-    Necessary for choosing a variable from files which contain multiple.
+    This is necessary for choosing a variable from files which contain multiple.
 
     Parameters
     ----------
@@ -176,10 +174,11 @@ def _load_field(source: FieldSource) -> cf.Field:
     if isinstance(source, cf.Field):
         return source
 
-    if isinstance(source, FieldSelect):
-        fields = read_files(source.files, select=f"ncvar%{source.var_name}")
+    if isinstance(source, dict):
+        nc_var = source["var_name"]
+        fields = read_files(source["files"], select=f"ncvar%{nc_var}")
         if not fields:
-            msg = f"No field with NetCDF variable name '{source.var_name}' was found."
+            msg = f"No field with NetCDF variable name '{nc_var}' was found."
             raise ValueError(msg)
         return fields[0]
 
@@ -188,7 +187,7 @@ def _load_field(source: FieldSource) -> cf.Field:
         if len(fields) != 1:
             msg = (
                 f"Expected one field from '{source}', but found {len(fields)}. "
-                "Use FieldSelect(files, variable_name) to select a field."
+                "Use {\"files\": files, \"var_name\": variable_name} to select a field."
             )
             raise ValueError(msg)
         return fields[0]
