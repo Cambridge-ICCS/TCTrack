@@ -1,10 +1,15 @@
 """Integration tests for the TempestExtremes tracker pipeline."""
 
+import cf
 import cftime
 import numpy as np
+import pytest
 import xarray as xr
 
+import tctrack.tempest_extremes as te
 
+
+@pytest.fixture
 def synthetic_data_file(tmp_path):
     """NetCDF file with a Gaussian psl minimum planted at (15°N, 45°E) over 5 days.
 
@@ -42,3 +47,59 @@ def synthetic_data_file(tmp_path):
         encoding={"time": {"calendar": "360_day", "units": "days since 1950-01-01"}},
     )
     return str(path)
+
+
+class TestTETrackerIntegration:
+    """Integration tests for the full TETracker pipeline."""
+
+    def test_run_tracker_produces_valid_tracks(self, synthetic_data_file, tmp_path):
+        """TETracker detects the synthetic pressure minimum and writes a track file.
+
+        Verifies the full chain: DetectNodes → StitchNodes → CF-NetCDF output.
+        The planted minimum at (15°N, 45°E) should produce exactly one trajectory
+        whose coordinates stay within 5° of the expected location.
+        """
+        output_file = str(tmp_path / "tracks.nc")
+
+        dn_params = te.TEDetectParameters(
+            in_data=[synthetic_data_file],
+            search_by_min="psl",
+            merge_dist=6.0,
+            closed_contours=[
+                te.TEContour(var="psl", delta=200.0, dist=5.5, minmaxdist=0.0),
+            ],
+            out_header=True,
+            output_commands=[
+                te.TEOutputCommand(var="psl", operator="min", dist=0.0),
+                te.TEOutputCommand(var="sfcWind", operator="max", dist=2.0),
+            ],
+            output_dir=str(tmp_path / "te_outputs"),
+        )
+        sn_params = te.TEStitchParameters(
+            caltype="360_day",
+            max_sep=8.0,
+            min_time="2",
+        )
+
+        tracker = te.TETracker(dn_params, sn_params)
+        tracker.run_tracker(output_file)
+
+        fields = cf.read(output_file)
+        assert len(fields) > 0, "No fields written to output file"
+
+        field = fields[0]
+        assert field.dimension_coordinate("trajectory").size >= 1, (
+            "No trajectories found"
+        )
+
+        # All valid (non-fill) track coordinates should sit near (15°N, 45°E)
+        lat_vals = field.construct("latitude").data.array.flatten()
+        lon_vals = field.construct("longitude").data.array.flatten()
+        lat_valid = lat_vals[~np.isnan(lat_vals)]
+        lon_valid = lon_vals[~np.isnan(lon_vals)]
+        assert np.all(np.abs(lat_valid - 15.0) < 5.0), (
+            "Track latitude far from planted minimum"
+        )
+        assert np.all(np.abs(lon_valid - 45.0) < 5.0), (
+            "Track longitude far from planted minimum"
+        )
