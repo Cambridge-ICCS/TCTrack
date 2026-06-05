@@ -39,7 +39,7 @@ def make_field(var_name: str, time: str | None = None) -> cf.Field:
     return field
 
 
-def write_fields(fields: list[cf.Field], path: Path) -> str:
+def write_fields(fields: cf.Field | list[cf.Field], path: Path) -> str:
     """Write one or more fields to a file and return the file path."""
     cf.write(fields, str(path))  # type: ignore[operator]
     return str(path)
@@ -155,7 +155,7 @@ class TestPreprocessing:
             tmp_path / "input.nc",
         )
 
-        with pytest.raises(ValueError, match="Use {.*} to select a field"):
+        with pytest.raises(ValueError, match=r"Use {.*} to select a field"):
             _load_field(input_file)
 
     def test_load_field_accepts_field_select(self, tmp_path):

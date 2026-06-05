@@ -3,7 +3,7 @@
 import glob
 import importlib.util
 from collections.abc import Sequence
-from typing import Any, TypedDict, TypeAlias, TypeVar
+from typing import Any, TypeAlias, TypedDict, TypeVar
 
 import cf
 import numpy as np
@@ -187,7 +187,7 @@ def _load_field(source: FieldSource) -> cf.Field:
         if len(fields) != 1:
             msg = (
                 f"Expected one field from '{source}', but found {len(fields)}. "
-                "Use {\"files\": files, \"var_name\": variable_name} to select a field."
+                'Use {"files": files, "var_name": variable_name} to select a field.'
             )
             raise ValueError(msg)
         return fields[0]
