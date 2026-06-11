@@ -122,7 +122,7 @@ def select_time_range(
     input_files : str | Sequence[str]
         Input file path(s) to combine. ``glob`` pattern matching allowed.
     time_bounds : tuple[str, str]
-        Start and end datetime strings in format ``"YYYY-MM-DD[ HH:MM]".
+        Start and end datetime strings in format ``"YYYY-MM-DD[ HH:MM]"``.
         The end bound is open / exclusive.
     output_file : str | None, optional
         Output file to write the result to.
