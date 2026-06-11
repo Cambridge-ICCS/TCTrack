@@ -1,5 +1,5 @@
 """Package providing tropical cyclone tracking utilities."""
 
-from tctrack import core, tempest_extremes, track, tstorms
+from tctrack import core, preprocessing, tempest_extremes, track, tstorms, utils
 
-__all__ = ["core", "tempest_extremes", "track", "tstorms"]
+__all__ = ["core", "preprocessing", "tempest_extremes", "track", "tstorms", "utils"]

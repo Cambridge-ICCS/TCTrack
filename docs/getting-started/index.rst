@@ -101,11 +101,10 @@ noting that we may need to add the library to the dynamic path e.g.::
 esmpy
 ~~~~~
 
-Any regridding of data with cf-python requires `esmpy
-<https://earthsystemmodeling.org/esmpy/>`_ and `ESMF
+Any preprocessing that involves regridding of data using :mod:`tctrack.preprocessing` or
+cf-python requires `esmpy <https://earthsystemmodeling.org/esmpy/>`_ and `ESMF
 <https://earthsystemmodeling.org/>`_ as dependencies. This is not needed directly in the
-TCTrack package but may be needed for initial pre-processing of data, such as in the
-tutorial and described in the :doc:`../data/preprocessing_data` page.
+tracking algorithms.
 
 These are not pip-installable but can be installed in a conda environment::
 
