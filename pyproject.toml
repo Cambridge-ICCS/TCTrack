@@ -48,8 +48,8 @@ test = [
 ]
 lint = [
     "ruff",
-    "blackdoc<=0.4.2",
-    "black<=25.1.0",  # Pin version due to blackdoc incompatibility. Remove once resolved
+    "blackdoc>=0.4.2", # Pin versions for black-blackdoc compatibilty.
+    "black>=25.9.0",   # See https://blackdoc.readthedocs.io/en/latest/changelog.html
     "mypy",
     "pytest",
     "xarray",
@@ -58,8 +58,6 @@ doc = [
     "sphinx<8.2.0",  # Pin version due to autodoc type hints incompatibilities
     "sphinx_rtd_theme",
     "sphinx_autodoc_typehints",
-    "blackdoc<=0.4.2",
-    "black<=25.1.0",  # Pin version due to blackdoc incompatibility. Remove once resolved
 ]
 dev = [
     "tctrack[test,lint,doc]",
