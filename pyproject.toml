@@ -63,6 +63,7 @@ doc = [
 ]
 dev = [
     "tctrack[test,lint,doc]",
+    "pre-commit",
 ]
 
 [project.urls]

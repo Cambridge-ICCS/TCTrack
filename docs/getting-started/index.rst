@@ -67,9 +67,10 @@ pip can then be run to install the code from the source into the environment::
     pip install .
 
 If you are developing TCTrack you should install as an editable package with the
-additional developer dependencies::
+additional developer dependencies and the pre-commit hooks installed::
 
     pip install --editable .[dev]
+    pre-commit install
 
 The `dev` optional dependencies include the `test`, `lint`, and `doc` subgroups.
 

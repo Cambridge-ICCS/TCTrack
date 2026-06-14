@@ -1,0 +1,27 @@
+default_install_hook_types: [pre-commit]
+
+repos:
+
+  # Ruff linting / formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.17
+    hooks:
+      - id: ruff-check
+        files: (src|tests)/.*\.py
+        args: [ --fix ]
+      - id: ruff-format
+        files: (src|tests)/.*\.py
+
+  # Mypy type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.1.0
+    hooks:
+    -   id: mypy
+
+  # Docs formatting with blackdoc
+  - repo: https://github.com/keewis/blackdoc
+    rev: v0.4.2
+    hooks:
+    - id: blackdoc
+      files: docs/
+      additional_dependencies: ["black==25.9.0"]
