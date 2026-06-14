@@ -72,6 +72,7 @@ pull request.
 Additional dependencies for development can be installed as follows:
 ```sh
 pip install --editable .[dev]
+pre-commit install
 ```
 
 Full details for contribution and developers can be found in the
