@@ -302,6 +302,12 @@ def calculate_curl_xy(
     field_y = _load_field(input_y)
 
     curl = cf.curl_xy(field_x, field_y, radius="earth")
+
+    # Negate the curl due to a suspected error in cf.curl_xy for spherical polar coords
+    # (In the first term the gradient is taken wrt latitude, not theta)
+    # (The second term should be the gradient of the southward windspeed)
+    curl.data = -curl.data
+
     curl.nc_set_variable(variable_name)
     for name, value in variable_info.items():
         if name == "units":
