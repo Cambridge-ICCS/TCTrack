@@ -338,7 +338,7 @@ def calculate_vorticity(
         input_v,
         variable_name="vorticity",
         variable_info={
-            "standard_name": "atmosphere_upward_absolute_vorticity",
+            "standard_name": "atmosphere_upward_relative_vorticity",
             "units": "s-1",
         },
         output_file=output_file,

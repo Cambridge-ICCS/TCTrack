@@ -162,7 +162,7 @@ For example, to calculate vorticity from coincident velocity data we can use ``c
     # calculate vorticity
     w_field = cf.curl_xy(u_field, v_field, radius="earth")
     w_field.nc_set_variable("vorticity")
-    w_field.set_property("standard_name", "atmosphere_upward_absolute_vorticity")
+    w_field.set_property("standard_name", "atmosphere_upward_relative_vorticity")
     w_field.set_property("units", "s-1")
 
     # Save the new variable to NetCDF

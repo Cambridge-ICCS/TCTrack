@@ -213,7 +213,7 @@ class TestPreprocessing:
         assert vorticity.nc_get_variable() == "vorticity"
         assert (
             vorticity.get_property("standard_name")
-            == "atmosphere_upward_absolute_vorticity"
+            == "atmosphere_upward_relative_vorticity"
         )
         assert vorticity.get_property("units") == "s-1"
 
