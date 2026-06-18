@@ -25,7 +25,7 @@ field_psl = preprocessing.select_time_range(
     f"{data_dir}/psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500101-19501230.nc",
     time_bounds,
     output_file=f"{data_out}/psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
-)[0]
+)
 print("done.")
 
 print("Extracting subspace from sfcWind...", end="", flush=True)
@@ -68,7 +68,7 @@ print("Extracting subspace from uas and renaming...", end="", flush=True)
 field_uas = preprocessing.select_time_range(
     f"{data_dir}/uas_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500101-19501230.nc",
     time_bounds,
-)[0]
+)
 field_uas = preprocessing.set_netcdf_variable_name(
     field_uas,
     "u_ref",
@@ -80,7 +80,7 @@ print("Extracting subspace from vas and renaming...", end="", flush=True)
 field_vas = preprocessing.select_time_range(
     f"{data_dir}/vas_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500701-19501230.nc",
     time_bounds,
-)[0]
+)
 field_vas = preprocessing.regrid_to_field(field_vas, field_uas, method="linear")
 preprocessing.set_netcdf_variable_name(
     field_vas,
