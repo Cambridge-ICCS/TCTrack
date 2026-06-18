@@ -101,12 +101,33 @@ class TestPreprocessing:
         input_files = [
             write_fields(make_field("mslp", "2000-01-01"), tmp_path / "a.nc"),
             write_fields(make_field("mslp", "2000-01-02"), tmp_path / "b.nc"),
+            write_fields(make_field("u", "2000-01-01"), tmp_path / "c.nc"),
+            write_fields(make_field("u", "2000-01-02"), tmp_path / "d.nc"),
         ]
 
         fields = select_time_range(input_files, ("2000-01-01", "2000-01-02"))
 
-        assert len(fields) == 1  # Same field (mslp)
-        assert fields[0].coordinate("T").size == 1  # Upper bound is excluded
+        # Same fields (mslp, u)
+        assert len(fields) == 2
+        assert fields[0].nc_get_variable() == "mslp"
+        assert fields[1].nc_get_variable() == "u"
+        # Upper bound is excluded
+        assert fields[0].coordinate("T").size == 1
+        assert fields[1].coordinate("T").size == 1
+
+    def test_select_time_range_squeeze(self, tmp_path):
+        """Test select_time_range squeezes size-1 list outputs."""
+        input_files = [
+            write_fields(make_field("mslp", "2000-01-01"), tmp_path / "a.nc"),
+            write_fields(make_field("mslp", "2000-01-02"), tmp_path / "b.nc"),
+        ]
+
+        output = select_time_range(input_files, ("2000-01-01", "2000-01-02"))
+
+        # Check it returns just the mslp field, not a list
+        assert isinstance(output, cf.Field)
+        assert output.nc_get_variable() == "mslp"
+        assert output.coordinate("T").size == 1
 
     def test_separate_varibles(self, tmp_path):
         """Test separate_variables correctly splits variables across multiple files."""

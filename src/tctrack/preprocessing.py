@@ -3,7 +3,7 @@
 import glob
 import importlib.util
 from collections.abc import Sequence
-from typing import Any, TypeAlias, TypedDict, TypeVar
+from typing import Any, Literal, TypeAlias, TypedDict, overload
 
 import cf
 import numpy as np
@@ -42,7 +42,7 @@ class FieldSelect(TypedDict):
     var_name: str
 
 
-FieldSource: TypeAlias = str | Sequence[str] | FieldSelect | cf.Field
+FieldSource: TypeAlias = str | Sequence[str] | FieldSelect | cf.Field | list[cf.Field]
 """Type alias for the allowed sources for ``cf.Field`` arguments.
 
 The ``cf.Field`` can be passed directly or using the path(s) CF-NetCDF file(s).
@@ -69,14 +69,35 @@ def _expand_input_paths(paths: str | Sequence[str]) -> list[str]:
     return expanded_paths
 
 
-T = TypeVar("T", cf.Field, list[cf.Field])
+@overload
+def _write_output(
+    result: cf.Field, output_file: str | None, squeeze: bool = True
+) -> cf.Field: ...
 
 
-def _write_output(result: T, output_file: str | None) -> T:
-    """Optionally write output before returning."""
+@overload
+def _write_output(
+    result: list[cf.Field], output_file: str | None, squeeze: Literal[True] = True
+) -> cf.Field | list[cf.Field]: ...
+
+
+@overload
+def _write_output(
+    result: list[cf.Field], output_file: str | None, squeeze: Literal[False]
+) -> list[cf.Field]: ...
+
+
+def _write_output(
+    result: cf.Field | list[cf.Field], output_file: str | None, squeeze: bool = True
+) -> cf.Field | list[cf.Field]:
+    """Optionally write output before returning and squeeze size-1 lists."""
     if output_file is not None:
         cf.write(result, output_file)  # type: ignore[operator]
-    return result
+
+    if squeeze and isinstance(result, list) and len(result) == 1:
+        return result[0]
+    else:
+        return result
 
 
 def read_files(
@@ -106,7 +127,7 @@ def read_files(
             _expand_input_paths(input_files), select=select, netcdf_backend="netCDF4"
         )
     )
-    return _write_output(fields, output_file)
+    return _write_output(fields, output_file, squeeze=False)
 
 
 def select_time_range(
@@ -114,7 +135,7 @@ def select_time_range(
     time_bounds: tuple[str, str],
     *,
     output_file: str | None = None,
-) -> list[cf.Field]:
+) -> cf.Field | list[cf.Field]:
     """Combine files in time and select a time range.
 
     Parameters
@@ -171,6 +192,13 @@ def separate_variables(
 
 def _load_field(source: FieldSource) -> cf.Field:
     """Load a single field from an in-memory field or file input."""
+    if isinstance(source, list) and all(isinstance(s, cf.Field) for s in source):
+        if len(source) == 1:
+            return source[0]
+        else:
+            msg = "Expected one field but multiple were provided."
+            raise ValueError(msg)
+
     if isinstance(source, cf.Field):
         return source
 
