@@ -99,3 +99,12 @@ class TCMLTracker(TCTracker):
             model_file, map_location=parameters.device
         )
         self.model.eval()
+
+    @abstractmethod
+    def detect(self) -> None:
+        """Run the ML model on the preprocessed input to obtain TC candidates.
+
+        This method should populate the internal state (e.g. a list of
+        candidate detections) that can be used for reading trajectories or the stitching
+        step.
+        """
