@@ -1,8 +1,13 @@
 """Module providing abstract base classes for ML-based tracking algorithms."""
 
+import os
+from abc import abstractmethod
 from dataclasses import dataclass
 
-from .tracker import TCTrackerParameters
+import torch
+from huggingface_hub import hf_hub_download
+
+from .tracker import TCTracker, TCTrackerParameters
 
 
 @dataclass(repr=False)
@@ -38,3 +43,59 @@ class TCMLParameters(TCTrackerParameters):
         if not (0.0 <= self.threshold <= 1.0):
             msg = f"threshold must be in [0, 1], got {self.threshold}"
             raise ValueError(msg)
+
+
+class TCMLTracker(TCTracker):
+    """Abstract base class for ML-based tropical cyclone trackers.
+
+    Extends `TCTracker` functionality common to all
+    ML-based trackers e.g. loading a TorchScript model from
+    HuggingFace Hub repository, and the `detect` step.
+
+    Attributes
+    ----------
+    model : torch.jit.ScriptModule
+        The loaded TorchScript model in evaluation mode.
+    """
+
+    model: torch.jit.ScriptModule
+
+    @property
+    @abstractmethod
+    def _hf_filename(self) -> str:
+        """Filename of the model weights in the HuggingFace repository."""
+
+    def _load_model(self, parameters: TCMLParameters) -> None:
+        """Load the TorchScript model and set it to evaluation mode.
+
+        Loads model from TCMLParameters.model_path or downloads from HuggingFace Hub
+
+        Parameters
+        ----------
+        parameters : TCMLParameters
+            The parameter object containing model location and device type.
+
+        Raises
+        ------
+        OSError
+            If ``parameters.model_path`` is given but the file does not exist.
+        huggingface_hub.errors.RepositoryNotFoundError
+            If the HuggingFace repository cannot be found or accessed.
+        """
+        if parameters.model_path is not None:
+            if not os.path.exists(parameters.model_path):
+                msg = f"Model file not found: {parameters.model_path}"
+                raise OSError(msg)
+            model_file = parameters.model_path
+        else:
+            token = parameters.hf_token or os.environ.get("HF_TOKEN")
+            model_file = hf_hub_download(
+                repo_id=parameters.hf_repo_id,
+                filename=self._hf_filename,
+                token=token,
+            )
+
+        self.model: torch.jit.ScriptModule = torch.jit.load(
+            model_file, map_location=parameters.device
+        )
+        self.model.eval()
