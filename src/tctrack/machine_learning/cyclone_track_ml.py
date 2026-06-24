@@ -36,18 +36,18 @@ class MLParameters(TCMLParameters):
     """HuggingFace Hub repository ID for the cyclone detection model."""
 
 
-class MLTracker(TCTracker):
+class MLTracker(TCMLTracker):
     """Class used to run the machine-learning cyclone tracking algorithm.
 
-    The model weights are loaded from a private HuggingFace Hub repository on
-    first use and cached locally by ``huggingface_hub``.
+    The model weights are loaded from a HuggingFace Hub repository on first
+    use and cached locally by ``huggingface_hub``.
 
     Attributes
     ----------
     parameters : MLParameters
         Class containing the parameters for the tracking algorithm.
-    model : torch.nn.Module
-        The loaded PyTorch model in evaluation mode.
+    model : torch.jit.ScriptModule
+        The loaded TorchScript model in evaluation mode.
 
     Examples
     --------
@@ -55,6 +55,11 @@ class MLTracker(TCTracker):
     >>> tracker = MLTracker(params)
     >>> tracker.run_tracker("trajectories.nc")
     """
+
+    @property
+    def _hf_filename(self) -> str:
+        """Filename of the model weights in the HuggingFace repository."""
+        return "cyclone-detect-ml-scripted.pt"
 
     def __init__(self, parameters: MLParameters):
         """Construct the MLTracker and load the model.
@@ -73,24 +78,10 @@ class MLTracker(TCTracker):
         """
         self.parameters: MLParameters = parameters
         self._trajectories: list[Trajectory] = []
-
-        if parameters.model_path is not None:
-            model_file = parameters.model_path
-        else:
-            token = parameters.hf_token or os.environ.get("HF_TOKEN")
-            model_file = hf_hub_download(
-                repo_id=parameters.hf_repo_id,
-                filename="cyclone-detect-ml-scripted.pt",
-                token=token,
-            )
-
-        self.model: torch.jit.ScriptModule = torch.jit.load(
-            model_file, map_location=parameters.device
-        )
-        self.model.eval()
+        self._load_model(parameters)
 
     @property
-    def _parameters(self) -> list[TCTrackerParameters]:
+    def _parameters(self) -> list[MLParameters]:
         """A list of the parameter objects accessible from the base class."""
         return [self.parameters]
 
