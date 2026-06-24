@@ -6,19 +6,15 @@ References
   <https://tctrack.readthedocs.io/en/latest/developer/adding_algorithms.html>`__
 """
 
-import os
 from dataclasses import dataclass
 
 import cf
-import torch
-from huggingface_hub import hf_hub_download
 
 from tctrack.core import (
-    TCTracker,
     TCTrackerMetadata,
-    TCTrackerParameters,
     Trajectory,
 )
+from tctrack.core.ml_tracker import TCMLParameters, TCMLTracker
 
 
 @dataclass(repr=False)
