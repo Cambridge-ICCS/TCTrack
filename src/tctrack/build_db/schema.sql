@@ -2,10 +2,10 @@
 -- Stores collections of cyclone trajectories.
 --
 -- Hierarchy:
---  collections         - named collections of trajectories
---    files             - individual files from TCTrack
---      trajectories    - single cyclone tracks with GeoJSON geometry
---        observations  - attributes from each trajectory observation
+--  collections              Named collections of trajectories.
+--  └─ files                 Individual files from TCTrack.
+--     └─ trajectories       Single cyclone tracks with GeoJSON geometry.
+--        └─ observations    Attributes from each trajectory observation.
 
 pragma foreign_keys = on;
 
@@ -27,7 +27,8 @@ create table files (
     id                  integer primary key,
     collection_id       integer not null references collections(id) on delete cascade,
 
-    filename            text    not null unique,
+    filepath            text    not null unique,
+    filename            text    not null,
 
     tctrack_version     text,
     tracker_name        text    not null,
@@ -49,10 +50,12 @@ create index files_collection_idx on files(collection_id);
 -- The geojson column contains a LineString feature for the full vector path
 -- plus Point features for each path point along with attributes.
 create table trajectories (
-    id       integer primary key,
-    file_id  integer not null references files(id) on delete cascade,
+    id         integer primary key,
+    file_id    integer not null references files(id) on delete cascade,
 
-    geojson  text    not null
+    start_end  text    check (start_end in ('S', 'E', 'SE')),
+
+    geojson    text    not null
 );
 
 create index trajectories_file_idx on trajectories(file_id);
@@ -64,7 +67,7 @@ create index trajectories_file_idx on trajectories(file_id);
 -- Data is the same as trajectories.geojson but as individual, searchable rows.
 create table observations (
     trajectory_id              integer not null references trajectories(id) on delete cascade,
-    date                       text not null,
+    date                       text not null default current_timestamp,
 
     latitude                   real not null,
     longitude                  real not null,
