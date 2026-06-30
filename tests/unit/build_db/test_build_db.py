@@ -127,6 +127,7 @@ class TestGeoJSONConversion:
         # First feature is the LineString path
         features = geojson["features"]
         assert features[0]["geometry"]["type"] == "LineString"
+        assert features[0]["properties"]["source_file"] == "test_tracks.nc"
 
         # Remaining features are Points
         for f in features[1:]:
