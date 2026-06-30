@@ -74,9 +74,9 @@ create table observations (
     grid_i                     real not null,
     grid_j                     real not null,
 
-    air_pressure_at_sea_level  real not null,
-    surface_altitude           real not null,
-    wind_speed                 real not null
+    air_pressure_at_sea_level  real,
+    surface_altitude           real,
+    wind_speed                 real
 );
 
 create index observations_trajectory_idx on observations(trajectory_id);
