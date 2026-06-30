@@ -122,9 +122,13 @@ def read_netcdf(netcdf_filepath: str, wrap_longitude: bool = False) -> dict:
         "longitude": ds.variables["longitude"][:],
         "grid_i": ds.variables["grid_i"][:],
         "grid_j": ds.variables["grid_j"][:],
-        "air_pressure_at_sea_level": ds.variables["air_pressure_at_sea_level"][:],
-        "surface_altitude": ds.variables["surface_altitude"][:],
-        "wind_speed": ds.variables["wind_speed"][:],
+        "air_pressure_at_sea_level": v[:]
+            if (v := ds.variables.get("air_pressure_at_sea_level")) is not None
+            else None,
+        "surface_altitude": v[:]
+            if (v := ds.variables.get("surface_altitude")) is not None else None,
+        "wind_speed": v[:]
+            if (v := ds.variables.get("wind_speed")) is not None else None,
     }
 
     time_var = ds.variables["time"]
@@ -185,9 +189,12 @@ def extract_trajectory(netcdf_data: dict, traj_idx: int) -> dict:
         "longitude": netcdf_data["longitude"][traj_idx],
         "grid_i": netcdf_data["grid_i"][traj_idx],
         "grid_j": netcdf_data["grid_j"][traj_idx],
-        "air_pressure_at_sea_level": netcdf_data["air_pressure_at_sea_level"][traj_idx],
-        "surface_altitude": netcdf_data["surface_altitude"][traj_idx],
-        "wind_speed": netcdf_data["wind_speed"][traj_idx],
+        "air_pressure_at_sea_level": v[traj_idx]
+            if (v := netcdf_data["air_pressure_at_sea_level"]) is not None else None,
+        "surface_altitude": v[traj_idx]
+            if (v := netcdf_data["surface_altitude"]) is not None else None,
+        "wind_speed": v[traj_idx]
+            if (v := netcdf_data["wind_speed"]) is not None else None,
     }
 
 
@@ -212,7 +219,7 @@ def build_geojson(traj: dict) -> str:
     # 1. Vector track (LineString)
     coordinates = []
     for i in traj["indices"]:
-        coordinates.append([float(traj["longitude"][i]), float(traj["latitude"][i])])
+        coordinates.append([traj["longitude"][i], traj["latitude"][i]])
 
     features.append({
         "type": "Feature",
@@ -233,17 +240,18 @@ def build_geojson(traj: dict) -> str:
             "type": "Feature",
             "geometry": {
                 "type": "Point",
-                "coordinates": [
-                    float(traj["longitude"][i]), float(traj["latitude"][i])],
+                "coordinates": [traj["longitude"][i], traj["latitude"][i]],
             },
             "properties": {
                 "feature_type": "observation",
                 "index": idx,
                 "date": traj["times"][i].isoformat(" "),
-                "air_pressure_at_sea_level":
-                    float(traj["air_pressure_at_sea_level"][i]),
-                "surface_altitude": float(traj["surface_altitude"][i]),
-                "wind_speed": float(traj["wind_speed"][i]),
+                "air_pressure_at_sea_level": v[i]
+                    if (v := traj["air_pressure_at_sea_level"]) is not None else None,
+                "surface_altitude": v[i]
+                    if (v := traj["surface_altitude"]) is not None else None,
+                "wind_speed": v[i]
+                    if (v := traj["wind_speed"]) is not None else None,
             },
         })
 
@@ -342,13 +350,13 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
         (
             traj_id,
             traj["times"][i].isoformat(" "),
-            float(traj["latitude"][i]),
-            float(traj["longitude"][i]),
-            float(traj["grid_i"][i]),
-            float(traj["grid_j"][i]),
-            float(traj["air_pressure_at_sea_level"][i]),
-            float(traj["surface_altitude"][i]),
-            float(traj["wind_speed"][i]),
+            traj["latitude"][i],
+            traj["longitude"][i],
+            traj["grid_i"][i],
+            traj["grid_j"][i],
+            v[i] if (v := traj["air_pressure_at_sea_level"]) is not None else None,
+            v[i] if (v := traj["surface_altitude"]) is not None else None,
+            v[i] if (v := traj["wind_speed"]) is not None else None,
         )
         for i in traj["indices"]
     ]
