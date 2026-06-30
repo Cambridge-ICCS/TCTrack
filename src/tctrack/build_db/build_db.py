@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 
+
 def init_db(db_path: str) -> sqlite3.Connection:
     """
     Create a new database from the schema, or open an existing one.
@@ -88,9 +89,10 @@ def file_exists(db: sqlite3.Connection, filepath: str) -> bool:
     -------
     True if file exists in the database.
     """
-    return db.execute(
-        "select 1 from files where filepath = ?", (filepath,)
-    ).fetchone() is not None
+    return (
+        db.execute("select 1 from files where filepath = ?", (filepath,)).fetchone()
+        is not None
+    )
 
 
 def read_netcdf(netcdf_filepath: str, wrap_longitude: bool = False) -> dict:
@@ -123,12 +125,14 @@ def read_netcdf(netcdf_filepath: str, wrap_longitude: bool = False) -> dict:
         "grid_i": ds.variables["grid_i"][:],
         "grid_j": ds.variables["grid_j"][:],
         "air_pressure_at_sea_level": v[:]
-            if (v := ds.variables.get("air_pressure_at_sea_level")) is not None
-            else None,
+        if (v := ds.variables.get("air_pressure_at_sea_level")) is not None
+        else None,
         "surface_altitude": v[:]
-            if (v := ds.variables.get("surface_altitude")) is not None else None,
+        if (v := ds.variables.get("surface_altitude")) is not None
+        else None,
         "wind_speed": v[:]
-            if (v := ds.variables.get("wind_speed")) is not None else None,
+        if (v := ds.variables.get("wind_speed")) is not None
+        else None,
     }
 
     time_var = ds.variables["time"]
@@ -190,11 +194,14 @@ def extract_trajectory(netcdf_data: dict, traj_idx: int) -> dict:
         "grid_i": netcdf_data["grid_i"][traj_idx],
         "grid_j": netcdf_data["grid_j"][traj_idx],
         "air_pressure_at_sea_level": v[traj_idx]
-            if (v := netcdf_data["air_pressure_at_sea_level"]) is not None else None,
+        if (v := netcdf_data["air_pressure_at_sea_level"]) is not None
+        else None,
         "surface_altitude": v[traj_idx]
-            if (v := netcdf_data["surface_altitude"]) is not None else None,
+        if (v := netcdf_data["surface_altitude"]) is not None
+        else None,
         "wind_speed": v[traj_idx]
-            if (v := netcdf_data["wind_speed"]) is not None else None,
+        if (v := netcdf_data["wind_speed"]) is not None
+        else None,
     }
 
 
@@ -221,45 +228,54 @@ def build_geojson(traj: dict) -> str:
     for i in traj["indices"]:
         coordinates.append([traj["longitude"][i], traj["latitude"][i]])
 
-    features.append({
-        "type": "Feature",
-        "geometry": {
-            "type": "LineString",
-            "coordinates": coordinates,
-        },
-        "properties": {
-            "feature_type": "track",
-            "start_end": traj["start_end"],
-            "source_file": os.path.basename(traj["filepath"]),
-        },
-    })
+    features.append(
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": coordinates,
+            },
+            "properties": {
+                "feature_type": "track",
+                "start_end": traj["start_end"],
+                "source_file": os.path.basename(traj["filepath"]),
+            },
+        }
+    )
 
     # 2. Point features for each observation (Point)
     for idx, i in enumerate(traj["indices"]):
-        features.append({
-            "type": "Feature",
-            "geometry": {
-                "type": "Point",
-                "coordinates": [traj["longitude"][i], traj["latitude"][i]],
-            },
-            "properties": {
-                "feature_type": "observation",
-                "index": idx,
-                "date": traj["times"][i].isoformat(" "),
-                "air_pressure_at_sea_level": v[i]
-                    if (v := traj["air_pressure_at_sea_level"]) is not None else None,
-                "surface_altitude": v[i]
-                    if (v := traj["surface_altitude"]) is not None else None,
-                "wind_speed": v[i]
-                    if (v := traj["wind_speed"]) is not None else None,
-            },
-        })
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [traj["longitude"][i], traj["latitude"][i]],
+                },
+                "properties": {
+                    "feature_type": "observation",
+                    "index": idx,
+                    "date": traj["times"][i].isoformat(" "),
+                    "air_pressure_at_sea_level": v[i]
+                    if (v := traj["air_pressure_at_sea_level"]) is not None
+                    else None,
+                    "surface_altitude": v[i]
+                    if (v := traj["surface_altitude"]) is not None
+                    else None,
+                    "wind_speed": v[i]
+                    if (v := traj["wind_speed"]) is not None
+                    else None,
+                },
+            }
+        )
 
     return json.dumps({"type": "FeatureCollection", "features": features})
 
 
 def insert_file(
-    db: sqlite3.Connection, collection_id: int, netcdf_data: dict,
+    db: sqlite3.Connection,
+    collection_id: int,
+    netcdf_data: dict,
 ) -> int:
     """
     Insert a file record into the database.
@@ -461,7 +477,6 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     with init_db(args.output) as db:
-
         collection_id = get_collection(db, args.collection)
 
         for nc_file in args.files:
