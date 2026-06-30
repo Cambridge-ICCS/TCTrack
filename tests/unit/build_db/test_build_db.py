@@ -75,6 +75,16 @@ class TestFileImport:
         assert row[2] == "days since 1950-01-01"
         assert row[3] == "360_day"
 
+    def test_tracker_parameters(self, tmp_db):
+        """Test that tracker_parameters contains valid JSON."""
+        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        db = open_db(tmp_db)
+
+        row = db.execute("select tracker_parameters from files").fetchone()
+        assert row[0] is not None
+        params = json.loads(row[0])
+        assert isinstance(params, dict)
+
 
 class TestTrajectoryImport:
     """Test import of trajectories."""
