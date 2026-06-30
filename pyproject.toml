@@ -70,6 +70,9 @@ dev = [
 "Repository" = "https://github.com/Cambridge-ICCS/TCTrack"
 "Issues" = "https://github.com/Cambridge-ICCS/TCTrack/issues"
 
+[project.scripts]
+build-db = "tctrack.build_db.build_db:main"
+
 [tool.ruff]
 # Run linting and formatting on notebooks
 extend-include = ["*.ipynb"]
