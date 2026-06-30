@@ -295,17 +295,16 @@ def insert_file(
     """
     attrs = netcdf_data["attrs"]
 
-    tracker_name = attrs.get("tctrack_tracker", "unknown")
-
-    # Combine detect and stitch parameters
-    raw_params: dict = {}
-    if "detect_parameters" in attrs:
-        raw_params["detect_parameters"] = attrs["detect_parameters"]
-    if "stitch_parameters" in attrs:
-        raw_params["stitch_parameters"] = attrs["stitch_parameters"]
-    tracker_parameters = json.dumps(raw_params) if raw_params else "{}"
-
-    tctrack_version = attrs.get("tctrack_version", None)
+    if "tctrack_parameters" in attrs:
+        tctrack_parameters = attrs["tctrack_parameters"]
+    else:
+        # Support layout from previous version
+        tctrack_parameters = json.dumps(
+            {
+                "detect": json.loads(attrs.get("detect_parameters", "{}")),
+                "stitch": json.loads(attrs.get("stitch_parameters", "{}")),
+            }
+        )
 
     cur = db.execute(
         """insert into files
@@ -317,9 +316,9 @@ def insert_file(
             collection_id,
             os.path.abspath(netcdf_data["filepath"]),
             os.path.basename(netcdf_data["filepath"]),
-            tctrack_version,
-            tracker_name,
-            tracker_parameters,
+            attrs.get("tctrack_version", None),
+            attrs.get("tctrack_tracker", "unknown"),
+            tctrack_parameters,
             netcdf_data["n_trajectories"],
             netcdf_data["n_observations"],
             netcdf_data["time_units"],
