@@ -177,6 +177,7 @@ def extract_trajectory(netcdf_data: dict, traj_idx: int) -> dict:
     start_end = ("S" if start else "") + ("E" if end else "") or None
 
     return {
+        "filepath": netcdf_data["filepath"],
         "start_end": start_end,
         "indices": indices,
         "times": times,
@@ -222,6 +223,7 @@ def build_geojson(traj: dict) -> str:
         "properties": {
             "feature_type": "track",
             "start_end": traj["start_end"],
+            "source_file": os.path.basename(traj["filepath"]),
         },
     })
 
