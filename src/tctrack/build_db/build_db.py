@@ -142,6 +142,7 @@ def read_netcdf(netcdf_filepath: str, wrap_longitude: bool = False) -> dict:
         "air_pressure_at_sea_level",
         "surface_altitude",
         "wind_speed",
+        "atmosphere_relative_vorticity",
     ]:
         data[prop] = v[:] if (v := ds.variables.get(prop)) is not None else None
 
@@ -201,6 +202,9 @@ def extract_trajectory(netcdf_data: dict, traj_idx: int) -> dict:
         else None,
         "wind_speed": v[traj_idx]
         if (v := netcdf_data["wind_speed"]) is not None
+        else None,
+        "atmosphere_relative_vorticity": v[traj_idx]
+        if (v := netcdf_data["atmosphere_relative_vorticity"]) is not None
         else None,
     }
 
@@ -264,6 +268,9 @@ def build_geojson(traj: dict) -> str:
                     else None,
                     "wind_speed": v[i]
                     if (v := traj["wind_speed"]) is not None
+                    else None,
+                    "atmosphere_relative_vorticity": v[i]
+                    if (v := traj["atmosphere_relative_vorticity"]) is not None
                     else None,
                 },
             }
@@ -372,6 +379,7 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
             v[i] if (v := traj["air_pressure_at_sea_level"]) is not None else None,
             v[i] if (v := traj["surface_altitude"]) is not None else None,
             v[i] if (v := traj["wind_speed"]) is not None else None,
+            v[i] if (v := traj["atmosphere_relative_vorticity"]) is not None else None,
         )
         for i in traj["indices"]
     ]
@@ -380,8 +388,9 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
         cur = db.executemany(
             "insert into observations"
             " (trajectory_id, date, latitude, longitude, grid_i, grid_j,"
-            "  air_pressure_at_sea_level, surface_altitude, wind_speed)"
-            " values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "  air_pressure_at_sea_level, surface_altitude, wind_speed,"
+            "  atmosphere_relative_vorticity)"
+            " values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             rows,
         )
         if cur.rowcount != len(rows):

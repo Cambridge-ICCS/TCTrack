@@ -66,17 +66,18 @@ create index trajectories_file_idx on trajectories(file_id);
 --
 -- Data is the same as trajectories.geojson but as individual, searchable rows.
 create table observations (
-    trajectory_id              integer not null references trajectories(id) on delete cascade,
-    date                       text not null default current_timestamp,
+    trajectory_id                  integer not null references trajectories(id) on delete cascade,
+    date                           text not null default current_timestamp,
 
-    latitude                   real not null,
-    longitude                  real not null,
-    grid_i                     real not null,
-    grid_j                     real not null,
+    latitude                       real not null,
+    longitude                      real not null,
+    grid_i                         real not null,
+    grid_j                         real not null,
 
-    air_pressure_at_sea_level  real,
-    surface_altitude           real,
-    wind_speed                 real
+    air_pressure_at_sea_level      real,
+    surface_altitude               real,
+    wind_speed                     real,
+    atmosphere_relative_vorticity  real
 );
 
 create index observations_trajectory_idx on observations(trajectory_id);
