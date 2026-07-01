@@ -405,7 +405,7 @@ def import_file(
     collection_id: int,
     netcdf_filepath: str,
     wrap_longitude: bool = False,
-) -> int:
+) -> None:
     """
     Import a single NetCDF file into the database.
 
@@ -421,10 +421,6 @@ def import_file(
         Full path to a NetCDF file to import.
     wrap_longitude
         True to wrap longitude coordinates from 0-360 to the -180 to 180 range.
-
-    Returns
-    -------
-    Row id of inserted file in the database.
     """
     filepath = os.path.abspath(netcdf_filepath)
 

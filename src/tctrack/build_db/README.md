@@ -1,6 +1,6 @@
 # Build Database
 
-A CLI tool to import TCTrack NetCDF files into a SQLite database.
+A CLI tool to import TCTrack NetCDF files into SQLite databases.
 
 The resulting database forms the foundation for a dashboard. However, it is also valuable as a organisational tool for TCTrack output files. The data within can be queried and manipulated easily using local SQLite viewers such as [DB Browser](https://sqlitebrowser.org/).
 
