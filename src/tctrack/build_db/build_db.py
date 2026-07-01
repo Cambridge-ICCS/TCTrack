@@ -119,20 +119,11 @@ def read_netcdf(netcdf_filepath: str, wrap_longitude: bool = False) -> dict:
         "filepath": netcdf_filepath,
         "n_trajectories": n_trajectories,
         "n_observations": n_observations,
-        "attrs": {k: ds.getncattr(k) for k in ds.ncattrs()},
+        "attributes": {k: ds.getncattr(k) for k in ds.ncattrs()},
         "latitude": ds.variables["latitude"][:],
         "longitude": ds.variables["longitude"][:],
         "grid_i": ds.variables["grid_i"][:],
         "grid_j": ds.variables["grid_j"][:],
-        "air_pressure_at_sea_level": v[:]
-        if (v := ds.variables.get("air_pressure_at_sea_level")) is not None
-        else None,
-        "surface_altitude": v[:]
-        if (v := ds.variables.get("surface_altitude")) is not None
-        else None,
-        "wind_speed": v[:]
-        if (v := ds.variables.get("wind_speed")) is not None
-        else None,
     }
 
     time_var = ds.variables["time"]
@@ -146,6 +137,15 @@ def read_netcdf(netcdf_filepath: str, wrap_longitude: bool = False) -> dict:
     if "end_flag" in ds.variables:
         data["end_flag"] = ds.variables["end_flag"][:]
 
+    # Observations (optional)
+    for prop in [
+        "air_pressure_at_sea_level",
+        "surface_altitude",
+        "wind_speed",
+    ]:
+        data[prop] = v[:] if (v := ds.variables.get(prop)) is not None else None
+
+    # Longitude processing (optional)
     if wrap_longitude:
         data["longitude"] = ((data["longitude"] + 180) % 360) - 180
 
@@ -293,16 +293,16 @@ def insert_file(
     -------
     Row id of inserted file in the database.
     """
-    attrs = netcdf_data["attrs"]
+    attributes = netcdf_data["attributes"]
 
-    if "tctrack_parameters" in attrs:
-        tctrack_parameters = attrs["tctrack_parameters"]
+    if "tctrack_parameters" in attributes:
+        tctrack_parameters = attributes["tctrack_parameters"]
     else:
         # Support layout from previous version
         tctrack_parameters = json.dumps(
             {
-                "detect": json.loads(attrs.get("detect_parameters", "{}")),
-                "stitch": json.loads(attrs.get("stitch_parameters", "{}")),
+                "detect": json.loads(attributes.get("detect_parameters", "{}")),
+                "stitch": json.loads(attributes.get("stitch_parameters", "{}")),
             }
         )
 
@@ -316,8 +316,8 @@ def insert_file(
             collection_id,
             os.path.abspath(netcdf_data["filepath"]),
             os.path.basename(netcdf_data["filepath"]),
-            attrs.get("tctrack_version", None),
-            attrs.get("tctrack_tracker", "unknown"),
+            attributes.get("tctrack_version", None),
+            attributes.get("tctrack_tracker", "unknown"),
             tctrack_parameters,
             netcdf_data["n_trajectories"],
             netcdf_data["n_observations"],

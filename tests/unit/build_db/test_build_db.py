@@ -200,16 +200,17 @@ class TestObservationImport:
         db = open_db(tmp_db)
 
         row = db.execute(
-            "select latitude, longitude, air_pressure_at_sea_level, "
-            "surface_altitude, wind_speed "
+            "select latitude, longitude, "
+            "air_pressure_at_sea_level, surface_altitude, wind_speed "
             "from observations where trajectory_id = 1 limit 1"
         ).fetchone()
 
-        assert math.isfinite(row[0])
-        assert math.isfinite(row[1])
-        assert math.isfinite(row[2])
-        assert math.isfinite(row[3])
-        assert math.isfinite(row[4])
+        assert row[0] == pytest.approx(13.476562)
+        assert row[1] == pytest.approx(183.339844)
+
+        assert row[2] == pytest.approx(100472.1)
+        assert row[3] == pytest.approx(0.0)
+        assert row[4] == pytest.approx(10.42255)
 
     def test_observation_date(self, tmp_db):
         """Test that dates are in ISO format and monotonically increasing."""
