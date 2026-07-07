@@ -1,0 +1,62 @@
+flowchart TD
+    InputNC[("Input NetCDF
+    CF-compliant
+    climate data")]
+
+    MLParameters["<b>MLParameters</b>
+    -----------------
+    input_file: str
+    (add more fields as needed)"]
+
+    subgraph MLTracker["MLTracker – machine_learning.py"]
+        Init["__init__(parameters)
+        store MLParameters"]
+        Preprocess["preprocess()
+        ☐ TO IMPLEMENT
+        e.g. normalise fields,
+        extract features"]
+        Detect["detect()
+        ☐ TO IMPLEMENT
+        run your ML model
+        output candidate points"]
+        Stitch["stitch() or track()
+        ☐ TO IMPLEMENT
+        link candidates
+        into trajectories"]
+        BuildTrajectories["Build list of
+        Trajectory objects
+        directly in Python
+        (no intermediate file)"]
+
+        Init --> Preprocess --> Detect --> Stitch --> BuildTrajectories
+    end
+
+    subgraph BaseClass["Inherited from TCTracker base class"]
+        SetMetadata["_set_metadata()
+        ✅ skeleton provided
+        reads time from input NetCDF
+        add variable metadata here"]
+        ToNetcdf["to_netcdf(output_file, trajectories)
+        ✅ fully implemented
+        writes CF-compliant output"]
+    end
+
+    OutputNC[("Output tracks.nc
+    CF-compliant
+    trajectory file")]
+
+    InputNC --> MLParameters
+    InputNC --> SetMetadata
+    MLParameters --> Init
+    BuildTrajectories -- "pass trajectories list" --> ToNetcdf
+    SetMetadata --> ToNetcdf
+    ToNetcdf --> OutputNC
+
+    style InputNC fill:#d5e8d4,stroke:#82b366
+    style OutputNC fill:#dae8fc,stroke:#6c8ebf
+    style MLParameters fill:#fdf6d8,stroke:#d6b656
+    style MLTracker fill:#fde9d0,stroke:#d79b00
+    style BaseClass fill:#d5e8d4,stroke:#82b366
+    style Preprocess fill:#f5f5f5,stroke:#666,stroke-dasharray: 4 3
+    style Detect fill:#f5f5f5,stroke:#666,stroke-dasharray: 4 3
+    style Stitch fill:#f5f5f5,stroke:#666,stroke-dasharray: 4 3
