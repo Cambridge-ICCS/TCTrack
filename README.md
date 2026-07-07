@@ -9,6 +9,7 @@
 [![Documentation Status](https://readthedocs.org/projects/TCTrack/badge/?version=latest)](https://tctrack.readthedocs.io/en/latest/?badge=latest)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![status](https://joss.theoj.org/papers/5bfc7127397fb0fd3583de541eab4c49/status.svg)](https://joss.theoj.org/papers/5bfc7127397fb0fd3583de541eab4c49)
 
 
 TCTrack is a Python library providing bindings to tracking algorithms for tropical
