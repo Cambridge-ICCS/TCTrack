@@ -84,3 +84,11 @@ create index observations_trajectory_idx on observations(trajectory_id);
 create index air_pressure_idx on observations(air_pressure_at_sea_level);
 create index surface_altitude_idx on observations(surface_altitude);
 create index wind_speed_idx on observations(wind_speed);
+
+-- Observation view
+create view observation_view as
+select file_id, trajectory_id, files.filename,
+	ob.date, ob.latitude, ob.longitude, ob.air_pressure_at_sea_level, ob.surface_altitude, ob.wind_speed, ob.atmosphere_relative_vorticity
+from observations ob
+	join trajectories on trajectories.id = trajectory_id
+	join files on files.id = file_id;
