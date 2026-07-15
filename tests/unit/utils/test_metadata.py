@@ -41,7 +41,7 @@ METADATA_CASES = [
     ),
     pytest.param(
         TRACKTracker,
-        [TRACKParameters(base_dir="track_dir", input_file="input.nc")],
+        [TRACKParameters(base_dir="track_dir")],
         id="track",
     ),
 ]
