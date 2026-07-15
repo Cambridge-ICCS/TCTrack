@@ -149,7 +149,6 @@ class TestMLParameters:
         assert params.hf_token is None
         assert params.device == "cpu"
         assert params.threshold == 0.5
-        assert params.input_file == ""
         assert params.pressure_variables == (
             "relative_humidity",
             "air_temperature",
@@ -263,7 +262,8 @@ class TestPreprocess:
     @pytest.fixture
     def tracker(self, make_tracker, monkeypatch):
         """Tracker on the sample file with normalisation switched off."""
-        tracker = make_tracker(MLParameters(input_file=str(SAMPLE_FILE)))
+        tracker = make_tracker()
+        tracker.set_input_files(str(SAMPLE_FILE))
         monkeypatch.setattr(
             tracker,
             "_load_normalisation_stats",
@@ -596,7 +596,8 @@ class TestOutput:
     @pytest.fixture
     def metadata_tracker(self, make_tracker):
         """Tracker on the sample file with its metadata set."""
-        tracker = make_tracker(MLParameters(input_file=str(SAMPLE_FILE)))
+        tracker = make_tracker()
+        tracker.set_input_files(str(SAMPLE_FILE))
         tracker._set_metadata()
         return tracker
 
@@ -631,14 +632,16 @@ class TestOutput:
         input_file = tmp_path / "no_time.nc"
         cf.write(field, str(input_file))
 
-        tracker = make_tracker(MLParameters(input_file=str(input_file)))
+        tracker = make_tracker()
+        tracker.set_input_files(str(input_file))
         with pytest.raises(ValueError, match="time"):
             tracker._set_metadata()
 
     @pytest.fixture
     def detections_tracker(self, make_tracker):
         """Tracker on the sample file holding two detections."""
-        tracker = make_tracker(MLParameters(input_file=str(SAMPLE_FILE)))
+        tracker = make_tracker()
+        tracker.set_input_files(str(SAMPLE_FILE))
         start = datetime(2025, 1, 10, calendar="proleptic_gregorian")
         tracker._candidates = [
             {
@@ -673,7 +676,8 @@ class TestOutput:
 
     def test_no_detections_warns_and_writes_nothing(self, make_tracker, tmp_path):
         """With no detections a warning is given and no file is created."""
-        tracker = make_tracker(MLParameters(input_file=str(SAMPLE_FILE)))
+        tracker = make_tracker()
+        tracker.set_input_files(str(SAMPLE_FILE))
         output_file = tmp_path / "detections.nc"
         with pytest.warns(UserWarning, match="no detections"):
             tracker.detections_to_netcdf(str(output_file))
@@ -700,7 +704,7 @@ class TestOutput:
 
     def test_storm_becomes_trajectory_in_file(self, make_tracker, tmp_path):
         """A storm in the first 4 timesteps becomes one trajectory, written to file."""
-        tracker = make_tracker(MLParameters(input_file=str(SAMPLE_FILE)))
+        tracker = make_tracker()
         storm = _logits({(40, 40): (4, 10.0)}, 80, 80)
         quiet = _logits(None, 80, 80)
         # The storm lasts four timesteps, not three: cfdm 1.13.3 fails to read a
@@ -709,7 +713,7 @@ class TestOutput:
         tracker.model = MagicMock(side_effect=[storm] * 4 + [quiet] * 6)
         output_file = tmp_path / "tracks.nc"
 
-        tracker.run_tracker(str(output_file))
+        tracker.run_tracker(str(SAMPLE_FILE), str(output_file))
 
         trajectories = tracker.read_trajectories()
         assert len(trajectories) == 1
