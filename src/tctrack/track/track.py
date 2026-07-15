@@ -12,6 +12,7 @@ import shutil
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Iterable
 
 import cf
 
@@ -704,7 +705,12 @@ class TRACKTracker(TCTracker):
             construct_kwargs=[{"key": "plev"}, {"axes": "plev"}],
         )
 
-    def run_tracker(self, output_file: str, verbosity: int | None = None) -> None:
+    def run_tracker(
+        self,
+        input_files: str | Iterable[str],
+        output_file: str,
+        verbosity: int | None = None,
+    ) -> None:
         """Run the TRACK tracker to obtain the tropical cyclone track trajectories.
 
         This runs the relevant methods in order:
@@ -723,6 +729,8 @@ class TRACKTracker(TCTracker):
 
         Arguments
         ---------
+        input_files : str | Iterable[str]
+            A (list of) file path(s) containing NetCDF input data to use in the tracker.
         output_file : str
             Filename to which the tropical cyclone track trajectories are saved.
         verbosity : int | None
@@ -745,10 +753,11 @@ class TRACKTracker(TCTracker):
 
         >>> track_params = TRACKParameters(...)
         >>> my_tracker = TRACKTracker(track_params)
-        >>> my_tracker.run_tracker("trajectories.nc")
+        >>> my_tracker.run_tracker("ua_va_inputs.nc", "trajectories.nc")
         """
         if verbosity is not None:
             self.set_verbosity(verbosity)
+        self.set_input_files(input_files)
 
         self.calculate_vorticity()
         self.spectral_filtering()
