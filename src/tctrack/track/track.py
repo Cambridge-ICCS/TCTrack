@@ -32,12 +32,6 @@ class TRACKParameters(TCTrackerParameters):
     base_dir: str
     """The filepath to the directory where TRACK is installed."""
 
-    input_file: str
-    """
-    NetCDF input file containing the north and easterly wind speeds on a Gaussian grid
-    in m/s.
-    """
-
     filter_distance: float | None = None
     """The minimum start-to-end distance which trajectories must travel, in degrees."""
 
@@ -114,11 +108,6 @@ class TRACKTracker(TCTracker):
         self.parameters: TRACKParameters = parameters
 
         # Get sizes from input file
-        input_file = self.parameters.input_file
-        if not Path(input_file).exists():
-            msg = f"Input file does not exist ({input_file})."
-            raise FileNotFoundError(msg)
-        self._ny, self._nx = lat_lon_sizes(input_file)
 
         # Set up files in the TRACK directory (if not already)
         base_dir = self.parameters.base_dir
@@ -129,6 +118,16 @@ class TRACKTracker(TCTracker):
     def _parameters(self) -> list[TCTrackerParameters]:
         """A list of the parameter objects that is accessible from the base class."""
         return [self.parameters]
+
+    def set_input_files(self, input_files: str | Iterable[str]):
+        """Check the input file and store it as a class attribute."""
+        super().set_input_files(input_files)
+
+        if len(self._input_files) > 1:
+            msg = "TRACK only accepts one input file, but multiple have been provided."
+            raise ValueError(msg)
+
+        self._ny, self._nx = lat_lon_sizes(self._input_files[0])
 
     def _get_initialisation_inputs(self, inputs: list[str]):
         """Add "initialisation" inputs common to both tracking and filter_tracks calls.
@@ -496,9 +495,10 @@ class TRACKTracker(TCTracker):
         """Use TRACK to calculate the vorticity from the wind components.
 
         This method requires the wind speed components to be on a Gaussian grid in a
-        netcdf file, given by :attr:`~TRACKParameters.input_file`. This is copied to the
-        TRACK 'indat' folder and used as an input for a system call to TRACK to
-        calculate the vorticity.
+        netcdf file, and for this to have been provided to :meth:`set_input_files`.
+
+        The input file will be copied to the TRACK 'indat' folder and used as an input
+        for a system call to TRACK to calculate the vorticity.
 
         The vorticity is written to a new file in the 'indat' folder given by
         :attr:`~TRACKParameters.vorticity_file`. This uses the following layout::
@@ -521,11 +521,11 @@ class TRACKTracker(TCTracker):
         """
         params = self.parameters
         # Copy the input file to TRACK
-        shutil.copy(params.input_file, params.base_dir + "/indat/")
-        input_filename = Path(params.input_file).name
+        input_file = self._input_files[0]
+        shutil.copy(input_file, params.base_dir + "/indat/")
         # Run TRACK to perform the calculation
         inputs = self._get_calculate_vorticity_inputs()
-        self._run_track_process("calculate_vorticity", input_filename, inputs)
+        self._run_track_process("calculate_vorticity", input_file, inputs)
 
     def spectral_filtering(self):
         """Use TRACK to perform the spectral filtering of the vorticity.
@@ -605,7 +605,7 @@ class TRACKTracker(TCTracker):
 
         This reads the output file from the filter_trajectories step, i.e.
         ``ff_trs.<ext>.nc`` in the TRACK 'outdat' folder. It also takes the times from
-        the data in :attr:`TRACKParameters.input_file`.
+        the data in the input file.
 
         Returns
         -------
@@ -642,7 +642,7 @@ class TRACKTracker(TCTracker):
         intensity = fields.select_field("ncvar%intensity").array
 
         # Convert the time indicies to datetimes using the input file data
-        all_times = cf.read(params.input_file)[0].coordinate("time")  # type: ignore[operator]
+        all_times = cf.read(self._input_files)[0].coordinate("time")  # type: ignore[operator]
         datetimes = all_times.datetime_array[time_idx]
 
         trajectories: list[Trajectory] = []
@@ -668,7 +668,7 @@ class TRACKTracker(TCTracker):
         ValueError
             If a variable with time coordinate is not found in the input file.
         """
-        vars_with_time = cf.read(self.parameters.input_file).select_by_construct("time")  # type: ignore[operator]  # type: ignore[operator]
+        vars_with_time = cf.read(self._input_files).select_by_construct("time")  # type: ignore[operator]  # type: ignore[operator]
         if len(vars_with_time) == 0:
             msg = r"No variable with 'time' coordinate found in TRACK input file."
             raise ValueError(msg)
@@ -723,7 +723,8 @@ class TRACKTracker(TCTracker):
         Arguments
         ---------
         input_files : str | Iterable[str]
-            A (list of) file path(s) containing NetCDF input data to use in the tracker.
+            A file path for the NetCDF input file containing the north and easterly wind
+            speeds on a Gaussian grid in m/s.
         output_file : str
             Filename to which the tropical cyclone track trajectories are saved.
 
