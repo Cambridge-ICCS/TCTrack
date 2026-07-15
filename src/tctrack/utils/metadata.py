@@ -89,7 +89,7 @@ def load_tracker_metadata(filename: str) -> tuple[type, list[TCTrackerParameters
 
     >>> tracker_cls, parameters = load_tracker_metadata("tracks.nc")
     >>> tracker = tracker_cls(*parameters)
-    >>> tracker.run_tracker("tracks_new.nc")
+    >>> tracker.run_tracker("inputs.nc", "tracks_new.nc")
     """
     _, tracker_name, parameter_dicts = _read_metadata(filename)
 
