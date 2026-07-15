@@ -673,11 +673,12 @@ class TRACKTracker(TCTracker):
             msg = r"No variable with 'time' coordinate found in TRACK input file."
             raise ValueError(msg)
         time_coord = vars_with_time[0].coordinate("time")
+        time_array = time_coord.datetime_array
         self._time_metadata = {
             "calendar": time_coord.calendar,
             "units": time_coord.units,
-            "start_time": time_coord.data[0],
-            "end_time": time_coord.data[-1],
+            "start_time": time_array[0],
+            "end_time": time_array[-1],
         }
 
         self._variable_metadata = {}

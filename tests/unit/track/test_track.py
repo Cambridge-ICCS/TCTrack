@@ -459,3 +459,24 @@ class TestTrackTracker:
                 {"TRACKParameters": asdict(tracker.parameters)}
             ),
         }
+
+    def test_run_tracker(self, mocker, tmp_path):
+        """Check run_tracker runs successfully and produces."""
+        # Create the input and intermediate output files
+        input_file = self._create_nc_input_file(tmp_path)
+        self._create_nc_output_file(tmp_path)
+
+        # Mock subprocess.run to simulate successful execution
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.side_effect = mocker.MagicMock(
+            returncode=0, stdout="Success"
+        )
+
+        # Create the tracker
+        params = {"base_dir": str(tmp_path), "input_file": input_file}
+        tracker = self._setup_tracker(mocker, mock_input_file=False, params_dict=params)
+
+        # Run the tracker and check if the output file is created
+        output_file = tmp_path / "output.nc"
+        tracker.run_tracker(input_file, str(output_file))
+        assert output_file.exists()
