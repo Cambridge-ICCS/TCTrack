@@ -9,7 +9,8 @@ from abc import ABC, abstractmethod
 from contextlib import AbstractContextManager, nullcontext
 from dataclasses import asdict, dataclass, fields
 from datetime import timedelta
-from typing import IO, TypedDict, Union
+from pathlib import Path
+from typing import IO, Iterable, TypedDict, Union
 
 import cf
 from cftime import date2num, datetime
@@ -126,12 +127,15 @@ class TCTracker(ABC):
         A dictionary containing global metadata about the data and TCTrack parameters.
         This will be populated by the base class, but additional subclass-specific
         metadata can be added using the :meth:`_set_metadata` method.
+    _input_files : list[str]
+        A list of file paths of NetCDF input files.
     """
 
     # Private attributes
     _variable_metadata: dict[str, TCTrackerMetadata] | None = None
     _time_metadata: TCTrackerTimeMetadata | None = None
     _global_metadata: dict[str, str]
+    _input_files: list[str]
 
     @property
     @abstractmethod
@@ -192,6 +196,23 @@ class TCTracker(ABC):
             err_msg = "_global_metadata has not been initialized."
             raise AttributeError(err_msg)
         return self._global_metadata
+
+    def set_input_files(self, input_files: str | Iterable[str]):
+        """Store the input file(s) as a list in a class attribute."""
+        if isinstance(input_files, str):
+            self._input_files = [input_files]
+        elif isinstance(input_files, Iterable) and all(
+            isinstance(f, str) for f in input_files
+        ):
+            self._input_files = list(input_files)
+        else:
+            msg = "input_files must be a str or an iterable of str"
+            raise TypeError(msg)
+
+        for file in self._input_files:
+            if not Path(file).exists():
+                msg = f"Input file does not exist ({file})."
+                raise FileNotFoundError(msg)
 
     @abstractmethod
     def _set_metadata(self) -> None:
@@ -674,7 +695,7 @@ class TCTracker(ABC):
         cf.write(fields, output_file)  # type: ignore[operator]
 
     @abstractmethod
-    def run_tracker(self, output_file: str) -> None:
+    def run_tracker(self, input_files: str | Iterable[str], output_file: str) -> None:
         """
         Run the tracker to obtain tropical cyclone track trajectories as NetCDF file.
 
@@ -687,6 +708,8 @@ class TCTracker(ABC):
 
         Arguments
         ---------
+        input_files : str | Iterable[str]
+            A (list of) file path(s) containing NetCDF input data to use in the tracker.
         output_file : str
             Filename to which the tropical cyclone trajectories are saved.
         """

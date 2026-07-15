@@ -11,7 +11,7 @@ import csv
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypedDict
+from typing import Iterable, TypedDict
 
 import cf
 
@@ -589,7 +589,7 @@ class TETracker(TCTracker):
 
         return dn_argslist
 
-    def detect(self):
+    def detect(self, input_files: str | Iterable[str]):
         """
         Call the DetectNodes utility of Tempest Extremes.
 
@@ -617,6 +617,11 @@ class TETracker(TCTracker):
         - ``var1``, ``var2``, etc., are scalar variables as defined by
           :attr:`~TEDetectParameters.output_commands` (typically, psl, orog).
 
+        Arguments
+        ---------
+        input_files : str | Iterable[str]
+            A (list of) file path(s) containing NetCDF input data to use in the tracker.
+
         Returns
         -------
         dict
@@ -641,8 +646,9 @@ class TETracker(TCTracker):
 
         >>> my_params = TEDetectParameters(...)
         >>> my_tracker = TETracker(detect_parameters=my_params)
-        >>> result = my_tracker.detect()
+        >>> result = my_tracker.detect("input.nc")
         """
+        self.set_input_files(input_files)
         Path(self.detect_parameters.output_dir).mkdir(parents=True, exist_ok=True)
         dn_call_list = self._make_detect_nodes_call()
         return self.run_tracker_subprocess("DetectNodes", dn_call_list)
@@ -1047,7 +1053,7 @@ class TETracker(TCTracker):
                     cell_method = cf.CellMethod("area", method, qualifiers=qualifier)
                 self._variable_metadata[var_name].constructs = [cell_method]
 
-    def run_tracker(self, output_file: str):
+    def run_tracker(self, input_files: str | Iterable[str], output_file: str):
         """Run TempestExtremes tracker to obtain tropical cyclone track trajectories.
 
         This first runs :meth:`detect` to get TC candidates at each time. Then
@@ -1056,6 +1062,8 @@ class TETracker(TCTracker):
 
         Arguments
         ---------
+        input_files : str | Iterable[str]
+            A (list of) file path(s) containing NetCDF input data to use in the tracker.
         output_file : str
             Filename to which the tropical cyclone trajectories are saved.
 
@@ -1075,8 +1083,8 @@ class TETracker(TCTracker):
         >>> detect_params = TEDetectParameters(...)
         >>> stitch_params = TEStitchParameters(...)
         >>> my_tracker = TETracker(detect_params, stitch_params)
-        >>> my_tracker.run_tracker()
+        >>> my_tracker.run_tracker("input.nc", "output.nc")
         """
-        self.detect()
+        self.detect(input_files)
         self.stitch()
         self.to_netcdf(output_file)
