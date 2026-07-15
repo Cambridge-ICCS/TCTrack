@@ -21,7 +21,7 @@ from tctrack.utils.metadata import _read_metadata
 METADATA_CASES = [
     pytest.param(
         TETracker,
-        [TEDetectParameters(in_data=["input.nc"]), TEStitchParameters()],
+        [TEDetectParameters(), TEStitchParameters()],
         id="tempest_extremes",
     ),
     pytest.param(
