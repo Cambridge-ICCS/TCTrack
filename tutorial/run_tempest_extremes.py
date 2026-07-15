@@ -32,7 +32,6 @@ threshold_filters = [
 ]
 
 dn_params = te.TEDetectParameters(
-    in_data=input_files,
     search_by_min="psl",
     time_filter="6hr",
     merge_dist=6.0,
@@ -53,4 +52,4 @@ sn_params = te.TEStitchParameters(
 
 te_tracker = te.TETracker(dn_params, sn_params)
 
-te_tracker.run_tracker("tracks_tempest_extremes.nc")
+te_tracker.run_tracker(input_files, "tracks_tempest_extremes.nc")
