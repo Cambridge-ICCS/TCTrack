@@ -12,7 +12,7 @@ from collections import deque
 from collections.abc import Sequence
 from dataclasses import dataclass
 from importlib import resources
-from typing import Any, TypedDict
+from typing import Any, Iterable, TypedDict
 
 import cf
 import h5py
@@ -99,9 +99,6 @@ class MLParameters(TCMLParameters):
     --------
     MLTracker : The tracker class that uses these parameters.
     """
-
-    input_file: str = ""
-    """CF-NetCDF file containing the input variables for the model."""
 
     hf_repo_id: str = "surbhigoel456/cyclone-TC-ML"
     """HuggingFace Hub repository ID for the cyclone detection model."""
@@ -209,9 +206,9 @@ class MLTracker(TCMLTracker):
 
     Examples
     --------
-    >>> params = MLParameters(input_file="era5_2020.nc")
+    >>> params = MLParameters()
     >>> tracker = MLTracker(params)
-    >>> tracker.run_tracker("trajectories.nc")
+    >>> tracker.run_tracker("era5_2020.nc", "trajectories.nc")
     """
 
     @property
@@ -221,7 +218,7 @@ class MLTracker(TCMLTracker):
 
     def __init__(
         self,
-        parameters: MLParameters,
+        parameters: MLParameters | None = None,
         stitch_parameters: MLStitchParameters | None = None,
     ):
         """Construct the MLTracker and load the model.
@@ -241,7 +238,9 @@ class MLTracker(TCMLTracker):
         huggingface_hub.errors.RepositoryNotFoundError
             If the HuggingFace repository cannot be found or accessed.
         """
-        self.parameters: MLParameters = parameters
+        self.parameters: MLParameters = (
+            parameters if parameters is not None else MLParameters()
+        )
         # Cleared from parameters immediately so it can't end up in output
         # metadata (see TCTracker.set_metadata, which serializes _parameters).
         self._hf_token: str | None = self.parameters.hf_token
@@ -257,7 +256,7 @@ class MLTracker(TCMLTracker):
         self._lats: np.ndarray = np.array([])
         self._lons: np.ndarray = np.array([])
         self._times: np.ndarray = np.array([])
-        self._load_model(parameters, self._hf_token)
+        self._load_model(self.parameters, self._hf_token)
 
     @property
     def _parameters(self) -> list[TCTrackerParameters]:
@@ -282,7 +281,7 @@ class MLTracker(TCMLTracker):
         ValueError
             If a variable with time coordinate is not found in the input file.
         """
-        vars_with_time = cf.read(self.parameters.input_file).select_by_construct("time")  # type: ignore[operator]
+        vars_with_time = cf.read(self._input_files).select_by_construct("time")  # type: ignore[operator]
         if len(vars_with_time) == 0:
             msg = "No variable with 'time' coordinate found in the input file."
             raise ValueError(msg)
@@ -409,7 +408,7 @@ class MLTracker(TCMLTracker):
         ValueError
             If a configured variable cannot be found in the input file.
         """
-        fields = cf.read(self.parameters.input_file)  # type: ignore[operator]
+        fields = cf.read(self._input_files)  # type: ignore[operator]
 
         pressure_channels = []
         for variable in self.parameters.pressure_variables:
@@ -924,7 +923,7 @@ class MLTracker(TCMLTracker):
 
         cf.write(fields, output_file)  # type: ignore[operator]
 
-    def run_tracker(self, output_file: str) -> None:
+    def run_tracker(self, input_files: str | Iterable[str], output_file: str) -> None:
         """Run the tracker to obtain the tropical cyclone trajectories.
 
         Runs :meth:`detect` to locate the cyclones at each timestep - which
@@ -937,6 +936,8 @@ class MLTracker(TCMLTracker):
 
         Arguments
         ---------
+        input_files : str | Iterable[str]
+            A (list of) file path(s) containing NetCDF input data to use in the tracker.
         output_file : str
             Filename to which the tropical cyclone track trajectories are saved.
 
@@ -946,9 +947,11 @@ class MLTracker(TCMLTracker):
         algorithm to generate trajectories:
 
         >>> params = MLParameters(...)
-        >>> tracker = MLTracker(params)
-        >>> tracker.run_tracker("trajectories.nc")
+        >>> stitch_params = MLStitchParameters(...)
+        >>> tracker = MLTracker(params, stitch_params)
+        >>> tracker.run_tracker("input.nc", "trajectories.nc")
         """
+        self.set_input_files(input_files)
         self.detect()
         self.stitch()
         self.to_netcdf(output_file)
