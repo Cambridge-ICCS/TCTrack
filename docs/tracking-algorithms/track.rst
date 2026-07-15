@@ -107,12 +107,11 @@ names for the windspeed should be specified with
 
     params = TRACKParameters(
         base_dir="/path/to/track",
-        input_file="ua_va_file_F256.nc",
         wind_var_names=("ua", "va"),
     )
 
     tracker = TRACKTracker(params)
-    tracker.run_tracker("trajectories.nc")
+    tracker.run_tracker("ua_va_file_F256.nc", "trajectories.nc")
 
 In addition to :attr:`~TRACKParameters.base_dir` and
 :attr:`~TRACKParameters.wind_var_names` there are a number of other parameters
