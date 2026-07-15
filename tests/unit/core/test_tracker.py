@@ -6,6 +6,7 @@ import re
 import tempfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Iterable
 
 import cf
 import numpy as np
@@ -112,7 +113,7 @@ class TestTCTracker:
     class ExampleTracker(TCTracker):
         """Concrete implementation of TCTracker for testing purposes."""
 
-        def __init__(self, example_trajectories):
+        def __init__(self, example_trajectories=None):
             self._example_trajectories = example_trajectories
             self.params = ExampleParameters(42, "test")
 
@@ -132,7 +133,11 @@ class TestTCTracker:
             """Implement a dummy of the read_trajectories abstractmethod."""
             return self._example_trajectories
 
-        def run_tracker(self, output_file: str) -> None:  # noqa:ARG002 unused arg
+        def run_tracker(
+            self,
+            input_files: str | Iterable[str],  # noqa:ARG002 unused arg
+            output_file: str,  # noqa:ARG002 unused arg
+        ) -> None:
             """Implement a dummy of the run_tracker abstractmethod."""
             return None
 
@@ -244,6 +249,49 @@ class TestTCTracker:
             ),
         }
         assert tracker.global_metadata == expected_metadata
+
+    def test_set_input_files_tuple(self, mocker):
+        """Test that `set_input_files` converts tuple inputs into a list."""
+        # Ignore test that file exists
+        mocker.patch("pathlib.Path.exists")
+
+        tracker = self.ExampleTracker()
+        tracker.set_input_files(("a", "b"))
+        assert isinstance(tracker._input_files, list)  # noqa:SLF001 - private member access
+        assert tracker._input_files == ["a", "b"]  # noqa:SLF001 - private member access
+
+    def test_set_input_files_string(self, mocker):
+        """Test that `set_input_files` converts a string argument into a list."""
+        # Ignore test that file exists
+        mocker.patch("pathlib.Path.exists")
+
+        tracker = self.ExampleTracker()
+        tracker.set_input_files("input.nc")
+        assert isinstance(tracker._input_files, list)  # noqa:SLF001 - private member access
+        assert tracker._input_files == ["input.nc"]  # noqa:SLF001 - private member access
+
+    @pytest.mark.parametrize("inputs", [True, ["string", 1]])
+    def test_set_input_files_invalid(self, inputs):
+        """Test that `set_input_files` raises error for invalid inputs."""
+        tracker = self.ExampleTracker()
+        with pytest.raises(TypeError, match="must be a str or an iterable of str"):
+            tracker.set_input_files(inputs)
+
+    def test_set_input_files_missing(self):
+        """Test that `set_input_files` fails if the input file doesn't exist."""
+        tracker = self.ExampleTracker()
+        with pytest.raises(FileNotFoundError, match="Input file does not exist"):
+            tracker.set_input_files("missing")
+
+    def test_set_input_files_exists(self, tmp_path: Path):
+        """Test that `set_input_files` succeeds if the file exists."""
+        input_file = tmp_path / "input.nc"
+        input_file.touch()
+
+        tracker = self.ExampleTracker()
+        tracker.set_input_files(str(input_file))
+        assert isinstance(tracker._input_files, list)  # noqa:SLF001 - private member access
+        assert tracker._input_files == [str(input_file)]  # noqa:SLF001 - private member access
 
     def make_netcdf_file(self, tmp_path: Path, delete_std_name: bool = False) -> Path:
         """Output a trajectories netcdf file with to_netcdf.
