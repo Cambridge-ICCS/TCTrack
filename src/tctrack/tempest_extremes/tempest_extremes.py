@@ -200,9 +200,6 @@ class TEDetectParameters(TCTrackerParameters):
     and the `DetectNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/DetectNodes.cpp>`_
     """
 
-    in_data: list[str]
-    """List of strings of NetCDF input files."""
-
     out_header: bool = False
     """Include header at the top of the output file?"""
 
@@ -430,7 +427,7 @@ class TETracker(TCTracker):
 
     def __init__(
         self,
-        detect_parameters: TEDetectParameters,
+        detect_parameters: TEDetectParameters | None = None,
         stitch_parameters: TEStitchParameters | None = None,
     ):
         """
@@ -444,7 +441,10 @@ class TETracker(TCTracker):
             Class containing the parameters for the stitching step
             Defaults to the default values in TEStitchParameters Class
         """
-        self.detect_parameters: TEDetectParameters = detect_parameters
+        if detect_parameters is not None:
+            self.detect_parameters: TEDetectParameters = detect_parameters
+        else:
+            self.detect_parameters = TEDetectParameters()
 
         if stitch_parameters is not None:
             self.stitch_parameters: TEStitchParameters = stitch_parameters
@@ -488,13 +488,7 @@ class TETracker(TCTracker):
         """
         dn_argslist = ["DetectNodes"]
 
-        if self.detect_parameters.in_data is not None:
-            dn_argslist.extend(
-                [
-                    "--in_data",
-                    ";".join(self.detect_parameters.in_data),
-                ]
-            )
+        dn_argslist.extend(["--in_data", ";".join(self._input_files)])
         out_file = str(
             Path(self.detect_parameters.output_dir) / self.detect_parameters.output_file
         )
@@ -589,7 +583,7 @@ class TETracker(TCTracker):
 
         return dn_argslist
 
-    def detect(self, input_files: str | Iterable[str]):
+    def detect(self):
         """
         Call the DetectNodes utility of Tempest Extremes.
 
@@ -617,11 +611,6 @@ class TETracker(TCTracker):
         - ``var1``, ``var2``, etc., are scalar variables as defined by
           :attr:`~TEDetectParameters.output_commands` (typically, psl, orog).
 
-        Arguments
-        ---------
-        input_files : str | Iterable[str]
-            A (list of) file path(s) containing NetCDF input data to use in the tracker.
-
         Returns
         -------
         dict
@@ -646,9 +635,9 @@ class TETracker(TCTracker):
 
         >>> my_params = TEDetectParameters(...)
         >>> my_tracker = TETracker(detect_parameters=my_params)
-        >>> result = my_tracker.detect("input.nc")
+        >>> my_tracker.set_input_files("input.nc")
+        >>> result = my_tracker.detect()
         """
-        self.set_input_files(input_files)
         Path(self.detect_parameters.output_dir).mkdir(parents=True, exist_ok=True)
         dn_call_list = self._make_detect_nodes_call()
         return self.run_tracker_subprocess("DetectNodes", dn_call_list)
@@ -940,8 +929,8 @@ class TETracker(TCTracker):
         """Set the time and variable metadata attributes by reading from input files.
 
         Reads metadata for each variable listed in
-        :attr:`detect_parameters.output_commands` from the input NetCDF files
-        defined in :attr:`detect_parameters.in_data` (matching the NetCDF variable
+        :attr:`detect_parameters.output_commands` from the input NetCDF files that are
+        set by :meth:`set_input_files` (matching the NetCDF variable
         name). These will be stored in the :attr:`variable_metadata` attribute as a
         dictionary of :class:`TCTrackerMetadata` objects. This will be called from the
         :meth:`set_metadata` method.
@@ -956,10 +945,10 @@ class TETracker(TCTracker):
         To read in the metadata for ``psl`` from ``inputs.nc``:
 
         >>> detect_params = TEDetectParameters(
-        >>>     in_data=["inputs.nc"],
         >>>     output_commands=[TEOutputCommand(var="psl", operator="min", dist=0)],
         >>> )
         >>> tracker = TETracker(detect_params, stitch_params)
+        >>> tracker.set_input_files("inputs.nc")
         >>> tracker.set_metadata()
         >>> tracker.variable_metadata
         {
@@ -973,8 +962,6 @@ class TETracker(TCTracker):
             ),
         }
         """
-        input_files = self.detect_parameters.in_data
-
         # set time metadata
         variable_name = (
             self.detect_parameters.search_by_min
@@ -982,7 +969,7 @@ class TETracker(TCTracker):
             or "PSL"
         )
         fields = cf.read(
-            input_files,
+            self._input_files,
             select=f"ncvar%{variable_name}",  # type: ignore[operator]
             netcdf_backend="netCDF4",
         )
@@ -1011,7 +998,7 @@ class TETracker(TCTracker):
 
         # Set the variable metadata for the output variables
         var_outputs = self.detect_parameters.output_commands
-        if var_outputs is None or input_files is None:
+        if var_outputs is None:
             return
 
         for var_output in var_outputs:
@@ -1019,7 +1006,7 @@ class TETracker(TCTracker):
 
             # Get the variable field from the netcdf file
             fields = cf.read(
-                input_files,
+                self._input_files,
                 select=f"ncvar%{var_name}",  # type: ignore[operator]
                 netcdf_backend="netCDF4",
             )
@@ -1085,6 +1072,7 @@ class TETracker(TCTracker):
         >>> my_tracker = TETracker(detect_params, stitch_params)
         >>> my_tracker.run_tracker("input.nc", "output.nc")
         """
-        self.detect(input_files)
+        self.set_input_files(input_files)
+        self.detect()
         self.stitch()
         self.to_netcdf(output_file)
