@@ -10,6 +10,7 @@ import tempfile
 import textwrap
 import warnings
 from dataclasses import dataclass
+from typing import Iterable
 
 import cf
 from cftime import num2date
@@ -938,7 +939,7 @@ class TSTORMSTracker(TCTracker):
         time = list(map(int, line[-4:]))
         return time, return_vars
 
-    def run_tracker(self, output_file: str):
+    def run_tracker(self, input_files: str | Iterable[str], output_file: str):
         """Run TSTORMS tracker to obtain tropical cyclone track trajectories.
 
         This first runs :meth:`detect` to get TC candidates at each time. Then
@@ -947,6 +948,8 @@ class TSTORMSTracker(TCTracker):
 
         Arguments
         ---------
+        input_files : str | Iterable[str]
+            A (list of) file path(s) containing NetCDF input data to use in the tracker.
         output_file : str
             Filename to which the tropical cyclone trajectories are saved.
 
@@ -962,12 +965,14 @@ class TSTORMSTracker(TCTracker):
         To set the parameters, instantiate a :class:`TSTORMSTracker` instance and run
         `run_tracker()`:
 
+        >>> input_files = [...]
         >>> tstorms_params = TSTORMSBaseParameters(...)
         >>> detect_params = TSTORMSDetectParameters(...)
         >>> stitch_params = TSTORMSStitchParameters(...)
         >>> my_tracker = TSTORMSTracker(tstorms_params, detect_params, stitch_params)
-        >>> my_tracker.run_tracker()
+        >>> my_tracker.run_tracker(input_files, "trajectories.nc")
         """
+        self.set_input_files(input_files)
         self.detect()
         self.stitch()
         self.to_netcdf(output_file)
