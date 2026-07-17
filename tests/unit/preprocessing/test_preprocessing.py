@@ -94,7 +94,7 @@ class TestPreprocessing:
 
         assert len(fields) == 1
         assert output_file.exists()
-        assert cf.read(str(output_file))[0].nc_get_variable() == "mslp"
+        assert cf.read(str(output_file))[0].nc_get_variable() == "mslp"  # type: ignore[operator]
 
     def test_select_time_range_bounds(self, tmp_path):
         """Test select_time_range correctly selects data in time bounds."""

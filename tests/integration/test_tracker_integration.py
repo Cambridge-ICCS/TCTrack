@@ -84,7 +84,7 @@ class TestTETrackerIntegration:
         tracker = te.TETracker(dn_params, sn_params)
         tracker.run_tracker(output_file)
 
-        fields = cf.read(output_file)
+        fields = cf.read(output_file)  # type: ignore[operator]
         assert len(fields) > 0, "No fields written to output file"
 
         field = fields[0]

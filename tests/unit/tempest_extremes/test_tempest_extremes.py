@@ -628,7 +628,7 @@ class TestTETracker:
         tracker.to_netcdf(output_file_name)
 
         # Read the generated NetCDF file using cf-python
-        fields = cf.read(output_file_name)
+        fields = cf.read(output_file_name)  # type: ignore[operator]
 
         # Validate the structure and content of the NetCDF file
         assert len(fields) == 4  # Ensure 4 fields (lat, lon become coordinates)
