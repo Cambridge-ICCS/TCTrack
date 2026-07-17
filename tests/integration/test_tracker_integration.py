@@ -1,5 +1,7 @@
 """Integration tests for the TempestExtremes tracker pipeline."""
 
+from pathlib import Path
+
 import cf
 import cftime
 import numpy as np
@@ -10,7 +12,7 @@ import tctrack.tempest_extremes as te
 
 
 @pytest.fixture
-def synthetic_data_file(tmp_path):
+def synthetic_data_file(tmp_path: Path):
     """NetCDF file with a Gaussian psl minimum planted at (15°N, 45°E) over 5 days.
 
     The depression has amplitude -1500 Pa and sigma=3°, so at 5.5° from the
@@ -52,7 +54,9 @@ def synthetic_data_file(tmp_path):
 class TestTETrackerIntegration:
     """Integration tests for the full TETracker pipeline."""
 
-    def test_run_tracker_produces_valid_tracks(self, synthetic_data_file, tmp_path):
+    def test_run_tracker_produces_valid_tracks(
+        self, synthetic_data_file, tmp_path: Path
+    ):
         """TETracker detects the synthetic pressure minimum and writes a track file.
 
         Verifies the full chain: DetectNodes → StitchNodes → CF-NetCDF output.

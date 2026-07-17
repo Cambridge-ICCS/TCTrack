@@ -2,6 +2,7 @@
 
 import json
 from dataclasses import asdict
+from pathlib import Path
 
 import pytest
 from netCDF4 import Dataset
@@ -78,7 +79,7 @@ class TestMetadata:
         return parameter_dict
 
     @pytest.mark.parametrize("tracker_cls,parameters", METADATA_CASES)
-    def test_read_metadata(self, tmp_path, tracker_cls, parameters):
+    def test_read_metadata(self, tmp_path: Path, tracker_cls, parameters):
         """Test _read_metadata returns the stored metadata unchanged."""
         ncfile = tmp_path / "metadata.nc"
         parameter_dict = self.create_file_and_dict(tracker_cls, parameters, ncfile)
@@ -90,7 +91,9 @@ class TestMetadata:
         assert loaded_parameter_dict == parameter_dict
 
     @pytest.mark.parametrize("tracker_cls,parameters", METADATA_CASES)
-    def test_read_tracker_metadata(self, tmp_path, capsys, tracker_cls, parameters):
+    def test_read_tracker_metadata(
+        self, tmp_path: Path, capsys, tracker_cls, parameters
+    ):
         """Test read_tracker_metadata prints the metadata in the expected format."""
         ncfile = tmp_path / "metadata.nc"
         parameter_dict = self.create_file_and_dict(tracker_cls, parameters, ncfile)
@@ -113,7 +116,7 @@ class TestMetadata:
         assert capsys.readouterr().out == expected_output
 
     @pytest.mark.parametrize("tracker_cls,parameters", METADATA_CASES)
-    def test_load_tracker_metadata(self, tmp_path, tracker_cls, parameters):
+    def test_load_tracker_metadata(self, tmp_path: Path, tracker_cls, parameters):
         """Test load_tracker_metadata reconstructs tracker and parameter objects."""
         ncfile = tmp_path / "metadata.nc"
         parameter_dict = self.create_file_and_dict(tracker_cls, parameters, ncfile)
@@ -130,7 +133,7 @@ class TestMetadata:
         # Check the tracker is the same
         assert tracker is tracker_cls
 
-    def test_load_tracker_metadata_missing_attrs(self, tmp_path):
+    def test_load_tracker_metadata_missing_attrs(self, tmp_path: Path):
         """Test load_tracker_metadata raises a clear error for missing metadata."""
         ncfile = tmp_path / "metadata.nc"
         self.create_metadata_file(ncfile, {"tctrack_version": "test-version"})

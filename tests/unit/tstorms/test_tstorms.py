@@ -11,6 +11,7 @@ import os
 import re
 import subprocess
 from dataclasses import asdict
+from pathlib import Path
 from typing import Tuple
 
 import cf
@@ -39,7 +40,7 @@ def tstorms_filenames() -> dict[str, str]:
 
 
 @pytest.fixture
-def tstorms_tracker(tmp_path, tstorms_filenames) -> Tuple[TSTORMSTracker, str]:
+def tstorms_tracker(tmp_path: Path, tstorms_filenames) -> Tuple[TSTORMSTracker, str]:
     """Provide a TSTORMSTracker instance with basic values."""
     # Create a tempdir for tstorms_dir and tstorms_driver (assumed to exist)
     tstorms_dir = tmp_path / "tstorms"
@@ -90,7 +91,7 @@ def tstorms_tracker(tmp_path, tstorms_filenames) -> Tuple[TSTORMSTracker, str]:
     # mypy ignore cf.write raises spurious warning but used elsewhere fine.
     cf.write(u_field, netcdf_file)  # type: ignore
 
-    return TSTORMSTracker(tstorms_parameters, detect_params), tstorms_dir
+    return TSTORMSTracker(tstorms_parameters, detect_params), str(tstorms_dir)
 
 
 class TestTSTORMSTypes:
@@ -673,7 +674,7 @@ class TestTSTORMSTracker:
         }
 
     @pytest.fixture
-    def mock_trav_file(self, tmp_path):
+    def mock_trav_file(self, tmp_path: Path):
         """Fixture to create a mock TSTORMS 'trav' file with sample trajectory data."""
         file_path = tmp_path / "trav_filt"
         mock_data = self._mock_trajectories_data()

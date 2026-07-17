@@ -48,7 +48,7 @@ def write_fields(fields: cf.Field | list[cf.Field], path: Path) -> str:
 class TestPreprocessing:
     """Tests for preprocessing functions."""
 
-    def test_read_files_combines_fields(self, tmp_path):
+    def test_read_files_combines_fields(self, tmp_path: Path):
         """Test read_files accepts files with multiple fields."""
         input_file = write_fields(
             [make_field("mslp"), make_field("u")],
@@ -59,7 +59,7 @@ class TestPreprocessing:
 
         assert [field.nc_get_variable() for field in fields] == ["mslp", "u"]
 
-    def test_read_files_combines_time(self, tmp_path):
+    def test_read_files_combines_time(self, tmp_path: Path):
         """Test read_files accepts and combines fields split temporally over files."""
         input_files = [
             write_fields(make_field("mslp", "2000-01-01"), tmp_path / "a.nc"),
@@ -71,7 +71,7 @@ class TestPreprocessing:
         assert len(fields) == 1
         assert fields[0].coordinate("T").size == 2
 
-    def test_read_files_wildcard(self, tmp_path):
+    def test_read_files_wildcard(self, tmp_path: Path):
         """Test read_files correctly expands wildcard filepaths."""
         write_fields(make_field("mslp"), tmp_path / "a.nc")
         write_fields(make_field("u"), tmp_path / "b.nc")
@@ -80,12 +80,12 @@ class TestPreprocessing:
 
         assert len(fields) == 2
 
-    def test_read_files_wildcard_no_matches(self, tmp_path):
+    def test_read_files_wildcard_no_matches(self, tmp_path: Path):
         """Test read_files fails for wildcard paths with no matches."""
         with pytest.raises(FileNotFoundError, match="No files matched input pattern"):
             read_files(str(tmp_path / "*.nc"))
 
-    def test_read_files_output_file(self, tmp_path):
+    def test_read_files_output_file(self, tmp_path: Path):
         """Test read_files writes the combined output when requested."""
         input_file = write_fields(make_field("mslp"), tmp_path / "input.nc")
         output_file = tmp_path / "output.nc"
@@ -96,7 +96,7 @@ class TestPreprocessing:
         assert output_file.exists()
         assert cf.read(str(output_file))[0].nc_get_variable() == "mslp"  # type: ignore[operator]
 
-    def test_select_time_range_bounds(self, tmp_path):
+    def test_select_time_range_bounds(self, tmp_path: Path):
         """Test select_time_range correctly selects data in time bounds."""
         input_files = [
             write_fields(make_field("mslp", "2000-01-01"), tmp_path / "a.nc"),
@@ -115,7 +115,7 @@ class TestPreprocessing:
         assert fields[0].coordinate("T").size == 1
         assert fields[1].coordinate("T").size == 1
 
-    def test_select_time_range_squeeze(self, tmp_path):
+    def test_select_time_range_squeeze(self, tmp_path: Path):
         """Test select_time_range squeezes size-1 list outputs."""
         input_files = [
             write_fields(make_field("mslp", "2000-01-01"), tmp_path / "a.nc"),
@@ -129,7 +129,7 @@ class TestPreprocessing:
         assert output.nc_get_variable() == "mslp"
         assert output.coordinate("T").size == 1
 
-    def test_separate_varibles(self, tmp_path):
+    def test_separate_varibles(self, tmp_path: Path):
         """Test separate_variables correctly splits variables across multiple files."""
         input_file = write_fields(
             [make_field("mslp"), make_field("u")],
@@ -146,7 +146,7 @@ class TestPreprocessing:
         assert read_files(output_files["mslp"])[0] == fields[0]
         assert read_files(output_files["u"])[0] == fields[1]
 
-    def test_separate_varibles_invalid(self, tmp_path):
+    def test_separate_varibles_invalid(self, tmp_path: Path):
         """Test separate_variables fails if an invalid variable name is given."""
         input_file = write_fields(make_field("mslp"), tmp_path / "input.nc")
 
@@ -159,7 +159,7 @@ class TestPreprocessing:
 
         assert _load_field(field) is field
 
-    def test_load_field_accepts_files(self, tmp_path):
+    def test_load_field_accepts_files(self, tmp_path: Path):
         """Test _load_field accepts a filename / list of files."""
         file_a = write_fields(make_field("mslp", "2000-01-01"), tmp_path / "a.nc")
         file_b = write_fields(make_field("mslp", "2000-01-02"), tmp_path / "b.nc")
@@ -169,7 +169,7 @@ class TestPreprocessing:
         assert field.nc_get_variable() == "mslp"
         assert field.coordinate("T").size == 2
 
-    def test_load_field_rejects_multifield_files(self, tmp_path):
+    def test_load_field_rejects_multifield_files(self, tmp_path: Path):
         """Test _load_field rejects files with multiple fields."""
         input_file = write_fields(
             [make_field("u"), make_field("v")],
@@ -179,7 +179,7 @@ class TestPreprocessing:
         with pytest.raises(ValueError, match=r"Use {.*} to select a field"):
             _load_field(input_file)
 
-    def test_load_field_accepts_field_select(self, tmp_path):
+    def test_load_field_accepts_field_select(self, tmp_path: Path):
         """Test _load_field selects a field when given a FieldSelect dictionary."""
         input_file = write_fields(
             [make_field("mslp"), make_field("u")],
@@ -190,7 +190,7 @@ class TestPreprocessing:
 
         assert field.nc_get_variable() == "u"
 
-    def test_load_field_rejects_missing_field_select(self, tmp_path):
+    def test_load_field_rejects_missing_field_select(self, tmp_path: Path):
         """Test _load_field fails when a selected variable is missing."""
         input_file = write_fields(make_field("mslp"), tmp_path / "input.nc")
 

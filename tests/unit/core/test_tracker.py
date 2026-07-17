@@ -2,7 +2,6 @@
 
 import importlib.metadata
 import json
-import pathlib
 import re
 import tempfile
 from dataclasses import asdict, dataclass
@@ -246,11 +245,7 @@ class TestTCTracker:
         }
         assert tracker.global_metadata == expected_metadata
 
-    def make_netcdf_file(
-        self,
-        tmp_path: pathlib.Path,
-        delete_std_name: bool = False,
-    ) -> pathlib.Path:
+    def make_netcdf_file(self, tmp_path: Path, delete_std_name: bool = False) -> Path:
         """Output a trajectories netcdf file with to_netcdf.
 
         We will take some predefined Trajectories (matching the variable_metadata and
@@ -320,12 +315,12 @@ class TestTCTracker:
 
         return output_file
 
-    def test_to_netcdf(self, tmp_path):
+    def test_to_netcdf(self, tmp_path: Path):
         """Test to_netcdf writes trajectories to a file in the netcdf_file fixture."""
         netcdf_file = self.make_netcdf_file(tmp_path)
         assert netcdf_file.exists()
 
-    def test_to_netcdf_no_trajectories(self, tmp_path):
+    def test_to_netcdf_no_trajectories(self, tmp_path: Path):
         """Test to_netcdf raises warning and exits gracefully when no trajectories."""
         # Instantiate the dummy tracker with empty trajectories
         tracker = self.ExampleTracker([])
@@ -339,7 +334,7 @@ class TestTCTracker:
             tracker.to_netcdf(str(netcdf_file))
         assert not netcdf_file.exists()
 
-    def test_to_netcdf_data(self, tmp_path):
+    def test_to_netcdf_data(self, tmp_path: Path):
         """Check to_netcdf writes trajectories with the correct data and dimensions."""
         netcdf_file = self.make_netcdf_file(tmp_path)
 
@@ -370,7 +365,7 @@ class TestTCTracker:
         assert np.allclose(var_data[1, :], [15.0, 20.0, 15.0])
 
     @pytest.mark.parametrize("delete_std_name", [False, True])
-    def test_to_netcdf_variable_metadata(self, tmp_path, delete_std_name):
+    def test_to_netcdf_variable_metadata(self, tmp_path: Path, delete_std_name):
         """Check to_netcdf writes trajectories with the correct variable metadata."""
         netcdf_file = self.make_netcdf_file(tmp_path, delete_std_name)
 
@@ -425,7 +420,7 @@ class TestTCTracker:
                     f"Metadata mismatch for {variable}: {key}"
                 )
 
-    def test_to_netcdf_track_flag(self, tmp_path):
+    def test_to_netcdf_track_flag(self, tmp_path: Path):
         """Check to_netcdf correctly flags tracks at start and end of file."""
         netcdf_file = self.make_netcdf_file(tmp_path)
 
@@ -445,7 +440,7 @@ class TestTCTracker:
         assert np.array_equal(start_flag.value().array, [True, False, False])
         assert np.array_equal(end_flag.value().array, [False, False, True])
 
-    def test_to_netcdf_global_metadata(self, tmp_path):
+    def test_to_netcdf_global_metadata(self, tmp_path: Path):
         """Check to_netcdf writes trajectories with the correct global metadata."""
         netcdf_file = self.make_netcdf_file(tmp_path)
 
