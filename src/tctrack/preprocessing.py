@@ -76,13 +76,13 @@ def _write_output(
 
 
 @overload
-def _write_output(
+def _write_output(  # type: ignore[overload-cannot-match]
     result: list[cf.Field], output_file: str | None, squeeze: Literal[True] = True
 ) -> cf.Field | list[cf.Field]: ...
 
 
 @overload
-def _write_output(
+def _write_output(  # type: ignore[overload-cannot-match]
     result: list[cf.Field], output_file: str | None, squeeze: Literal[False]
 ) -> list[cf.Field]: ...
 

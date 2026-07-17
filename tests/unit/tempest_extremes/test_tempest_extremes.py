@@ -169,7 +169,7 @@ class TestTETracker:
         assert not Path(tempdir).exists()
 
     @pytest.fixture
-    def netcdf_psl_file(self, tmp_path):
+    def netcdf_psl_file(self, tmp_path: Path):
         """Create a netcdf file with metadata given by the 'properties' argument."""
 
         def _create_file(properties):
@@ -390,7 +390,7 @@ class TestTETracker:
         }
 
     @pytest.fixture
-    def mock_gfdl_file(self, tmp_path) -> Path:
+    def mock_gfdl_file(self, tmp_path: Path) -> Path:
         """Fixture to create a mock GFDL file with two trajectories."""
         file_path = tmp_path / "trajectories_out_gfdl.txt"
         mock_data = self._mock_trajectories_data()
@@ -410,7 +410,7 @@ class TestTETracker:
         return file_path
 
     @pytest.fixture
-    def mock_csv_file(self, tmp_path) -> Path:
+    def mock_csv_file(self, tmp_path: Path) -> Path:
         """Fixture to create a mock CSV file with two trajectories."""
         file_path = tmp_path / "trajectories_out_csv.txt"
         mock_data = self._mock_trajectories_data()
@@ -430,7 +430,7 @@ class TestTETracker:
         return file_path
 
     @pytest.fixture
-    def mock_csvnohead_file(self, tmp_path) -> Path:
+    def mock_csvnohead_file(self, tmp_path: Path) -> Path:
         """Fixture to create mock CSV file with two trajectories and without header."""
         file_path = tmp_path / "trajectories_out_csvnohead.txt"
         mock_data = self._mock_trajectories_data()
@@ -609,7 +609,7 @@ class TestTETracker:
         ],
     )
     def test_to_netcdf_with_cf_read(
-        self, file_format, mock_file_fixture, netcdf_psl_file, request, tmp_path
+        self, file_format, mock_file_fixture, netcdf_psl_file, request, tmp_path: Path
     ):
         """Test the to_netcdf method by writing out and validating with cf.read."""
         # Get the mock file and set up the TETracker
@@ -628,7 +628,7 @@ class TestTETracker:
         tracker.to_netcdf(output_file_name)
 
         # Read the generated NetCDF file using cf-python
-        fields = cf.read(output_file_name)
+        fields = cf.read(output_file_name)  # type: ignore[operator]
 
         # Validate the structure and content of the NetCDF file
         assert len(fields) == 4  # Ensure 4 fields (lat, lon become coordinates)
@@ -648,7 +648,7 @@ class TestTETracker:
         assert lat_coord.shape == lon_coord.shape == (trajectory_ids, observation_count)
 
     def test_run_tracker_success(
-        self, mocker, tmp_path, netcdf_psl_file, mock_gfdl_file
+        self, mocker, tmp_path: Path, netcdf_psl_file, mock_gfdl_file
     ) -> None:
         """Check run_tracker runs successfully."""
         # Mock subprocess.run to simulate successful execution
@@ -674,7 +674,7 @@ class TestTETracker:
 
         # Check run_tracker runs without error and produces an output file
         output_file = tmp_path / "trajectories.nc"
-        tracker.run_tracker(output_file)
+        tracker.run_tracker(str(output_file))
         assert output_file.exists()
 
     def test_run_tracker_failure(self, mocker) -> None:
