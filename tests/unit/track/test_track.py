@@ -9,7 +9,6 @@ import importlib.metadata
 import json
 from dataclasses import asdict
 from pathlib import Path
-from unittest import mock
 
 import cf
 import cftime
@@ -25,9 +24,8 @@ class TestTrackParameters:
 
     def test_parameters_defaults(self):
         """Check TRACKParameters default values."""
-        params = TRACKParameters(base_dir="dir", input_file="input")
+        params = TRACKParameters(base_dir="dir")
         assert params.base_dir == "dir"
-        assert params.input_file == "input"
         assert params.filter_distance is None
         assert params.wind_var_names == ("ua", "va")
         assert params.pressure_level == 85000
@@ -63,24 +61,21 @@ class TestTrackTracker:
             returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
         )
 
+        # Optionally mock the reading of the input file
+        if mock_input_file:
+            self.mock_lat_lon = mocker.patch(
+                "tctrack.track.track.lat_lon_sizes", return_value=(self.ny, self.nx)
+            )
+            self.mock_path_exists = mocker.patch("pathlib.Path.exists")
+
         # Create the parameters
         if params_dict is None:
             params_dict = {}
         params_dict.setdefault("base_dir", "dir")
-        params_dict.setdefault("input_file", "input")
         params = TRACKParameters(**params_dict)
 
-        # Create the tracker, optionally mocking the reading of the input file
-        if mock_input_file is False:
-            tracker = TRACKTracker(params)
-        else:
-            with (
-                mock.patch(
-                    "tctrack.track.track.lat_lon_sizes", return_value=(self.ny, self.nx)
-                ),
-                mock.patch("pathlib.Path.exists"),
-            ):
-                tracker = TRACKTracker(params)
+        # Create the tracker
+        tracker = TRACKTracker(params)
 
         if clear_copy:
             self.mock_copy.reset_mock()
@@ -88,11 +83,7 @@ class TestTrackTracker:
 
     def test_initialisation(self, mocker):
         """Check TRACKTracker initialises correctly."""
-        tracker = self._setup_tracker(mocker, clear_copy=False)
-
-        # Check attributes
-        assert tracker._nx == self.nx  # noqa: SLF001 - private member access
-        assert tracker._ny == self.ny  # noqa: SLF001 - private member access
+        _ = self._setup_tracker(mocker, clear_copy=False)
 
         # Check calls to shutil.copy are as expected
         copy_calls = [
@@ -101,14 +92,33 @@ class TestTrackTracker:
         ]
         self.mock_copy.assert_has_calls(copy_calls)
 
-    def test_initialisation_failure(self, mocker):
-        """Check TRACKTracker initialisation fails as expected."""
+    def test_set_input_files(self, mocker):
+        """Check set_input_files correctly sets attributes."""
+        tracker = self._setup_tracker(mocker)
+
+        tracker.set_input_files("input")
+
+        assert tracker._input_files == ["input"]  # noqa: SLF001 - private member access
+        assert tracker._nx == self.nx  # noqa: SLF001 - private member access
+        assert tracker._ny == self.ny  # noqa: SLF001 - private member access
+
+    def test_set_input_files_missing(self, mocker):
+        """Check set_input_files fails for missing files."""
+        tracker = self._setup_tracker(mocker, mock_input_file=False)
+
         with pytest.raises(FileNotFoundError, match="Input file does not exist"):
-            self._setup_tracker(mocker, mock_input_file=False)
+            tracker.set_input_files("missing")
+
+    def test_set_input_files_multiple(self, mocker):
+        """Check set_input_files fails for multiple input files."""
+        tracker = self._setup_tracker(mocker)
+
+        with pytest.raises(ValueError, match="TRACK only accepts one input"):
+            tracker.set_input_files(["file1", "file2"])
 
     def test_export_inputs(self, mocker):
         """Check the command line inputs are correctly exported."""
-        tracker = self._setup_tracker(mocker)
+        tracker = self._setup_tracker(mocker, mock_input_file=False)
         tracker.parameters.export_inputs = True
 
         command_name = "export"
@@ -175,12 +185,13 @@ class TestTrackTracker:
     def test_calculate_vorticity(self, mocker):
         """Check calculate_vorticity calls TRACK with the expected inputs."""
         tracker = self._setup_tracker(mocker)
+        input_file = "input"
+        tracker.set_input_files(input_file)
 
         # Run the method
         tracker.calculate_vorticity()
 
         # Expected inputs
-        input_file = tracker.parameters.input_file
         input_params = [
             *["n", "0", "4", "n", "1", "y", "ua", "n", "85000", "n", "g"],
             *["n", "1", str(self.nx), "1", str(self.ny), "y", "12", "0", "2", "y"],
@@ -205,6 +216,8 @@ class TestTrackTracker:
     def test_spectral_filtering(self, mocker):
         """Check spectral_filtering calls TRACK with the expected inputs."""
         tracker = self._setup_tracker(mocker)
+        tracker._nx = self.nx  # noqa: SLF001 - private member access
+        tracker._ny = self.ny  # noqa: SLF001 - private member access
 
         # Run the method
         tracker.spectral_filtering()
@@ -358,8 +371,9 @@ class TestTrackTracker:
         input_file = self._create_nc_input_file(tmp_path)
 
         # Set up the tracker pointing to the created files
-        params = {"base_dir": str(tmp_path), "input_file": input_file}
+        params = {"base_dir": str(tmp_path)}
         tracker = self._setup_tracker(mocker, mock_input_file=False, params_dict=params)
+        tracker.set_input_files(input_file)
 
         # Get the trajectories
         trajectories = tracker.read_trajectories()
@@ -401,8 +415,9 @@ class TestTrackTracker:
     def test_variable_metadata(self, mocker, tmp_path: Path):
         """Test variable_metadata is defined correctly by set_metadata."""
         input_file = self._create_nc_input_file(tmp_path)
-        params = {"base_dir": str(tmp_path), "input_file": input_file}
+        params = {"base_dir": str(tmp_path)}
         tracker = self._setup_tracker(mocker, mock_input_file=False, params_dict=params)
+        tracker.set_input_files(input_file)
 
         tracker.set_metadata()
         metadata = tracker.variable_metadata
@@ -430,8 +445,9 @@ class TestTrackTracker:
     def test_time_metadata(self, mocker, tmp_path: Path):
         """Test time_metadata is defined correctly by set_metadata."""
         input_file = self._create_nc_input_file(tmp_path)
-        params = {"base_dir": str(tmp_path), "input_file": input_file}
+        params = {"base_dir": str(tmp_path)}
         tracker = self._setup_tracker(mocker, mock_input_file=False, params_dict=params)
+        tracker.set_input_files(input_file)
 
         tracker.set_metadata()
 
@@ -446,8 +462,9 @@ class TestTrackTracker:
     def test_global_metadata(self, mocker, tmp_path: Path):
         """Test global_metadata is defined correctly by set_metadata."""
         input_file = self._create_nc_input_file(tmp_path)
-        params = {"base_dir": str(tmp_path), "input_file": input_file}
+        params = {"base_dir": str(tmp_path)}
         tracker = self._setup_tracker(mocker, mock_input_file=False, params_dict=params)
+        tracker.set_input_files(input_file)
 
         tracker.set_metadata()
 
@@ -459,3 +476,24 @@ class TestTrackTracker:
                 {"TRACKParameters": asdict(tracker.parameters)}
             ),
         }
+
+    def test_run_tracker(self, mocker, tmp_path):
+        """Check run_tracker runs successfully and produces."""
+        # Create the input and intermediate output files
+        input_file = self._create_nc_input_file(tmp_path)
+        self._create_nc_output_file(tmp_path)
+
+        # Mock subprocess.run to simulate successful execution
+        mock_subprocess_run = mocker.patch("subprocess.run")
+        mock_subprocess_run.side_effect = mocker.MagicMock(
+            returncode=0, stdout="Success"
+        )
+
+        # Create the tracker
+        params = {"base_dir": str(tmp_path)}
+        tracker = self._setup_tracker(mocker, mock_input_file=False, params_dict=params)
+
+        # Run the tracker and check if the output file is created
+        output_file = tmp_path / "output.nc"
+        tracker.run_tracker(input_file, str(output_file))
+        assert output_file.exists()

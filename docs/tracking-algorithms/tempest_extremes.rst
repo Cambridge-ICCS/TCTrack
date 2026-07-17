@@ -108,7 +108,6 @@ with :meth:`~TETracker.stitch`:
     ]
 
     dn_params = te.TEDetectParameters(
-        in_data=input_files,
         search_by_min="psl",
         time_filter="6hr",
         merge_dist=6.0,
@@ -119,6 +118,7 @@ with :meth:`~TETracker.stitch`:
     )
 
     te_tracker = te.TETracker(dn_params)
+    te.tracker.set_input_files(input_files)
 
     run_info = te_tracker.detect()
 
@@ -185,7 +185,7 @@ appropriate :class:`TEDetectParameters` and :class:`TEStitchParameters`:
     sn_params = te.TEStitchParameters(...)
     te_tracker = te.TETracker(dn_params, sn_params)
 
-    te_tracker.run_tracker("my_cf_tracks.nc")
+    te_tracker.run_tracker(input_files, "my_cf_tracks.nc")
 
 When running in this way there are certain parameters that *should not* be set. In
 :class:`TEStitchParameters`, :attr:`~TEStitchParameters.in_fmt` and
