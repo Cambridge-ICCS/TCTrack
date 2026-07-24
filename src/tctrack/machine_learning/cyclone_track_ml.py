@@ -38,14 +38,38 @@ class MLParameters(TCMLParameters):
     hf_repo_id: str = "surbhigoel456/cyclone-TC-ML"
     """HuggingFace Hub repository ID for the cyclone detection model."""
 
-    channels: Sequence[str] = ()
-    """CF variable names for the 17 input channels, in the order the model expects."""
+    pressure_variables: Sequence[str] = (
+        "relative_humidity",
+        "temperature",
+        "u_component_of_wind",
+        "v_component_of_wind",
+        "vorticity",
+    )
+    """CF identities of the pressure-level input variables, in model channel order.
 
-    patch_size: int = 32
-    """Spatial window size fed to the model (matches test_ml.py's 32x32 patches)."""
+    Matches ``pressure_var_codes`` in the reference training pipeline
+    (`cyclone-track-ml <https://github.com/robert-edwin-rouse/cyclone-track-ml>`__).
+    """
 
-    stride: int = 16
-    """Grid spacing between sampled patches."""
+    pressure_levels: Sequence[float] = (1000, 750, 500)
+    """Pressure levels (hPa) to extract for each of :attr:`pressure_variables`."""
+
+    sst_variable: str = "sea_surface_temperature"
+    """CF identity of the sea surface temperature variable."""
+
+    t2m_variable: str = "2m_temperature"
+    """CF identity of the 2-metre temperature variable, used to gap-fill SST over land."""
+
+    normalisation_stats_path: str | None = None
+    """Path to an ``.npz`` file with per-channel ``mean`` and ``range`` arrays
+    (each shape ``(channel,)``, ordered as in :meth:`MLTracker.preprocess`),
+    used to normalise input as ``(x - mean) / range``.
+
+    These must be the statistics computed over the model's *training* set
+    (see ``compiler.py`` in the reference training pipeline); they cannot be
+    recomputed from a single inference file. If ``None``, :meth:`MLTracker.preprocess`
+    raises rather than silently passing unnormalised data to the model.
+    """
 
 
 class MLTracker(TCMLTracker):
@@ -137,21 +161,86 @@ class MLTracker(TCMLTracker):
             }
         )
 
+    def _load_normalisation_stats(self) -> tuple[np.ndarray, np.ndarray]:
+        """Load per-channel normalisation statistics.
+
+        Returns
+        -------
+        tuple[numpy.ndarray, numpy.ndarray]
+            ``(mean, range)`` arrays, each of shape ``(channel,)``, ordered to
+            match the channel stack built by :meth:`preprocess`.
+
+        Raises
+        ------
+        ValueError
+            If :attr:`parameters.normalisation_stats_path` is not set.
+
+        Notes
+        -----
+        Placeholder for loading the trained model's actual
+        training-set statistics.
+        """
+        if self.parameters.normalisation_stats_path is None:
+            msg = (
+                "parameters.normalisation_stats_path must be set to normalise "
+                "model input - see MLTracker.preprocess."
+            )
+            raise ValueError(msg)
+        stats = np.load(self.parameters.normalisation_stats_path)
+        return stats["mean"], stats["range"]
+
     def preprocess(self) -> torch.Tensor:
-        """Stack the configured input channels into a single tensor.
+        """Build the model input tensor from the configured ERA5 variables.
+
+        Reproduces the channel layout the model was trained on: each of
+        parameters.pressure_variables at each of
+        parameters.pressure_levels,
+        followed by a land/sea mask, followed by sea surface
+        temperature gap-filled with 2-metre temperature over land. Channels
+        are then normalised using _load_normalisation_stats.
 
         Returns
         -------
         torch.Tensor
-            Tensor of shape ``(channel, time, lat, lon)`` built from
-            :attr:`parameters.channels`, in that order.
+            Tensor of shape ``(channel, time, lat, lon)``, normalised.
+
+        Raises
+        ------
+        ValueError
+            If a configured variable cannot be found in the input file, or if
+            :attr:`parameters.normalisation_stats_path` is not set.
         """
         fields = cf.read(self.parameters.input_file)
-        arrays = [fields.select_field(name).array for name in self.parameters.channels]
+
+        pressure_channels = []
+        for variable in self.parameters.pressure_variables:
+            field = fields.select_field(variable)
+            for level in self.parameters.pressure_levels:
+                pressure_channels.append(field.subspace(Z=level).squeeze().array)
+
+        sst = fields.select_field(self.parameters.sst_variable).array
+        t2m = fields.select_field(self.parameters.t2m_variable).array
+
+        # Static land/sea mask: SST is undefined over land. Taken from the first
+        # timestep and held fixed, matching the reference preprocessing.
+        land_mask = np.broadcast_to(
+            np.ma.getmaskarray(sst)[0].astype(np.float32), sst.shape
+        )
+
+        # Gap-fill SST over land with 2m air temperature, as in training.
+        sst_filled = np.where(np.ma.getmaskarray(sst), t2m, np.ma.filled(sst, 0.0))
+
+        channels = [*pressure_channels, land_mask, sst_filled]
+
         self._lats = fields[0].coordinate("latitude").array
         self._lons = fields[0].coordinate("longitude").array
         self._times = fields[0].coordinate("time").datetime_array
-        return torch.from_numpy(np.stack(arrays, axis=0)).float()
+
+        data = np.stack(channels, axis=0)
+        mean, value_range = self._load_normalisation_stats()
+        data = (data - mean[:, None, None, None]) / value_range[:, None, None, None]
+
+        return torch.from_numpy(data).float()
 
     def detect(self) -> None:
         """Run the ML model over the grid and record a score for every patch.
