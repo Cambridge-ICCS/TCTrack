@@ -6,9 +6,12 @@ References
   <https://tctrack.readthedocs.io/en/latest/developer/adding_algorithms.html>`__
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import cf
+import numpy as np
+import torch
 
 from tctrack.core import (
     TCTrackerMetadata,
@@ -35,7 +38,7 @@ class MLParameters(TCMLParameters):
     hf_repo_id: str = "surbhigoel456/cyclone-TC-ML"
     """HuggingFace Hub repository ID for the cyclone detection model."""
 
-    channels: tuple[str, ...] = ()
+    channels: Sequence[str] = ()
     """CF variable names for the 17 input channels, in the order the model expects."""
 
     patch_size: int = 32
@@ -87,6 +90,7 @@ class MLTracker(TCMLTracker):
         """
         self.parameters: MLParameters = parameters
         self._trajectories: list[Trajectory] = []
+        self._scores: list[dict] = []
         self._load_model(parameters)
 
     @property
@@ -133,8 +137,29 @@ class MLTracker(TCMLTracker):
             }
         )
 
+    def preprocess(self) -> torch.Tensor:
+        """Stack the configured input channels into a single tensor.
+
+        Returns
+        -------
+        torch.Tensor
+            Tensor of shape ``(channel, time, lat, lon)`` built from
+            :attr:`parameters.channels`, in that order.
+        """
+        fields = cf.read(self.parameters.input_file)
+        arrays = [fields.select_field(name).array for name in self.parameters.channels]
+        self._lats = fields[0].coordinate("latitude").array
+        self._lons = fields[0].coordinate("longitude").array
+        self._times = fields[0].coordinate("time").datetime_array
+        return torch.from_numpy(np.stack(arrays, axis=0)).float()
+
     def detect(self) -> None:
-        """Run the ML detector and output the TC candidates."""
+        """Run the ML model over the grid and record a score for every patch.
+
+        Every patch is scored and stored in :attr:`_scores`, not just those
+        above :attr:`parameters.threshold`, so the raw scores remain available
+        for evaluation (e.g. ROC/AUC) as well as for candidate selection.
+        """
 
     def run_tracker(self, output_file: str) -> None:
         """Run the tracker to obtain the tropical cyclone trajectories.
