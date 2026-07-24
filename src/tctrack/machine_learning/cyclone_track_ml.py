@@ -35,6 +35,15 @@ class MLParameters(TCMLParameters):
     hf_repo_id: str = "surbhigoel456/cyclone-TC-ML"
     """HuggingFace Hub repository ID for the cyclone detection model."""
 
+    channels: tuple[str, ...] = ()
+    """CF variable names for the 17 input channels, in the order the model expects."""
+
+    patch_size: int = 32
+    """Spatial window size fed to the model (matches test_ml.py's 32x32 patches)."""
+
+    stride: int = 16
+    """Grid spacing between sampled patches."""
+
 
 class MLTracker(TCMLTracker):
     """Class used to run the machine-learning cyclone tracking algorithm.
