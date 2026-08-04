@@ -1,9 +1,9 @@
 """Package providing a machine-learning-based tropical cyclone tracking algorithm."""
 
-from .cyclone_track_ml import (
+from .cyclone_track_ml import MLTracker
+from .parameters import (
     MLParameters,
     MLStitchParameters,
-    MLTracker,
 )
 
 __all__ = [

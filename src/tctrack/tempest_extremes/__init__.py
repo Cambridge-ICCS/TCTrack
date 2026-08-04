@@ -1,13 +1,13 @@
 """Package bindings to the Tempest Extremes tracking code."""
 
-from .tempest_extremes import (
+from .parameters import (
     TEContour,
     TEDetectParameters,
     TEOutputCommand,
     TEStitchParameters,
     TEThreshold,
-    TETracker,
 )
+from .tempest_extremes import TETracker
 
 __all__ = [
     "TEContour",
