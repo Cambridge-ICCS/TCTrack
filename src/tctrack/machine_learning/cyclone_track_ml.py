@@ -243,12 +243,43 @@ class MLTracker(TCMLTracker):
         return torch.from_numpy(data).float()
 
     def detect(self) -> None:
-        """Run the ML model over the grid and record a score for every patch.
+        """Run the U-Net over the grid and save per-pixel class probabilities.
 
-        Every patch is scored and stored in :attr:`_scores`, not just those
-        above :attr:`parameters.threshold`, so the raw scores remain available
-        for evaluation (e.g. ROC/AUC) as well as for candidate selection.
+        Raises
+        ------
+        ValueError
+            If the model's output spatial shape doesn't match the input
+            file's latitude/longitude grid, it would indicate a bug.
         """
+        data = self.preprocess()  # (channel, time, lat, lon)
+        _, n_time, _, _ = data.shape
+
+        out_lats, out_lons = self._lats, self._lons
+
+        self._scores = []
+        with torch.no_grad():
+            for t in range(n_time):
+                frame = data[:, t, :, :].unsqueeze(0)  # (1, channel, lat, lon)
+                output = self.model(frame)  # (1, 5, lat', lon')
+                probs = torch.softmax(output, dim=1)[0].numpy()  # (5, lat', lon')
+
+                if probs.shape[1:] != (len(out_lats), len(out_lons)):
+                    msg = (
+                        f"Model output shape {probs.shape[1:]} does not match "
+                        f"the input grid {(len(out_lats), len(out_lons))}."
+                    )
+                    raise ValueError(msg)
+
+                for i, lat in enumerate(out_lats):
+                    for j, lon in enumerate(out_lons):
+                        self._scores.append(
+                            {
+                                "time": self._times[t],
+                                "lat": float(lat),
+                                "lon": float(lon),
+                                "probs": probs[:, i, j].tolist(),
+                            }
+                        )
 
     def run_tracker(self, output_file: str) -> None:
         """Run the tracker to obtain the tropical cyclone trajectories.
