@@ -6,7 +6,7 @@ The resulting database forms the foundation for a dashboard. However, it is also
 
 Imported files can be grouped together into collections, e.g. geographic areas or a particular research hypothesis. Collections are defined using the `--collection` option. Collections are optional.
 
-Often, longitude coordinates will be in the 0 to 360 range. The `--wrap` option will wrap coords to the −180 to 180 range, useful for some mapping applications.
+Longitude coordinates are wrapped from 0-360 to -180-180 for compatibility with the GeoJSON standard (RFC 7946).
 
 Storm tracks and properties are converted into GeoJSON format in the `trajectories` table. These representations can be viewed directly in GIS tools.
 
@@ -16,7 +16,7 @@ Storm tracks and properties are converted into GeoJSON format in the `trajectori
 Presuming TCTrack has been installed via `pip install`:
 
 ```bash
-build-db [--help] --output OUTPUT [--collection COLLECTION] [--wrap] files...
+build-db [--help] --output OUTPUT [--collection COLLECTION] files...
 ```
 
 To use the tool without installation, bypassing the need for all other TCTrack dependencies:
@@ -32,7 +32,6 @@ python -m build_db --output OUTPUT files...
 |----------------|----------|----------------------------------------------------------------------------------------------------------|
 | `--output`     | yes      | SQLite database path and name. Created if it doesn't exist, appended to if it does.                      |
 | `--collection` | no       | Collection name. Creates or reuses an existing collection. Will use a default collection if unspecified. |
-| `--wrap`       | no       | Wrap longitude coordinates from 0 to 360 to −180 to 180.                                                 |
 | `files`        | yes      | One or more NetCDF files from TCTrack.                                                                   |
 
 ### Examples
@@ -51,12 +50,6 @@ Append files to an existing database and collection:
 ```bash
 build-db --output tracks.db --collection hadgem3 more_tracks.nc
 ```
-
-Import files, wrapping longitude coords:
-```bash
-build-db --output tracks.db --wrap tracks.nc
-```
-
 
 ## Database Schema
 

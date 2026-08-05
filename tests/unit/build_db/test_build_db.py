@@ -206,7 +206,7 @@ class TestObservationImport:
         ).fetchone()
 
         assert row[0] == pytest.approx(13.476562)
-        assert row[1] == pytest.approx(183.339844)
+        assert row[1] == pytest.approx(-176.660156)
 
         assert row[2] == pytest.approx(100472.1)
         assert row[3] == pytest.approx(0.0)
@@ -239,7 +239,8 @@ class TestObservationImport:
         lats = ds.variables["latitude"][:]
         lons = ds.variables["longitude"][:]
 
-        # Collect valid (non-NaN) coords per trajectory, same as build_db
+        # Collect valid (non-NaN) coords per trajectory, same as build_db.
+        # Longitude values are wrapped to -180 to 180 to match DB storage.
         expected: list = []
         for traj_idx in range(lats.shape[0]):
             for obs_idx in range(lats.shape[1]):
@@ -248,6 +249,7 @@ class TestObservationImport:
                     float(lons[traj_idx, obs_idx]),
                 )
                 if not math.isnan(lat):
+                    lon = ((lon + 180) % 360) - 180
                     expected.append((traj_idx + 1, lat, lon))
         ds.close()
 
@@ -330,20 +332,20 @@ class TestCollections:
         assert rows[1][1] == 1
 
 
-class TestWrapLongitude:
-    """Test the --wrap flag for longitude coordinate wrapping."""
+class TestLongitudeWrapping:
+    """Test longitude coordinate wrapping."""
 
     def test_wrap_longitude(self, tmp_db):
-        """Test that --wrap stores longitudes in the -180 to 180 range."""
-        build_db.main(["--output", tmp_db, "--wrap", NETCDF_FILE])
+        """Test that longitudes are stored in the -180 to 180 range."""
+        build_db.main(["--output", tmp_db, NETCDF_FILE])
         db = open_db(tmp_db)
         rows = db.execute("select longitude from observations").fetchall()
         for (lon,) in rows:
             assert -180 <= lon <= 180
 
     def test_wrap_in_geojson(self, tmp_db):
-        """Test that --wrap affects longitude values in geojson output."""
-        build_db.main(["--output", tmp_db, "--wrap", NETCDF_FILE])
+        """Test that longitude values are wrapped in geojson output."""
+        build_db.main(["--output", tmp_db, NETCDF_FILE])
         db = open_db(tmp_db)
         rows = db.execute("select geojson from trajectories").fetchall()
         for (geojson_str,) in rows:

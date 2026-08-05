@@ -95,7 +95,7 @@ def file_exists(db: sqlite3.Connection, filepath: str) -> bool:
     )
 
 
-def read_netcdf(netcdf_filepath: str, wrap_longitude: bool = False) -> dict:
+def read_netcdf(netcdf_filepath: str) -> dict:
     """
     Read relevant data from a NetCDF trajectory file.
 
@@ -103,8 +103,6 @@ def read_netcdf(netcdf_filepath: str, wrap_longitude: bool = False) -> dict:
     ----------
     netcdf_filepath
         Full path to a NetCDF file.
-    wrap_longitude
-        True to wrap longitude coordinates from 0-360 to the -180 to 180 range.
 
     Returns
     -------
@@ -146,9 +144,8 @@ def read_netcdf(netcdf_filepath: str, wrap_longitude: bool = False) -> dict:
     ]:
         data[prop] = v[:] if (v := ds.variables.get(prop)) is not None else None
 
-    # Longitude processing (optional)
-    if wrap_longitude:
-        data["longitude"] = ((data["longitude"] + 180) % 360) - 180
+    # Wrap longitude coordinates from 0-360 to -180-180
+    data["longitude"] = ((data["longitude"] + 180) % 360) - 180
 
     ds.close()
     return data
@@ -404,7 +401,6 @@ def import_file(
     db: sqlite3.Connection,
     collection_id: int,
     netcdf_filepath: str,
-    wrap_longitude: bool = False,
 ) -> None:
     """
     Import a single NetCDF file into the database.
@@ -419,8 +415,6 @@ def import_file(
         Row id of collection to use in database.
     netcdf_filepath
         Full path to a NetCDF file to import.
-    wrap_longitude
-        True to wrap longitude coordinates from 0-360 to the -180 to 180 range.
     """
     filepath = os.path.abspath(netcdf_filepath)
 
@@ -430,7 +424,7 @@ def import_file(
 
     filename = os.path.basename(netcdf_filepath)
     logger.info("Importing %s", filename)
-    netcdf_data = read_netcdf(netcdf_filepath, wrap_longitude)
+    netcdf_data = read_netcdf(netcdf_filepath)
 
     with db:
         file_id = insert_file(db, collection_id, netcdf_data)
@@ -464,11 +458,6 @@ def main(argv: list[str] | None = None) -> int:
         help="Collection name to use or create",
     )
     parser.add_argument(
-        "--wrap",
-        action="store_true",
-        help="Wrap longitude coordinates from 0 to 360 to the -180 to 180 range",
-    )
-    parser.add_argument(
         "files",
         nargs="+",
         help="NetCDF files to import",
@@ -484,7 +473,7 @@ def main(argv: list[str] | None = None) -> int:
         collection_id = get_collection(db, args.collection)
 
         for nc_file in args.files:
-            import_file(db, collection_id, nc_file, args.wrap)
+            import_file(db, collection_id, nc_file)
 
     return 0
 
