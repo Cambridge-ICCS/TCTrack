@@ -48,3 +48,4 @@ html_static_path = ["_static"]
 autodoc_member_order = "bysource"
 napoleon_preprocess_types = True
 autosectionlabel_prefix_document = True
+rst_prolog = ".. |br| raw:: html\n\n   <br>" # linebreaks with |br|
