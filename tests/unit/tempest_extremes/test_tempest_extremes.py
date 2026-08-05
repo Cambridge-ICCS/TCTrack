@@ -24,6 +24,11 @@ from tctrack.tempest_extremes import (
     TEStitchParameters,
     TEThreshold,
     TETracker,
+    parameter_set,
+)
+from tctrack.tempest_extremes.parameters import (
+    _nc_names_defaults_owz,
+    _nc_names_defaults_uz,
 )
 
 
@@ -153,6 +158,216 @@ class TestTETypes:
         assert threshold["count"] == 10
         # Check item created is a dict as expected
         assert threshold == {"var": "lat", "op": "<=", "value": 40, "count": 10}
+
+
+class TestTEParameterSets:
+    """Tests for the parameter set functions."""
+
+    def test_parameter_set_returns_independent_parameters(self) -> None:
+        """Check modifying one returned parameter set does not modify another."""
+        first_detect, _ = parameter_set("UZ")
+        second_detect, _ = parameter_set("UZ")
+
+        first_detect.closed_contours[0]["delta"] = 0.0  # type: ignore[index]
+        assert second_detect.closed_contours[0]["delta"] == 200.0  # type: ignore[index]
+
+    def test_parameter_set_invalid_name(self) -> None:
+        """Check parameter_set fails for unknown names."""
+        with pytest.raises(ValueError, match="Unknown parameter set: unknown"):
+            parameter_set("unknown")
+
+    def test_parameter_set_uz(self) -> None:
+        """Check the UZ parameter set defaults."""
+        detect, stitch = parameter_set("UZ")
+
+        assert (detect, stitch) == (
+            TEDetectParameters(
+                search_by_min="msl",
+                time_filter="6hr",
+                merge_dist=6.0,
+                closed_contours=[
+                    TEContour(var="msl", delta=200.0, dist=5.5, minmaxdist=0.0),
+                    TEContour(
+                        var="_DIFF(gh(300hPa),gh(500hPa))",
+                        delta=-6.0,
+                        dist=6.5,
+                        minmaxdist=1.0,
+                    ),
+                ],
+                lon_name="longitude",
+                lat_name="latitude",
+                out_header=True,
+                output_commands=[
+                    TEOutputCommand(var="msl", operator="min", dist=0.0),
+                    TEOutputCommand(var="orog", operator="max", dist=0.0),
+                    TEOutputCommand(var="si10", operator="max", dist=2.0),
+                ],
+            ),
+            TEStitchParameters(
+                caltype="360_day",
+                max_sep=8.0,
+                min_time="54h",
+                max_gap="24h",
+                min_endpoint_dist=8.0,
+                threshold_filters=[
+                    TEThreshold(var="latitude", op="<=", value=50, count=10),
+                    TEThreshold(var="latitude", op=">=", value=-50, count=10),
+                    TEThreshold(var="orog", op="<=", value=150, count=10),
+                    TEThreshold(var="si10", op=">=", value=10, count=10),
+                ],
+            ),
+        )
+
+    def test_parameter_set_owz(self) -> None:
+        """Check the OWZ parameter set defaults."""
+        detect, stitch = parameter_set("OWZ")
+
+        assert (detect, stitch) == (
+            TEDetectParameters(
+                search_by_max="owz(850hPa)",
+                time_filter="6hr",
+                merge_dist=5.0,
+                thresholds=[
+                    TEDetectThreshold(var="owz(850hPa)", op=">=", value=5e-5, dist=2),
+                    TEDetectThreshold(var="owz(500hPa)", op=">=", value=4e-5, dist=2),
+                    TEDetectThreshold(var="r(950hPa)", op=">=", value=70, dist=2),
+                    TEDetectThreshold(var="r(700hPa)", op=">=", value=50, dist=2),
+                    TEDetectThreshold(
+                        var="_VECMAG(_DIFF(u(850hPa),u(200hPa)),_DIFF(v(850hPa),v(200hPa)))",
+                        op="<=",
+                        value=25,
+                        dist=2,
+                    ),
+                    TEDetectThreshold(var="q(950hPa)", op=">=", value=0.01, dist=2),
+                ],
+                lon_name="longitude",
+                lat_name="latitude",
+                out_header=True,
+                output_commands=[
+                    TEOutputCommand(var="owz(500hPa)", operator="max", dist=2),
+                    TEOutputCommand(var="r(950hPa)", operator="max", dist=2),
+                    TEOutputCommand(var="r(700hPa)", operator="max", dist=2),
+                    TEOutputCommand(
+                        var="_VECMAG(_DIFF(u(850hPa),u(200hPa)),_DIFF(v(850hPa),v(200hPa)))",
+                        operator="min",
+                        dist=1,
+                    ),
+                    TEOutputCommand(var="q(950hPa)", operator="max", dist=2),
+                    TEOutputCommand(var="msl", operator="min", dist=3),
+                    TEOutputCommand(var="_VECMAG(u10,v10)", operator="max", dist=2),
+                    TEOutputCommand(
+                        var="_VECMAG(u(925hPa),v(925hPa))", operator="max", dist=2
+                    ),
+                    TEOutputCommand(var="vo(850hPa)", operator="max", dist=2),
+                ],
+            ),
+            TEStitchParameters(
+                caltype="360_day",
+                max_sep=5.0,
+                min_time="48h",
+                max_gap="24h",
+                threshold_filters=[
+                    TEThreshold(var="owz(850hPa)", op=">=", value=6e-5, count=9),
+                    TEThreshold(var="owz(500hPa)", op=">=", value=5e-5, count=9),
+                    TEThreshold(var="r(950hPa)", op=">=", value=85, count=9),
+                    TEThreshold(var="r(700hPa)", op=">=", value=70, count=9),
+                    TEThreshold(
+                        var="_VECMAG(_DIFF(u(850hPa),u(200hPa)),_DIFF(v(850hPa),v(200hPa)))",
+                        op="<=",
+                        value=12.5,
+                        count=9,
+                    ),
+                    TEThreshold(var="q(950hPa)", op=">=", value=0.014, count=9),
+                    TEThreshold(var="_VECMAG(u10,v10)", op=">=", value=16, count=1),
+                ],
+            ),
+        )
+
+    def test_nc_names_uz_base_names(self) -> None:
+        """Check the UZ base names correctly override defaults."""
+        overrides = {
+            "latitude": "latitude_new",
+            "msl": "msl_new",
+            "orog": "orog_new",
+            "si10": "si10_new",
+            "gh": "gh_new",
+        }
+        nc_names = _nc_names_defaults_uz(overrides)
+
+        for key, value in overrides.items():
+            assert nc_names[key] == value
+        assert nc_names["ghdiff"] == "_DIFF(gh_new(300hPa),gh_new(500hPa))"
+
+    def test_nc_names_uz_derived_names(self) -> None:
+        """Check UZ derived variable names correctly override defaults."""
+        nc_names = _nc_names_defaults_owz({"ghdiff": "ghdiff_new"})
+        assert nc_names["ghdiff"] == "ghdiff_new"
+
+    def test_nc_names_owz_base_names(self) -> None:
+        """Check OWZ base names generate the expected level / derived names."""
+        nc_names = _nc_names_defaults_owz(
+            {
+                "owz": "owz_new",
+                "r": "r_new",
+                "q": "q_new",
+                "vo": "vo_new",
+                "u": "u_new",
+                "v": "v_new",
+                "u10": "u10_new",
+                "v10": "v10_new",
+                "ws": "ws_new",
+            }
+        )
+
+        assert nc_names["owz850"] == "owz_new(850hPa)"
+        assert nc_names["owz500"] == "owz_new(500hPa)"
+        assert nc_names["r950"] == "r_new(950hPa)"
+        assert nc_names["r700"] == "r_new(700hPa)"
+        assert nc_names["q950"] == "q_new(950hPa)"
+        assert nc_names["vo850"] == "vo_new(850hPa)"
+        assert nc_names["u925"] == "u_new(925hPa)"
+        assert nc_names["v925"] == "v_new(925hPa)"
+        assert nc_names["ws925"] == "ws_new(925hPa)"
+
+        assert nc_names["vws"] == (
+            "_VECMAG(_DIFF(u_new(850hPa),u_new(200hPa)),"
+            "_DIFF(v_new(850hPa),v_new(200hPa)))"
+        )
+        assert nc_names["si10"] == "_VECMAG(u10_new,v10_new)"
+
+    def test_nc_names_owz_level_names(self) -> None:
+        """Check OWZ level names correctly override defaults."""
+        overrides = {
+            "owz850": "owz_850",
+            "owz500": "owz_500",
+            "r950": "r_950",
+            "r700": "r_700",
+            "q950": "q_950",
+            "vo850": "vo_850",
+            "u925": "u_925",
+            "u850": "u_850",
+            "u200": "u_200",
+            "v925": "v_925",
+            "v850": "v_850",
+            "v200": "v_200",
+        }
+        nc_names = _nc_names_defaults_owz(overrides)
+
+        for key, value in overrides.items():
+            assert nc_names[key] == value
+
+        assert nc_names["vws"] == "_VECMAG(_DIFF(u_850,u_200),_DIFF(v_850,v_200))"
+        assert nc_names["ws925"] == "_VECMAG(u_925,v_925)"
+
+    def test_nc_names_owz_derived_names(self) -> None:
+        """Check OWZ derived variable names correctly override defaults."""
+        nc_names = _nc_names_defaults_owz(
+            {"vws": "vws_new", "si10": "si10_new", "ws925": "ws925_new"}
+        )
+
+        assert nc_names["vws"] == "vws_new"
+        assert nc_names["si10"] == "si10_new"
+        assert nc_names["ws925"] == "ws925_new"
 
 
 class TestTETracker:

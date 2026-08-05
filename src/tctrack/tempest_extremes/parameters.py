@@ -424,3 +424,324 @@ class TEStitchParameters(TCTrackerParameters):
                 "Allowed values are 'standard', 'noleap', or '360_day'"
             )
             raise ValueError(msg)
+
+
+def _nc_names_defaults_uz(nc_names: dict[str, str]) -> dict[str, str]:
+    """Set the default netcdf variable names for parameter_set_uz."""
+    nc_names.setdefault("longitude", "longitude")
+    nc_names.setdefault("latitude", "latitude")
+    nc_names.setdefault("msl", "msl")
+    nc_names.setdefault("orog", "orog")
+    nc_names.setdefault("si10", "si10")
+    gh_name = nc_names.get("gh", "gh")
+    nc_names.setdefault("ghdiff", f"_DIFF({gh_name}(300hPa),{gh_name}(500hPa))")
+    return nc_names
+
+
+def parameter_set_uz(
+    nc_names: dict[str, str],
+) -> tuple[TEDetectParameters, TEStitchParameters]:
+    """Return parameters for the UZ algorithm for detecting tropical cyclones.
+
+    Presented in [Ullrich2017]_.
+
+    This uses sea-level pressure for detection
+
+    Parameters
+    ----------
+    nc_names : dict[str, str]
+        An optional dictionary of NetCDF variable names.
+
+        The dictionary keys match the default variable names, which are shown in the
+        table below. The difference in geopotential height uses the 300 and 500 hPa
+        levels by default, but can be overridden, for example:
+        ``{"ghdiff": "_DIFF(gh(250hPa),gh(500hPa))"}``.
+
+        .. list-table:: NetCDF variable name defaults
+           :header-rows: 1
+
+           * - Variable
+             - Key / |br| Default
+             - Notes
+           * - Longitude
+             - ``longitude``
+             -
+           * - Latitude
+             - ``latitude``
+             -
+           * - Sea-level pressure
+             - ``msl``
+             -
+           * - Surface elevation
+             - ``orog``
+             -
+           * - Surface wind speed
+             - ``si10``
+             -
+           * - Geopotential height
+             - ``gh``
+             - Used to calculate ``ghdiff`` at 300 hPa and 500 hPa.
+           * - Geopotential height difference
+             - ``ghdiff``
+             - Default: ``_DIFF(gh(300hPa),gh(500hPa))``.
+    """
+    nc_names = _nc_names_defaults_uz(nc_names)
+
+    return (
+        TEDetectParameters(
+            search_by_min=nc_names["msl"],
+            time_filter="6hr",
+            merge_dist=6.0,
+            closed_contours=[
+                TEContour(var=nc_names["msl"], delta=200.0, dist=5.5, minmaxdist=0.0),
+                TEContour(var=nc_names["ghdiff"], delta=-6.0, dist=6.5, minmaxdist=1.0),
+            ],
+            lon_name=nc_names["longitude"],
+            lat_name=nc_names["latitude"],
+            out_header=True,
+            output_commands=[
+                TEOutputCommand(var=nc_names["msl"], operator="min", dist=0.0),
+                TEOutputCommand(var=nc_names["orog"], operator="max", dist=0.0),
+                TEOutputCommand(var=nc_names["si10"], operator="max", dist=2.0),
+            ],
+        ),
+        TEStitchParameters(
+            caltype="360_day",
+            max_sep=8.0,
+            min_time="54h",
+            max_gap="24h",
+            min_endpoint_dist=8.0,
+            threshold_filters=[
+                TEThreshold(var=nc_names["latitude"], op="<=", value=50, count=10),
+                TEThreshold(var=nc_names["latitude"], op=">=", value=-50, count=10),
+                TEThreshold(var=nc_names["orog"], op="<=", value=150, count=10),
+                TEThreshold(var=nc_names["si10"], op=">=", value=10, count=10),
+            ],
+        ),
+    )
+
+
+def _nc_names_defaults_owz(nc_names: dict[str, str]) -> dict[str, str]:
+    """Set the default netcdf variable names for parameter_set_owz."""
+    nc_names.setdefault("longitude", "longitude")
+    nc_names.setdefault("latitude", "latitude")
+    nc_names.setdefault("msl", "msl")
+    nc_names.setdefault("u10", "u10")
+    nc_names.setdefault("v10", "v10")
+
+    for name, levels in (
+        ("owz", (850, 500)),
+        ("r", (950, 700)),
+        ("q", (950,)),
+        ("vo", (850,)),
+        ("u", (925, 850, 200)),
+        ("v", (925, 850, 200)),
+    ):
+        variable_name = nc_names.get(name, name)
+        for level in levels:
+            nc_names.setdefault(f"{name}{level}", f"{variable_name}({level}hPa)")
+
+    vws_default = (
+        "_VECMAG("
+        f"_DIFF({nc_names['u850']},{nc_names['u200']}),"
+        f"_DIFF({nc_names['v850']},{nc_names['v200']}))"
+    )
+    nc_names.setdefault("vws", vws_default)
+    nc_names.setdefault("si10", f"_VECMAG({nc_names['u10']},{nc_names['v10']})")
+
+    if ws := nc_names.get("ws"):
+        ws_default = ws + "(925hPa)"
+    else:
+        ws_default = f"_VECMAG({nc_names['u925']},{nc_names['v925']})"
+    nc_names.setdefault("ws925", ws_default)
+    return nc_names
+
+
+def parameter_set_owz(
+    nc_names: dict[str, str],
+) -> tuple[TEDetectParameters, TEStitchParameters]:
+    r"""Return parameters for the OWZ algorithm for detecting tropical cyclones.
+
+    Presented in [Tory2013]_. Adapted to TempestExtremes in [Bourdin2022]_.
+
+    This performs detection using the Okubo-Weiss-Zeta (OWZ) parameter which should be
+    precomputed:
+
+    .. math::
+
+       OWZ = \eta \ \mathrm{sign}(f) \times
+             \max\left(\frac{\zeta^2 - (E^2 + F^2)}{\zeta^2}, 0\right)
+
+    where :math:`\eta` is the absolute vorticity, :math:`\zeta` is the sum of the
+    relative vorticity, :math:`f` is the coriolis parameter, and :math:`E` and :math:`F`
+    are the stretching and the shearing deformation, given by
+
+    .. math::
+
+       E = \frac{\partial u}{\partial x} - \frac{\partial v}{\partial y}, \quad
+       F = \frac{\partial v}{\partial x} + \frac{\partial u}{\partial y}.
+
+
+    Returns
+    -------
+    tuple[TEDetectParameters, TEStitchParameters]
+        Detection and stitching parameters.
+
+    Parameters
+    ----------
+    nc_names : dict[str, str]
+        An optional dictionary of NetCDF variable names.
+
+        The dictionary keys match the default variable names, which are shown in the
+        table below. Some variables require specific vertical levels. These can also be
+        overriden, for example if there is data for OWZ at 900 hPa but not 850 hPa:
+        ``{"owz850": "owz(900hPa)"}``.
+
+        .. list-table:: NetCDF variable name defaults
+           :header-rows: 1
+
+           * - Variable
+             - Key / |br| Default
+             - Levels
+             - Notes
+           * - Longitude
+             - ``longitude``
+             -
+             -
+           * - Latitude
+             - ``latitude``
+             -
+             -
+           * - OWZ parameter
+             - ``owz``
+             - ``owz850`` 850 hPa |br| ``owz500`` 500 hPa
+             -
+           * - Relative humidity
+             - ``r``
+             - ``r950`` 950 hPa |br| ``r700`` 700 hPa
+             -
+           * - Specific humidity
+             - ``q``
+             - ``q950`` 950 hPa
+             -
+           * - Relative vorticity
+             - ``vo``
+             - ``vo850`` 850 hPa
+             -
+           * - Wind components
+             - ``u`` / ``v``
+             - ``u925`` / ``v925`` 925 hPa |br|
+               ``u850`` / ``v850`` 850 hPa |br|
+               ``u200`` / ``v200`` 200 hPa |br|
+             - Not neeeded if ``ws`` and ``vws`` are set.
+           * - Wind speed
+             - ``ws``
+             - ``ws925`` 925 hPa
+             - If not set, calculated from ``u925`` / ``v925``.
+           * - Vertical wind shear
+             - ``vws``
+             -
+             - If not set, calculated from ``u850`` / ``v850`` and ``u200`` / ``v200``.
+           * - Surface wind |br| components (10m)
+             - ``u10`` / ``v10``
+             -
+             - Not neeeded if ``si10`` is set.
+           * - Surface wind speed |br| (10m)
+             - ``si10``
+             -
+             - If not set, calculated from ``u10`` / ``v10``.
+           * - Sea-level pressure
+             - ``msl``
+             -
+             -
+    """
+    nc_names = _nc_names_defaults_owz(nc_names)
+
+    return (
+        TEDetectParameters(
+            search_by_max=nc_names["owz850"],
+            time_filter="6hr",
+            merge_dist=5.0,
+            thresholds=[
+                TEDetectThreshold(var=nc_names["owz850"], op=">=", value=5e-5, dist=2),
+                TEDetectThreshold(var=nc_names["owz500"], op=">=", value=4e-5, dist=2),
+                TEDetectThreshold(var=nc_names["r950"], op=">=", value=70, dist=2),
+                TEDetectThreshold(var=nc_names["r700"], op=">=", value=50, dist=2),
+                TEDetectThreshold(var=nc_names["vws"], op="<=", value=25, dist=2),
+                TEDetectThreshold(var=nc_names["q950"], op=">=", value=0.01, dist=2),
+            ],
+            lon_name=nc_names["longitude"],
+            lat_name=nc_names["latitude"],
+            out_header=True,
+            output_commands=[
+                TEOutputCommand(var=nc_names["owz500"], operator="max", dist=2),
+                TEOutputCommand(var=nc_names["r950"], operator="max", dist=2),
+                TEOutputCommand(var=nc_names["r700"], operator="max", dist=2),
+                TEOutputCommand(var=nc_names["vws"], operator="min", dist=1),
+                TEOutputCommand(var=nc_names["q950"], operator="max", dist=2),
+                TEOutputCommand(var=nc_names["msl"], operator="min", dist=3),
+                TEOutputCommand(var=nc_names["si10"], operator="max", dist=2),
+                TEOutputCommand(var=nc_names["ws925"], operator="max", dist=2),
+                TEOutputCommand(var=nc_names["vo850"], operator="max", dist=2),
+            ],
+        ),
+        TEStitchParameters(
+            caltype="360_day",
+            max_sep=5.0,
+            min_time="48h",
+            max_gap="24h",
+            threshold_filters=[
+                TEThreshold(var=nc_names["owz850"], op=">=", value=6e-5, count=9),
+                TEThreshold(var=nc_names["owz500"], op=">=", value=5e-5, count=9),
+                TEThreshold(var=nc_names["r950"], op=">=", value=85, count=9),
+                TEThreshold(var=nc_names["r700"], op=">=", value=70, count=9),
+                TEThreshold(var=nc_names["vws"], op="<=", value=12.5, count=9),
+                TEThreshold(var=nc_names["q950"], op=">=", value=0.014, count=9),
+                TEThreshold(var=nc_names["si10"], op=">=", value=16, count=1),
+            ],
+        ),
+    )
+
+
+def parameter_set(
+    name: str,
+    nc_names: dict[str, str] | None = None,
+) -> tuple[TEDetectParameters, TEStitchParameters]:
+    """Return a default TempestExtremes parameter set.
+
+    Returns
+    -------
+    tuple[TEDetectParameters, TEStitchParameters]
+        Detection and stitching parameters.
+
+    Parameters
+    ----------
+    name : str
+        The parameter set to return. Valid values are:
+
+        - ``"default"`` or ``"UZ"`` for :func:`parameter_set_uz`.
+        - ``"OWZ"`` for :func:`parameter_set_owz`.
+    nc_names : dict[str, str]
+        An optional dictionary of netcdf variable names to use instead of the defaults.
+        The defaults typically correspond to ECMWF/ERA5 names or CMIP names where these
+        don't exist. See the individual parameter_set functions for more details.
+
+    Raises
+    ------
+    ValueError
+        If ``name`` is not a supported parameter set.
+    """
+    if nc_names is None:
+        nc_names = {}
+
+    parameter_sets = [
+        (["default", "UZ"], parameter_set_uz),
+        (["OWZ"], parameter_set_owz),
+    ]
+    for aliases, parameter_set in parameter_sets:
+        if name in aliases:
+            return parameter_set(nc_names)
+
+    available = ", ".join("/".join(aliases) for aliases, _ in parameter_sets)
+    msg = f"Unknown parameter set: {name}. Available sets: {available}."
+    raise ValueError(msg)
