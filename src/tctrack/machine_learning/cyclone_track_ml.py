@@ -6,10 +6,12 @@ References
   <https://tctrack.readthedocs.io/en/latest/developer/adding_algorithms.html>`__
 """
 
+from collections import deque
 from collections.abc import Sequence
 from dataclasses import dataclass
 
 import cf
+import h5py
 import numpy as np
 import torch
 
@@ -40,35 +42,64 @@ class MLParameters(TCMLParameters):
 
     pressure_variables: Sequence[str] = (
         "relative_humidity",
-        "temperature",
-        "u_component_of_wind",
-        "v_component_of_wind",
-        "vorticity",
+        "air_temperature",
+        "eastward_wind",
+        "northward_wind",
+        "atmosphere_relative_vorticity",
     )
     """CF identities of the pressure-level input variables, in model channel order.
 
-    Matches ``pressure_var_codes`` in the reference training pipeline
-    (`cyclone-track-ml <https://github.com/robert-edwin-rouse/cyclone-track-ml>`__).
+    Correspond to ``pressure_var_codes`` in the reference training pipeline
+    (`cyclone-track-ml <https://github.com/robert-edwin-rouse/cyclone-track-ml>`__),
+    but given as the actual CF ``standard_name`` each variable is converted to
+    (via cfgrib) in ERA5 output, which differs from the CDS API request name
+    used there for several variables (e.g. ``"temperature"`` in the reference
+    pipeline is ``"air_temperature"`` here).
     """
 
     pressure_levels: Sequence[float] = (1000, 750, 500)
     """Pressure levels (hPa) to extract for each of :attr:`pressure_variables`."""
 
-    sst_variable: str = "sea_surface_temperature"
-    """CF identity of the sea surface temperature variable."""
+    sst_variable: str = "ncvar%sst"
+    """CF identity of the sea surface temperature variable.
 
-    t2m_variable: str = "2m_temperature"
+    ERA5 sea surface temperature has no ``standard_name`` (cfgrib leaves it
+    ``"unknown"``), so it must be selected by NetCDF variable name instead.
+    """
+
+    t2m_variable: str = "ncvar%t2m"
     """CF identity of the 2-metre temperature variable, used to gap-fill SST over land."""
 
     normalisation_stats_path: str | None = None
-    """Path to an ``.npz`` file with per-channel ``mean`` and ``range`` arrays
+    """Path to a ``.nc`` file with per-channel ``mean`` and ``range`` variables
     (each shape ``(channel,)``, ordered as in :meth:`MLTracker.preprocess`),
     used to normalise input as ``(x - mean) / range``.
 
-    These must be the statistics computed over the model's *training* set
-    (see ``compiler.py`` in the reference training pipeline); they cannot be
-    recomputed from a single inference file. If ``None``, :meth:`MLTracker.preprocess`
+    These must be the statistics computed over the model's *training* set;
+    they cannot be recomputed from a single inference file. Matches the
+    ``data/normalisation_parameters.nc`` file saved by ``compiler.py`` in the
+    reference training pipeline. If ``None``, :meth:`MLTracker.preprocess`
     raises rather than silently passing unnormalised data to the model.
+    """
+
+    stitch_max_distance_deg: float = 3.0
+    """Maximum distance (degrees lat/lon) between a track's last point and a
+    candidate in the next timestep for them to be linked as the same storm.
+
+    Not part of the reference training pipeline, which only trains
+    per-pixel classification and has no timestep-to-timestep linking step.
+    The default assumes 6-hourly input (as used for training) and typical
+    cyclone translation speeds; reduce for higher-frequency input.
+    """
+
+    stitch_max_gap: int = 1
+    """Number of consecutive timesteps a track may go unmatched before it is
+    closed, tolerating brief drops below :attr:`~TCMLParameters.threshold`.
+    """
+
+    stitch_min_length: int = 2
+    """Minimum number of observations a track must have to be kept, filtering
+    out single-timestep detections likely to be noise.
     """
 
 
@@ -164,6 +195,17 @@ class MLTracker(TCMLTracker):
     def _load_normalisation_stats(self) -> tuple[np.ndarray, np.ndarray]:
         """Load per-channel normalisation statistics.
 
+        Reads the ``mean``/``range`` variables from the ``.nc`` file produced
+        by ``compiler.py`` in the reference training pipeline
+        (``data/normalisation_parameters.nc``). Uses ``h5py`` rather than
+        ``cf.read`` - this file's variables carry inherited GRIB/cfgrib
+        attributes (e.g. an auxiliary ``number`` coordinate) that make
+        ``cfdm`` build them through a data-creation path requiring a lazy
+        ``scipy`` import; in this environment that import fails once
+        ``torch`` has already been loaded (a ``libstdc++`` version conflict
+        between the two), which ``h5py`` - already a TCTrack dependency -
+        avoids entirely by reading the plain arrays directly.
+
         Returns
         -------
         tuple[numpy.ndarray, numpy.ndarray]
@@ -174,11 +216,6 @@ class MLTracker(TCMLTracker):
         ------
         ValueError
             If :attr:`parameters.normalisation_stats_path` is not set.
-
-        Notes
-        -----
-        Placeholder for loading the trained model's actual
-        training-set statistics.
         """
         if self.parameters.normalisation_stats_path is None:
             msg = (
@@ -186,8 +223,10 @@ class MLTracker(TCMLTracker):
                 "model input - see MLTracker.preprocess."
             )
             raise ValueError(msg)
-        stats = np.load(self.parameters.normalisation_stats_path)
-        return stats["mean"], stats["range"]
+        with h5py.File(self.parameters.normalisation_stats_path, "r") as stats:
+            mean = stats["mean"][:]
+            value_range = stats["range"][:]
+        return mean, value_range
 
     def preprocess(self) -> torch.Tensor:
         """Build the model input tensor from the configured ERA5 variables.
