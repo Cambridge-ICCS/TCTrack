@@ -28,11 +28,11 @@ python -m build_db --output OUTPUT files...
 
 ### Arguments
 
-| Flag           | Required | Description |
-|----------------|----------|----------------------------------------------------------------------------------------------------------|
-| `--output`     | yes      | SQLite database path and name. Created if it doesn't exist, appended to if it does.                      |
-| `--collection` | no       | Collection name. Creates or reuses an existing collection. Will use a default collection if unspecified. |
-| `files`        | yes      | One or more NetCDF files from TCTrack.                                                                   |
+| Flag                 | Required | Description |
+|----------------------|----------|----------------------------------------------------------------------------------------------------------|
+| `--output`, `-o`     | yes      | SQLite database path and name. Created if it doesn't exist, appended to if it does.                      |
+| `--collection`, `-c` | no       | Collection name. Creates or reuses an existing collection. Will use a default collection if unspecified. |
+| `files`              | yes      | One or more NetCDF files from TCTrack.                                                                   |
 
 ### Examples
 
