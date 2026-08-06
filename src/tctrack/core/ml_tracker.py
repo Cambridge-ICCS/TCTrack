@@ -4,6 +4,7 @@ import os
 from abc import abstractmethod
 from dataclasses import dataclass
 
+import scipy  # noqa: F401 
 import torch
 from huggingface_hub import hf_hub_download
 
