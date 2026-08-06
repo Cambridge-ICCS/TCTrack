@@ -34,12 +34,12 @@ class TestFileImport:
 
     def test_creates_database(self, tmp_db):
         """Test that build_db.main creates a database file."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        build_db.build(tmp_db, NETCDF_FILE)
         assert Path(tmp_db).exists()
 
     def test_file_record(self, tmp_db):
         """Test record inserted into the files table."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
 
         row = db.execute(
@@ -55,15 +55,15 @@ class TestFileImport:
 
     def test_duplicate_file_skipped(self, tmp_db):
         """Test that specifiying the same file again does nothing."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        build_db.build(tmp_db, NETCDF_FILE)
+        build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
         count = db.execute("select count(*) from files").fetchone()[0]
         assert count == 1
 
     def test_file_metadata(self, tmp_db):
         """Test file metadata (tracker, version, time units)."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
 
         row = db.execute(
@@ -77,7 +77,7 @@ class TestFileImport:
 
     def test_tracker_parameters(self, tmp_db):
         """Test that tracker_parameters contains valid JSON."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
 
         row = db.execute("select tracker_parameters from files").fetchone()
@@ -91,7 +91,7 @@ class TestTrajectoryImport:
 
     def test_trajectories_inserted(self, tmp_db):
         """Test that all trajectories are inserted into the database."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
 
         count = db.execute("select count(*) from trajectories").fetchone()[0]
@@ -99,7 +99,7 @@ class TestTrajectoryImport:
 
     def test_trajectories_start_end_flag_none(self, tmp_db):
         """Test start_end flag is unset in all trajectory rows."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
 
         # Start/end flags are unset for all trajectories in test NetCDF file
@@ -109,7 +109,7 @@ class TestTrajectoryImport:
 
     def test_trajectories_start_end_flag_some(self, tmp_db):
         """Test start_end flag is set in some trajectory rows."""
-        build_db.main(["--output", tmp_db, NETCDF_SE_FILE])
+        build_db.build(tmp_db, NETCDF_SE_FILE)
         db = open_db(tmp_db)
 
         rows = db.execute("select start_end from trajectories").fetchall()
@@ -126,7 +126,7 @@ class TestGeoJSONConversion:
 
     def test_geojson_structure(self, tmp_db):
         """Test that geojson contains a LineString path and Point features."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
 
         row = db.execute("select geojson from trajectories limit 1").fetchone()
@@ -149,7 +149,7 @@ class TestGeoJSONConversion:
 
     def test_geojson_coordinate_count(self, tmp_db):
         """Test that geojson has the correct number of coordinates and features."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
 
         row = db.execute("select geojson from trajectories limit 1").fetchone()
@@ -162,7 +162,7 @@ class TestGeoJSONConversion:
 
     def test_geojson_start_end_flag(self, tmp_db):
         """Test that start_end is present in geojson."""
-        build_db.main(["--output", tmp_db, NETCDF_SE_FILE])
+        build_db.build(tmp_db, NETCDF_SE_FILE)
         db = open_db(tmp_db)
 
         row = db.execute("select geojson from trajectories limit 1").fetchone()
@@ -178,7 +178,7 @@ class TestObservationImport:
 
     def test_observation_count_per_trajectory(self, tmp_db):
         """Test that the correct number of observations exist per trajectory."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
 
         rows = db.execute(
@@ -196,7 +196,7 @@ class TestObservationImport:
 
     def test_observation_values(self, tmp_db):
         """Test that observation values are real numbers."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
 
         row = db.execute(
@@ -214,7 +214,7 @@ class TestObservationImport:
 
     def test_observation_date(self, tmp_db):
         """Test that dates are in ISO format and monotonically increasing."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
 
         # Observations ordered by rowid to retain insertion order
@@ -232,7 +232,7 @@ class TestObservationImport:
 
     def test_coords_match_source_netcdf(self, tmp_db):
         """Test that database coordinates match the source NetCDF file."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
 
         ds = netCDF4.Dataset(NETCDF_FILE, "r")
@@ -268,11 +268,11 @@ class TestObservationImport:
 
 
 class TestCollections:
-    """Test --collection option."""
+    """Test file collections."""
 
     def test_default_collection(self, tmp_db):
-        """Test that default collection is created when --collection is unspecified."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        """Test that default collection is created when unspecified."""
+        build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
         row = db.execute(
             "select name from collections where name = 'default'"
@@ -280,15 +280,15 @@ class TestCollections:
         assert row is not None
 
     def test_named_collection(self, tmp_db):
-        """Test that a named collection is created when --collection is specified."""
-        build_db.main(["--output", tmp_db, "--collection", "test", NETCDF_FILE])
+        """Test that a named collection is created when specified."""
+        build_db.build(tmp_db, NETCDF_FILE, collection_name="test")
         db = open_db(tmp_db)
         row = db.execute("select name from collections where name = 'test'").fetchone()
         assert row is not None
 
     def test_files_associated_with_collection(self, tmp_db):
         """Test that files are correctly associated with the specified collection."""
-        build_db.main(["--output", tmp_db, "--collection", "test", NETCDF_FILE])
+        build_db.build(tmp_db, NETCDF_FILE, collection_name="test")
         db = open_db(tmp_db)
         row = db.execute(
             "select c.name, f.filename from files f "
@@ -299,8 +299,8 @@ class TestCollections:
 
     def test_append_to_existing_collection(self, tmp_db):
         """Test that appending to an existing database use the correct collection."""
-        build_db.main(["--output", tmp_db, "--collection", "test", NETCDF_FILE])
-        build_db.main(["--output", tmp_db, "--collection", "test", NETCDF_SE_FILE])
+        build_db.build(tmp_db, NETCDF_FILE, collection_name="test")
+        build_db.build(tmp_db, NETCDF_SE_FILE, collection_name="test")
         db = open_db(tmp_db)
 
         rows = db.execute(
@@ -315,8 +315,8 @@ class TestCollections:
 
     def test_multiple_collections(self, tmp_db):
         """Test use of two collections."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])  # use default collection
-        build_db.main(["--output", tmp_db, "--collection", "test", NETCDF_SE_FILE])
+        build_db.build(tmp_db, NETCDF_FILE)  # use default collection
+        build_db.build(tmp_db, NETCDF_SE_FILE, collection_name="test")
         db = open_db(tmp_db)
 
         rows = db.execute(
@@ -337,7 +337,7 @@ class TestLongitudeWrapping:
 
     def test_wrap_longitude(self, tmp_db):
         """Test that longitudes are stored in the -180 to 180 range."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
         rows = db.execute("select longitude from observations").fetchall()
         for (lon,) in rows:
@@ -345,7 +345,7 @@ class TestLongitudeWrapping:
 
     def test_wrap_in_geojson(self, tmp_db):
         """Test that longitude values are wrapped in geojson output."""
-        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
         rows = db.execute("select geojson from trajectories").fetchall()
         for (geojson_str,) in rows:
@@ -360,8 +360,8 @@ class TestLongitudeWrapping:
                     assert -180 <= lon <= 180
 
 
-class TestCliExitCode:
-    """Test CLI exit behaviour."""
+class TestCli:
+    """Test CLI behaviour."""
 
     def test_returns_zero(self, tmp_db):
         """Test that successful CLI invocation returns exit code 0."""
@@ -372,3 +372,15 @@ class TestCliExitCode:
         """Test that CLI exits with an error when required arguments are missing."""
         with pytest.raises(SystemExit):
             build_db.main([])
+
+    def test_creates_database(self, tmp_db):
+        """Test that build_db.main creates a database file."""
+        build_db.main(["--output", tmp_db, NETCDF_FILE])
+        assert Path(tmp_db).exists()
+
+    def test_named_collection(self, tmp_db):
+        """Test that a named collection is created when --collection is specified."""
+        build_db.main(["--output", tmp_db, "--collection", "test", NETCDF_FILE])
+        db = open_db(tmp_db)
+        row = db.execute("select name from collections where name = 'test'").fetchone()
+        assert row is not None

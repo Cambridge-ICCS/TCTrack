@@ -108,46 +108,45 @@ def read_netcdf(netcdf_filepath: str) -> dict:
     -------
     Dictionary with dimensions, global attributes and variable arrays.
     """
-    ds = netCDF4.Dataset(netcdf_filepath, "r")
+    with netCDF4.Dataset(netcdf_filepath, "r") as ds:
+        n_trajectories = len(ds.dimensions["trajectory"])
+        n_observations = len(ds.dimensions["observation"])
 
-    n_trajectories = len(ds.dimensions["trajectory"])
-    n_observations = len(ds.dimensions["observation"])
+        data = {
+            "filepath": netcdf_filepath,
+            "n_trajectories": n_trajectories,
+            "n_observations": n_observations,
+            "attributes": {k: ds.getncattr(k) for k in ds.ncattrs()},
+            "latitude": ds.variables["latitude"][:],
+            "longitude": ds.variables["longitude"][:],
+            "grid_i": ds.variables["grid_i"][:],
+            "grid_j": ds.variables["grid_j"][:],
+        }
 
-    data = {
-        "filepath": netcdf_filepath,
-        "n_trajectories": n_trajectories,
-        "n_observations": n_observations,
-        "attributes": {k: ds.getncattr(k) for k in ds.ncattrs()},
-        "latitude": ds.variables["latitude"][:],
-        "longitude": ds.variables["longitude"][:],
-        "grid_i": ds.variables["grid_i"][:],
-        "grid_j": ds.variables["grid_j"][:],
-    }
+        time_var = ds.variables["time"]
+        data["time_units"] = time_var.getncattr("units")
+        data["time_calendar"] = time_var.getncattr("calendar")
+        data["time"] = ds.variables["time"][:]
 
-    time_var = ds.variables["time"]
-    data["time_units"] = time_var.getncattr("units")
-    data["time_calendar"] = time_var.getncattr("calendar")
-    data["time"] = ds.variables["time"][:]
+        # Read start/end flags if present (per-trajectory booleans)
+        if "start_flag" in ds.variables:
+            data["start_flag"] = ds.variables["start_flag"][:]
+        if "end_flag" in ds.variables:
+            data["end_flag"] = ds.variables["end_flag"][:]
 
-    # Read start/end flags if present (per-trajectory booleans)
-    if "start_flag" in ds.variables:
-        data["start_flag"] = ds.variables["start_flag"][:]
-    if "end_flag" in ds.variables:
-        data["end_flag"] = ds.variables["end_flag"][:]
+        # Observations (optional)
+        for prop in [
+            "air_pressure_at_sea_level",
+            "surface_altitude",
+            "wind_speed",
+            "atmosphere_relative_vorticity",
+        ]:
+            data[prop] = v[:] if (v := ds.variables.get(prop)) is not None else None
 
-    # Observations (optional)
-    for prop in [
-        "air_pressure_at_sea_level",
-        "surface_altitude",
-        "wind_speed",
-        "atmosphere_relative_vorticity",
-    ]:
-        data[prop] = v[:] if (v := ds.variables.get(prop)) is not None else None
-
+    # Post-processing
     # Wrap longitude coordinates from 0-360 to -180-180
     data["longitude"] = ((data["longitude"] + 180) % 360) - 180
 
-    ds.close()
     return data
 
 
@@ -441,6 +440,31 @@ def import_file(
     )
 
 
+def build(db_path: str, input_paths: str | list[str], collection_name: str = "default"):
+    """
+    Build a database from imported NetCDF file(s) - main worker entry point.
+
+    Parameters
+    ----------
+    db_path
+        Path and name of database to open. A database will be created if necessary.
+
+    input_paths
+        Paths of NetCDF file(s) to import - an individual file or list of files.
+
+    collection_name
+        Name of the collection used to group imported files.
+    """
+    with init_db(db_path) as db:
+        collection_id = get_collection(db, collection_name)
+
+        if isinstance(input_paths, (str, Path)):
+            import_file(db, collection_id, input_paths)
+        else:
+            for nc_file in input_paths:
+                import_file(db, collection_id, nc_file)
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -448,13 +472,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--output",
+        "-o",
         required=True,
         help="SQLite database filename to open or create",
     )
     parser.add_argument(
         "--collection",
+        "-c",
         default="default",
-        metavar="NAME",
+        metavar="COL",
         help="Collection name to use or create",
     )
     parser.add_argument(
@@ -469,12 +495,7 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.INFO, format="%(levelname)s: %(message)s", force=True
     )
 
-    with init_db(args.output) as db:
-        collection_id = get_collection(db, args.collection)
-
-        for nc_file in args.files:
-            import_file(db, collection_id, nc_file)
-
+    build(args.output, args.files, args.collection)
     return 0
 
 
