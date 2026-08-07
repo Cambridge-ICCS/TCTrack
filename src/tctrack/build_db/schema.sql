@@ -71,8 +71,6 @@ create table observations (
 
     latitude                       real not null,
     longitude                      real not null,
-    grid_i                         real not null,
-    grid_j                         real not null,
 
     air_pressure_at_sea_level      real,
     surface_altitude               real,

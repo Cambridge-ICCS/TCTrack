@@ -119,8 +119,6 @@ def read_netcdf(netcdf_filepath: str) -> dict:
             "attributes": {k: ds.getncattr(k) for k in ds.ncattrs()},
             "latitude": ds.variables["latitude"][:],
             "longitude": ds.variables["longitude"][:],
-            "grid_i": ds.variables["grid_i"][:],
-            "grid_j": ds.variables["grid_j"][:],
         }
 
         time_var = ds.variables["time"]
@@ -188,8 +186,6 @@ def extract_trajectory(netcdf_data: dict, traj_idx: int) -> dict:
         "times": times,
         "latitude": netcdf_data["latitude"][traj_idx],
         "longitude": netcdf_data["longitude"][traj_idx],
-        "grid_i": netcdf_data["grid_i"][traj_idx],
-        "grid_j": netcdf_data["grid_j"][traj_idx],
         "air_pressure_at_sea_level": v[traj_idx]
         if (v := netcdf_data["air_pressure_at_sea_level"]) is not None
         else None,
@@ -370,8 +366,6 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
             traj["times"][i].isoformat(" "),
             traj["latitude"][i],
             traj["longitude"][i],
-            traj["grid_i"][i],
-            traj["grid_j"][i],
             v[i] if (v := traj["air_pressure_at_sea_level"]) is not None else None,
             v[i] if (v := traj["surface_altitude"]) is not None else None,
             v[i] if (v := traj["wind_speed"]) is not None else None,
@@ -383,10 +377,10 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
     if rows:
         cur = db.executemany(
             "insert into observations"
-            " (trajectory_id, date, latitude, longitude, grid_i, grid_j,"
+            " (trajectory_id, date, latitude, longitude,"
             "  air_pressure_at_sea_level, surface_altitude, wind_speed,"
             "  atmosphere_relative_vorticity)"
-            " values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " values (?, ?, ?, ?, ?, ?, ?, ?)",
             rows,
         )
         if cur.rowcount != len(rows):
