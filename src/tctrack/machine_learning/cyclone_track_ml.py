@@ -22,6 +22,16 @@ from tctrack.core import (
 from tctrack.core.ml_tracker import TCMLParameters, TCMLTracker
 
 
+def _point_variables(candidate: dict) -> dict:
+    """Strip a candidate down to the numeric variables of a trajectory point.
+
+    Candidates carry the timestep they were found at, but
+    :meth:`~tctrack.core.Trajectory.add_point` takes the time separately and
+    requires every remaining value to be numeric, so it is dropped here.
+    """
+    return {key: value for key, value in candidate.items() if key != "time"}
+
+
 @dataclass(repr=False)
 class MLParameters(TCMLParameters):
     """Dataclass containing values for parameters used by MLTracker.
@@ -158,6 +168,8 @@ class MLTracker(TCMLTracker):
         self.parameters: MLParameters = parameters
         self._trajectories: list[Trajectory] = []
         self._scores: list[dict] = []
+        # TC locations found by detect(), consumed by stitch().
+        self._candidates: list[dict] = []
         # Grid/time coordinates of the input file, populated by preprocess().
         self._lats: np.ndarray = np.array([])
         self._lons: np.ndarray = np.array([])
@@ -298,7 +310,19 @@ class MLTracker(TCMLTracker):
         return torch.from_numpy(data).float()
 
     def detect(self) -> None:
-        """Run the U-Net over the grid and save per-pixel class probabilities.
+        """Run the U-Net over the grid and locate the tropical cyclones in it.
+
+        For each timestep the model is run, its per-pixel class probabilities
+        are thresholded, and the surviving pixels are grouped into discrete
+        candidate storms (see :meth:`_cluster_candidates` and
+        :meth:`_merge_nearby_candidates`). The result is a list of TC
+        locations on :attr:`_candidates`, which :meth:`stitch` then links into
+        trajectories - mirroring how the other TCTrack trackers split the work,
+        where detection emits candidate points and stitching consumes them.
+
+        The full per-pixel probabilities are also kept on :attr:`_scores`,
+        which retains the per-class detail that thresholding discards (useful
+        for evaluation, e.g. one-vs-rest ROC per lifecycle class).
 
         Raises
         ------
@@ -310,6 +334,7 @@ class MLTracker(TCMLTracker):
         _, n_time, _, _ = data.shape
 
         self._scores = []
+        self._candidates = []
         with torch.no_grad():
             for t in range(n_time):
                 frame = data[:, t, :, :].unsqueeze(0)  # (1, channel, lat, lon)
@@ -333,6 +358,17 @@ class MLTracker(TCMLTracker):
                                 "probs": probs[:, i, j].tolist(),
                             }
                         )
+
+                # Reduce this timestep's pixels to discrete storm locations.
+                class_idx = probs.argmax(axis=0)
+                class_prob = probs.max(axis=0)
+                is_storm = (class_idx != 0) & (class_prob >= self.parameters.threshold)
+
+                candidates = self._cluster_candidates(is_storm, class_idx, class_prob)
+                candidates = self._merge_nearby_candidates(candidates)
+                for candidate in candidates:
+                    candidate["time"] = self._times[t]
+                self._candidates.extend(candidates)
 
     def _cluster_candidates(
         self,
@@ -459,7 +495,16 @@ class MLTracker(TCMLTracker):
         return best_index
     
     def stitch(self) -> list[Trajectory]:
-        """Link per-timestep detections into cyclone trajectories.
+        """Link the TC locations found by :meth:`detect` into trajectories.
+
+        Consumes the candidates on :attr:`_candidates`, working through the
+        timesteps in order and, at each one, extending existing tracks with a
+        nearby candidate, retiring tracks that have gone unmatched for too
+        long, and starting new tracks from whatever is left over.
+
+        The result is also stored on :attr:`_trajectories`, so that
+        :meth:`read_trajectories` - and therefore :meth:`to_netcdf` - can
+        reach it.
 
         Returns
         -------
@@ -467,29 +512,21 @@ class MLTracker(TCMLTracker):
             One :class:`~tctrack.core.Trajectory` per track with at least
             :attr:`parameters.stitch_min_length` observations.
         """
-        n_lat, n_lon = len(self._lats), len(self._lons)
-        n_per_frame = n_lat * n_lon
-
+        # Group detect()'s flat list of locations by the timestep they belong
+        # to, so each timestep's candidates can be looked up by index below.
+        by_timestep: dict = {time: [] for time in self._times}
+        for candidate in self._candidates:
+            by_timestep[candidate["time"]].append(candidate)
 
         active_tracks: list[dict] = [] #list of dictionaries with trajectories, location of last storm point, missed timesteps
         finished: list[Trajectory] = [] #list of dictionaries with trajectories that have been completed and no longer active
         next_id = 0
 
 
-        for t, time in enumerate(self._times):
-            frame = self._scores[t * n_per_frame : (t + 1) * n_per_frame]
-            probs = np.array([point["probs"] for point in frame]).reshape(
-                n_lat, n_lon, -1
-            )
-            class_idx = probs.argmax(axis=-1)
-            class_prob = probs.max(axis=-1)
-            is_storm = (class_idx != 0) & (class_prob >= self.parameters.threshold) #check if pixel is storm and clears the confidence threshold 
+        for time in self._times:
+            candidates = by_timestep[time]
 
-
-            candidates = self._cluster_candidates(is_storm, class_idx, class_prob) #calls clustering function
-            candidates = self._merge_nearby_candidates(candidates) #calls merge candidates function
-
-            #set of pixels that are not yet matched to a track, used to avoid double-counting candidates
+            #set of candidates that are not yet matched to a track, used to avoid double-counting them
             unmatched = set(range(len(candidates)))
             for track in active_tracks:
                 match = self._nearest_candidate(track, candidates, unmatched) #calls nearest candidate check function.
@@ -497,7 +534,7 @@ class MLTracker(TCMLTracker):
                     track["missed"] += 1
                     continue
                 point = candidates[match]
-                track["traj"].add_point(time, point)
+                track["traj"].add_point(time, _point_variables(point))
                 track["last"] = point
                 track["missed"] = 0
                 unmatched.discard(match)
@@ -515,7 +552,7 @@ class MLTracker(TCMLTracker):
             for i in unmatched:
                 point = candidates[i]
                 trajectory = Trajectory(next_id, time)
-                trajectory.add_point(time, point)
+                trajectory.add_point(time, _point_variables(point))
                 active_tracks.append(
                     {"traj": trajectory, "last": point, "missed": 0}
                 )
