@@ -43,6 +43,11 @@ TIME_START, N_TIME = 40, 2
 N_CHANNELS = 17
 N_CLASSES = 5
 
+# The default threshold of 0.5 finds nothing in this window - with five classes
+# a winning probability can be as low as ~0.21 - so the output writers are
+# exercised at a lower threshold, purely so that there is something to write.
+LOW_THRESHOLD = 0.2
+
 
 def build_era5_input(input_file: str) -> None:
     """Build the tracker's input file from the real ERA5 source files.
@@ -95,16 +100,11 @@ def fetch_norm_stats(stats_file: str) -> None:
     print(f"  fetched statistics from {REFERENCE_STATS_REF}")
 
 
-def test_real_data(work_dir: str) -> None:
+def test_real_data(input_file: str, stats_file: str) -> None:
     """Run the real pipeline and check every step is structurally sound."""
     print("\n" + "-" * 66)
     print("real ERA5 data through preprocess -> detect -> stitch")
     print("-" * 66)
-
-    input_file = f"{work_dir}/era5_window.nc"
-    stats_file = f"{work_dir}/normalisation_parameters.nc"
-    build_era5_input(input_file)
-    fetch_norm_stats(stats_file)
 
     params = MLParameters(
         input_file=input_file,
@@ -154,6 +154,73 @@ def test_real_data(work_dir: str) -> None:
         print("                (none found - fine, model quality is not under test)")
 
 
+def test_outputs(work_dir: str, input_file: str, stats_file: str) -> None:
+    """Check both output writers produce readable CF-NetCDF files.
+
+    Uses a lowered threshold so that detections actually exist: at the default
+    the model finds nothing in this small window, and the writers would take
+    their empty-input path without the file-writing code ever running.
+    """
+    print("\n" + "-" * 66)
+    print("output writers: detections_to_netcdf() and to_netcdf()")
+    print("-" * 66)
+
+    tracker = MLTracker(
+        MLParameters(
+            input_file=input_file,
+            model_path=MODEL_PATH,
+            normalisation_stats_path=stats_file,
+            threshold=LOW_THRESHOLD,
+            stitch_min_length=1,  # keep single-timestep tracks, so tracks exist
+        )
+    )
+    tracker.detect()
+    trajectories = tracker.stitch()
+    assert tracker._candidates, (
+        f"no detections even at threshold={LOW_THRESHOLD}; the writers below "
+        "cannot be exercised"
+    )
+    assert trajectories, "no trajectories to write"
+    print(f"  {len(tracker._candidates)} detections, {len(trajectories)} trajectories to write")
+
+    # -- detections: CF point layout ---------------------------------------
+    detections_file = f"{work_dir}/detections.nc"
+    tracker.detections_to_netcdf(detections_file)
+    fields = cf.read(detections_file)
+
+    written = {field.nc_get_variable("?"): field for field in fields}
+    assert len(written) == len(fields), "netCDF variable names collided"
+    for required in ("class_index", "score", "sea_surface_temperature"):
+        assert required in written, f"{required} missing from the detections file"
+    assert written["sea_surface_temperature"].get_property("standard_name") == (
+        "sea_surface_temperature"
+    ), "co-located variables should carry a CF standard name"
+    assert written["class_index"].get_property("flag_meanings"), (
+        "the categorical class should carry CF flag attributes"
+    )
+
+    example = next(iter(written.values()))
+    assert example.get_property("featureType") == "point", (
+        "detections are points, not trajectories"
+    )
+    for coordinate in ("time", "latitude", "longitude"):
+        assert example.coordinate(coordinate) is not None, f"missing {coordinate}"
+
+    # values should survive the round trip unchanged
+    from_file = written["sea_surface_temperature"].array.tolist()
+    in_memory = [c["sea_surface_temperature"] for c in tracker._candidates]
+    assert np.allclose(from_file, in_memory), "values changed on write/read"
+    print(f"  detections_to_netcdf(): {len(fields)} variables, point layout    OK")
+
+    # -- trajectories: CF trajectory layout --------------------------------
+    tracks_file = f"{work_dir}/tracks.nc"
+    tracker.to_netcdf(tracks_file)
+    track_fields = cf.read(tracks_file)
+    assert track_fields, "trajectory file has no variables"
+    assert track_fields[0].get_property("featureType") == "trajectory"
+    print(f"  to_netcdf():            {len(track_fields)} variables, trajectory layout OK")
+
+
 def main() -> None:
     """Run the integration test against freshly prepared real data."""
     print("=" * 66)
@@ -161,10 +228,15 @@ def main() -> None:
     print("(checks the code works; does NOT judge model accuracy)")
     print("=" * 66)
 
-    # Fresh temporary directory per run, removed on exit - nothing is cached,
-    # so the test can never pass against inputs left over from a previous run.
+    # Fresh temporary directory per run, removed on exit.
     with tempfile.TemporaryDirectory(prefix="tctrack_ml_test_") as work_dir:
-        test_real_data(work_dir)
+        input_file = f"{work_dir}/era5_window.nc"
+        stats_file = f"{work_dir}/normalisation_parameters.nc"
+        build_era5_input(input_file)
+        fetch_norm_stats(stats_file)
+
+        test_real_data(input_file, stats_file)
+        test_outputs(work_dir, input_file, stats_file)
 
     print("\n" + "=" * 66)
     print("ALL CHECKS PASSED")
