@@ -10,6 +10,7 @@ from collections import deque
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+import itertools
 import warnings
 
 import cf
@@ -207,19 +208,74 @@ class MLTracker(TCMLTracker):
             msg = "No variable with 'time' coordinate found in the input file."
             raise ValueError(msg)
         time_coord = vars_with_time[0].coordinate("time")
+        # datetime_array, not data, so these are cftime.datetime objects as
+        # TCTrackerTimeMetadata requires - to_netcdf compares them against a
+        # timedelta, which fails on the cf.Data that .data returns.
+        datetimes = time_coord.datetime_array
         self._time_metadata = {
             "calendar": time_coord.calendar,
             "units": time_coord.units,
-            "start_time": time_coord.data[0],
-            "end_time": time_coord.data[-1],
+            "start_time": datetimes[0],
+            "end_time": datetimes[-1],
         }
 
-        self._variable_metadata = {}
-        self._variable_metadata["variable_name"] = TCTrackerMetadata(
+        # CF metadata for everything a detection or trajectory point carries:
+        # the model's own two outputs, then the input variables sampled at the
+        # storm location (see MLTracker._channel_names).
+        self._variable_metadata = {
+            "class_index": TCTrackerMetadata(
+                properties={
+                    "long_name": "tropical cyclone lifecycle stage",
+                    "units": "1",
+                    # Categorical, so described with CF flag attributes rather
+                    # than a standard name. Matches config.lifestages in the
+                    # reference training pipeline, with 0 for background.
+                    "flag_values": [0, 1, 2, 3, 4],
+                    "flag_meanings": (
+                        "background storm_nondeveloping cyclolysis "
+                        "cyclogenesis active_cyclone"
+                    ),
+                }
+            ),
+            "score": TCTrackerMetadata(
+                properties={
+                    "long_name": "model confidence in the assigned lifecycle stage",
+                    "units": "1",
+                }
+            ),
+        }
+
+        colocated_metadata = {
+            "relative_humidity": ("relative_humidity", "%"),
+            "air_temperature": ("air_temperature", "K"),
+            "eastward_wind": ("eastward_wind", "m s-1"),
+            "northward_wind": ("northward_wind", "m s-1"),
+            "atmosphere_relative_vorticity": ("atmosphere_relative_vorticity", "s-1"),
+        }
+        for variable, level in itertools.product(
+            self.parameters.pressure_variables, self.parameters.pressure_levels
+        ):
+            standard_name, units = colocated_metadata[variable]
+            self._variable_metadata[f"{variable}_{int(level)}"] = TCTrackerMetadata(
+                properties={
+                    "standard_name": standard_name,
+                    "long_name": f"{standard_name.replace('_', ' ')} at {int(level)} hPa",
+                    "units": units,
+                }
+            )
+
+        self._variable_metadata["land_mask"] = TCTrackerMetadata(
             properties={
-                "standard_name": "...",
-                "long_name": "...",
-                "units": "...",
+                "standard_name": "land_binary_mask",
+                "long_name": "land/sea mask, 1 over land",
+                "units": "1",
+            }
+        )
+        self._variable_metadata["sea_surface_temperature"] = TCTrackerMetadata(
+            properties={
+                "standard_name": "sea_surface_temperature",
+                "long_name": "sea surface temperature, gap-filled over land",
+                "units": "K",
             }
         )
 
@@ -720,8 +776,11 @@ class MLTracker(TCMLTracker):
             metadata = self.variable_metadata.get(variable, TCTrackerMetadata({}))
             metadata.properties["featureType"] = "point"
             field = cf.Field(properties=metadata.properties)
-            if "standard_name" not in metadata.properties:
-                field.nc_set_variable(variable)
+            # Always name the NetCDF variable explicitly. Several variables
+            # legitimately share a standard name (the same quantity at
+            # different pressure levels), and cf-python would otherwise derive
+            # the variable name from it and collide.
+            field.nc_set_variable(variable)
 
             axis = field.set_construct(domain_axis)
             field.set_construct(dim_obs, axes=(axis,))
