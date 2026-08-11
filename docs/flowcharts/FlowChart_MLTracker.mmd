@@ -1,4 +1,3 @@
-# MLTracker Pipeline — Full Sequence (as implemented)
 
 flowchart TD
 
@@ -29,54 +28,65 @@ flowchart TD
         D2["Run U-Net\n(no memory of other frames)"]
         D3["Softmax → 5 class\nprobabilities per pixel"]
         D4["Check output grid matches\ninput grid, else raise"]
-        D5["Append {time, lat, lon, probs}\nfor EVERY pixel → _scores"]
-        D1 --> D2 --> D3 --> D4 --> D5
-        D5 -.next timestep.-> D1
+        D5[("Record every pixel\n→ _scores")]
+        D6["is_storm = winning class ≠ background\nAND prob ≥ threshold"]
+        D7["_cluster_candidates()\nflood-fill adjacent SAME-CLASS\npixels → weighted centroids"]
+        D8["_merge_nearby_candidates()\ndrop weaker candidates within\nmerge_distance_deg (NMS)"]
+        D9["_colocated_variables()\nsample the 17 inputs at each\nlocation, de-normalised"]
+
+        D1 --> D2 --> D3 --> D4
+        D4 --> D5
+        D4 --> D6 --> D7 --> D8 --> D9
+        D9 -.next timestep.-> D1
     end
 
-    SCORES[("_scores\nevery pixel × every timestep\n(no candidates yet)")]
+    CANDS[("_candidates\na list of TC locations,\neach with co-located variables")]
 
     subgraph STITCH["stitch()  —  one timestep at a time, in strict order"]
         direction TB
-        S1["Reshape this frame's scores\nback to (lat, lon, 5)"]
-        S2["is_storm = winning class ≠ background\nAND prob ≥ threshold"]
-        S3["_cluster_candidates()\nflood-fill adjacent SAME-CLASS\npixels → weighted centroids"]
-        S4["_merge_nearby_candidates()\ndrop weaker candidates within\nmerge_distance_deg (NMS)"]
+        S0["Look up this timestep's\ncandidates"]
+        S1{{"PASS 1 - extend\nfor each ACTIVE track:\n_nearest_candidate() within\nstitch_max_distance_deg?"}}
+        S2["Claim candidate, add point,\nreset missed = 0"]
+        S3["missed += 1"]
+        S4{{"PASS 2 - retire\nmissed > stitch_max_gap?"}}
+        S5[/"Close track:\nmove trail to finished"/]
+        S6["Stays in active_tracks"]
+        S7["PASS 3 - recruit\nany candidate left unclaimed\n→ new track, missed = 0"]
 
-        S5{{"PASS 1 - extend\nfor each ACTIVE track:\n_nearest_candidate() within\nstitch_max_distance_deg?"}}
-        S6["Claim candidate, add point,\nreset missed = 0"]
-        S7["missed += 1"]
-
-        S8{{"PASS 2 - retire\nmissed > stitch_max_gap?"}}
-        S9[/"Close track:\nmove trail to finished"/]
-        S10["Stays in active_tracks"]
-
-        S11["PASS 3 - recruit\nany candidate left unclaimed\n→ new track, missed = 0"]
-
-        S1 --> S2 --> S3 --> S4 --> S5
-        S5 -->|"match"| S6
-        S5 -->|"no match"| S7
-        S6 --> S8
-        S7 --> S8
-        S8 -->|"yes"| S9
-        S8 -->|"no"| S10
-        S10 --> S11
-        S11 -.next timestep.-> S1
+        S0 --> S1
+        S1 -->|"match"| S2
+        S1 -->|"no match"| S3
+        S2 --> S4
+        S3 --> S4
+        S4 -->|"yes"| S5
+        S4 -->|"no"| S6
+        S6 --> S7
+        S7 -.next timestep.-> S0
     end
 
     FILTER["After the last timestep:\nany still-active tracks join finished,\nthen keep only those with\n≥ stitch_min_length observations\n→ stored on _trajectories"]
 
-    OUT[("list[Trajectory]\nalso reachable via\nread_trajectories()")]
+    TRACKS[("list[Trajectory]\nalso via read_trajectories()")]
 
-    NEXT["run_tracker() → to_netcdf()\n— NOT YET WIRED UP"]
+    OUT_P["detections_to_netcdf()\nCF featureType = point\none record per detection"]
+    OUT_T["to_netcdf()\nCF featureType = trajectory\nragged array of tracks"]
 
-    IN --> PRE --> DET --> SCORES --> STITCH --> FILTER --> OUT --> NEXT
+    NEXT["run_tracker()\n— NOT YET WIRED UP"]
+
+    IN --> PRE --> DET --> CANDS --> STITCH --> FILTER --> TRACKS
+    CANDS --> OUT_P
+    TRACKS --> OUT_T
+    OUT_P -.should be called by.-> NEXT
+    OUT_T -.should be called by.-> NEXT
 
     style IN     fill:#d5f5e3,stroke:#1e8449
-    style OUT    fill:#aed6f1,stroke:#1a5276
-    style SCORES fill:#fef9e7,stroke:#f39c12
+    style CANDS  fill:#fef9e7,stroke:#f39c12
+    style TRACKS fill:#aed6f1,stroke:#1a5276
     style PRE    fill:#fdebd0,stroke:#e67e22
     style DET    fill:#eaf2f8,stroke:#2874a6
     style STITCH fill:#eafaf1,stroke:#27ae60
     style FILTER fill:#f4ecf7,stroke:#8e44ad
+    style OUT_P  fill:#d6eaf8,stroke:#1a5276
+    style OUT_T  fill:#d6eaf8,stroke:#1a5276
     style NEXT   fill:#f9f9f9,stroke:#aaa,stroke-dasharray: 5 5
+
