@@ -1,18 +1,27 @@
-"""Integration test for the MLTracker pipeline: preprocess -> detect -> stitch.
+"""Integration test for the MLTracker pipeline.
 
-A small crop of real ERA5 data is run through preprocess() -> detect() ->
-stitch(), checking shapes and invariants at each step. Finding zero storms is
-an acceptable outcome.
+Runs a small crop of real ERA5 data through preprocess() -> detect() ->
+stitch(), then writes the results with both output writers and reads them
+back. Shapes and invariants are checked at each step; how *well* the model
+detects storms is deliberately not asserted on, since it is trained on full
+721x1440 global fields and behaves unreliably on crops this small.
 
 Everything is built fresh on every run - the ERA5 crop is re-cut from the
 source files and the statistics re-fetched from the reference repo, into a
-temporary directory that is discarded afterwards. Kept small deliberately: a 32x32 crop over 2 timesteps. Two timesteps is the
+temporary directory that is discarded afterwards. Nothing is cached, so the
+test can never pass against stale inputs.
+
+Kept small deliberately: a 32x32 crop over 2 timesteps. Two timesteps is the
 minimum that exercises cross-timestep track linking, and 32x32 is the smallest
 safe size given the U-Net downsamples by 16.
 
 Run from the repo root with:
     conda run -n tctrack-env python tests/integration/test_integration_ml_pipeline.py
 """
+
+# The test inspects the tracker's internal state on purpose - that is what it
+# is verifying - so private-member access is expected throughout.
+# ruff: noqa: SLF001
 
 import subprocess
 import tempfile
@@ -35,7 +44,6 @@ MODEL_PATH = (
 )
 
 # Small and cheap: 32x32 grid points over 2 consecutive 6-hourly timesteps.
-# Two timesteps is the minimum that exercises cross-timestep track linking.
 CENTRE_LAT, CENTRE_LON = -12.6, 51.0
 HALF_BOX = 16
 TIME_START, N_TIME = 40, 2
@@ -47,6 +55,25 @@ N_CLASSES = 5
 # a winning probability can be as low as ~0.21 - so the output writers are
 # exercised at a lower threshold, purely so that there is something to write.
 LOW_THRESHOLD = 0.2
+
+RULE = "-" * 66
+
+
+def section(title: str) -> None:
+    """Print a titled section header."""
+    print(f"\n{RULE}\n{title}\n{RULE}")
+
+
+def make_tracker(input_file: str, stats_file: str, **overrides) -> MLTracker:
+    """Build a tracker against the prepared inputs, overriding any parameter."""
+    return MLTracker(
+        MLParameters(
+            input_file=input_file,
+            model_path=MODEL_PATH,
+            normalisation_stats_path=stats_file,
+            **overrides,
+        )
+    )
 
 
 def build_era5_input(input_file: str) -> None:
@@ -89,31 +116,21 @@ def build_era5_input(input_file: str) -> None:
 
 def fetch_norm_stats(stats_file: str) -> None:
     """Pull the real normalisation statistics from the reference repo."""
-    subprocess.run(["git", "fetch", "origin"], cwd=REFERENCE_REPO, check=True)
+    git = ["git", "-C", REFERENCE_REPO]
+    subprocess.run([*git, "fetch", "origin"], check=True)  # noqa: S603
     with open(stats_file, "wb") as handle:
-        subprocess.run(
-            ["git", "show", REFERENCE_STATS_REF],
-            cwd=REFERENCE_REPO,
-            stdout=handle,
-            check=True,
+        subprocess.run(  # noqa: S603
+            [*git, "show", REFERENCE_STATS_REF], stdout=handle, check=True
         )
     print(f"  fetched statistics from {REFERENCE_STATS_REF}")
 
 
-def test_real_data(input_file: str, stats_file: str) -> None:
-    """Run the real pipeline and check every step is structurally sound."""
-    print("\n" + "-" * 66)
-    print("real ERA5 data through preprocess -> detect -> stitch")
-    print("-" * 66)
+def test_pipeline(input_file: str, stats_file: str) -> None:
+    """Run the pipeline at default settings and check each step's output."""
+    section("real ERA5 data through preprocess -> detect -> stitch")
 
-    params = MLParameters(
-        input_file=input_file,
-        model_path=MODEL_PATH,
-        normalisation_stats_path=stats_file,
-    )
-    tracker = MLTracker(params)
+    tracker = make_tracker(input_file, stats_file)
 
-    # -- preprocess --------------------------------------------------------
     tensor = tracker.preprocess()
     n_lat, n_lon = len(tracker._lats), len(tracker._lons)
     assert tuple(tensor.shape) == (N_CHANNELS, N_TIME, n_lat, n_lon), (
@@ -123,30 +140,29 @@ def test_real_data(input_file: str, stats_file: str) -> None:
     assert len(tracker._times) == N_TIME, "wrong number of timesteps read"
     print(f"  preprocess(): {tuple(tensor.shape)}, no NaNs                    OK")
 
-    # -- detect ------------------------------------------------------------
     tracker.detect()
     expected = N_TIME * n_lat * n_lon
     assert len(tracker._scores) == expected, (
         f"expected {expected} scores, got {len(tracker._scores)}"
     )
-    for score in tracker._scores[:100]:
-        assert set(score) == {"time", "lat", "lon", "probs"}, "unexpected score keys"
-        assert len(score["probs"]) == N_CLASSES, "expected 5 class probabilities"
-    sums = np.array([sum(s["probs"]) for s in tracker._scores])
+    # detect() builds every score in one loop, so checking one covers the shape.
+    assert set(tracker._scores[0]) == {"time", "lat", "lon", "probs"}
+    assert len(tracker._scores[0]["probs"]) == N_CLASSES
+    sums = np.array([sum(score["probs"]) for score in tracker._scores])
     assert np.abs(sums - 1.0).max() < 1e-4, "softmax outputs must sum to 1"
-    detected = sum(1 for s in tracker._scores if int(np.argmax(s["probs"])) != 0)
+    detected = sum(
+        1 for score in tracker._scores if int(np.argmax(score["probs"])) != 0
+    )
     print(f"  detect():     {len(tracker._scores)} scores, softmax valid       OK")
     print(f"                {detected} non-background pixels (not asserted on)")
 
-    # -- stitch ------------------------------------------------------------
     trajectories = tracker.stitch()
-    assert isinstance(trajectories, list), "stitch() must return a list"
     assert tracker.read_trajectories() == trajectories, (
         "read_trajectories() must return what stitch() produced, else to_netcdf() "
         "would write nothing"
     )
     for trajectory in trajectories:
-        assert trajectory.observations >= params.stitch_min_length
+        assert trajectory.observations >= tracker.parameters.stitch_min_length
         for key in ("time", "lat", "lon"):
             assert key in trajectory.data, f"trajectory missing '{key}'"
     print(f"  stitch():     {len(trajectories)} trajectories, all well-formed   OK")
@@ -154,62 +170,58 @@ def test_real_data(input_file: str, stats_file: str) -> None:
         print("                (none found - fine, model quality is not under test)")
 
 
-def test_outputs(work_dir: str, input_file: str, stats_file: str) -> None:
-    """Check both output writers produce readable CF-NetCDF files.
+def test_output_writers(work_dir: str, input_file: str, stats_file: str) -> None:
+    """Check both writers produce readable CF-NetCDF files.
 
     Uses a lowered threshold so that detections actually exist: at the default
     the model finds nothing in this small window, and the writers would take
     their empty-input path without the file-writing code ever running.
     """
-    print("\n" + "-" * 66)
-    print("output writers: detections_to_netcdf() and to_netcdf()")
-    print("-" * 66)
+    section("output writers: detections_to_netcdf() and to_netcdf()")
 
-    tracker = MLTracker(
-        MLParameters(
-            input_file=input_file,
-            model_path=MODEL_PATH,
-            normalisation_stats_path=stats_file,
-            threshold=LOW_THRESHOLD,
-            stitch_min_length=1,  # keep single-timestep tracks, so tracks exist
-        )
+    tracker = make_tracker(
+        input_file,
+        stats_file,
+        threshold=LOW_THRESHOLD,
+        stitch_min_length=1,  # keep single-timestep tracks, so tracks exist
     )
     tracker.detect()
     trajectories = tracker.stitch()
     assert tracker._candidates, (
-        f"no detections even at threshold={LOW_THRESHOLD}; the writers below "
-        "cannot be exercised"
+        f"no detections even at threshold={LOW_THRESHOLD}, so the writers "
+        "below cannot be exercised"
     )
     assert trajectories, "no trajectories to write"
-    print(f"  {len(tracker._candidates)} detections, {len(trajectories)} trajectories to write")
+    print(
+        f"  {len(tracker._candidates)} detections, "
+        f"{len(trajectories)} trajectories to write"
+    )
 
     # -- detections: CF point layout ---------------------------------------
     detections_file = f"{work_dir}/detections.nc"
     tracker.detections_to_netcdf(detections_file)
     fields = cf.read(detections_file)
-
     written = {field.nc_get_variable("?"): field for field in fields}
+
     assert len(written) == len(fields), "netCDF variable names collided"
     for required in ("class_index", "score", "sea_surface_temperature"):
         assert required in written, f"{required} missing from the detections file"
-    assert written["sea_surface_temperature"].get_property("standard_name") == (
-        "sea_surface_temperature"
-    ), "co-located variables should carry a CF standard name"
+
+    sst = written["sea_surface_temperature"]
+    assert sst.get_property("standard_name") == "sea_surface_temperature", (
+        "co-located variables should carry a CF standard name"
+    )
     assert written["class_index"].get_property("flag_meanings"), (
         "the categorical class should carry CF flag attributes"
     )
-
-    example = next(iter(written.values()))
-    assert example.get_property("featureType") == "point", (
+    assert sst.get_property("featureType") == "point", (
         "detections are points, not trajectories"
     )
     for coordinate in ("time", "latitude", "longitude"):
-        assert example.coordinate(coordinate) is not None, f"missing {coordinate}"
+        assert sst.coordinate(coordinate) is not None, f"missing {coordinate}"
 
-    # values should survive the round trip unchanged
-    from_file = written["sea_surface_temperature"].array.tolist()
     in_memory = [c["sea_surface_temperature"] for c in tracker._candidates]
-    assert np.allclose(from_file, in_memory), "values changed on write/read"
+    assert np.allclose(sst.array.tolist(), in_memory), "values changed on write/read"
     print(f"  detections_to_netcdf(): {len(fields)} variables, point layout    OK")
 
     # -- trajectories: CF trajectory layout --------------------------------
@@ -218,15 +230,17 @@ def test_outputs(work_dir: str, input_file: str, stats_file: str) -> None:
     track_fields = cf.read(tracks_file)
     assert track_fields, "trajectory file has no variables"
     assert track_fields[0].get_property("featureType") == "trajectory"
-    print(f"  to_netcdf():            {len(track_fields)} variables, trajectory layout OK")
+    print(
+        f"  to_netcdf():            {len(track_fields)} variables, "
+        "trajectory layout OK"
+    )
 
 
 def main() -> None:
     """Run the integration test against freshly prepared real data."""
-    print("=" * 66)
-    print("MLTracker pipeline integration test")
-    print("(checks the code works; does NOT judge model accuracy)")
-    print("=" * 66)
+    banner = "=" * 66
+    print(f"{banner}\nMLTracker pipeline integration test")
+    print(f"(checks the code works; does NOT judge model accuracy)\n{banner}")
 
     # Fresh temporary directory per run, removed on exit.
     with tempfile.TemporaryDirectory(prefix="tctrack_ml_test_") as work_dir:
@@ -235,12 +249,10 @@ def main() -> None:
         build_era5_input(input_file)
         fetch_norm_stats(stats_file)
 
-        test_real_data(input_file, stats_file)
-        test_outputs(work_dir, input_file, stats_file)
+        test_pipeline(input_file, stats_file)
+        test_output_writers(work_dir, input_file, stats_file)
 
-    print("\n" + "=" * 66)
-    print("ALL CHECKS PASSED")
-    print("=" * 66)
+    print(f"\n{banner}\nALL CHECKS PASSED\n{banner}")
 
 
 if __name__ == "__main__":
