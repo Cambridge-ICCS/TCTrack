@@ -10,10 +10,13 @@ from collections import deque
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+import warnings
+
 import cf
 import h5py
 import numpy as np
 import torch
+from cftime import date2num
 
 from tctrack.core import (
     TCTrackerMetadata,
@@ -628,6 +631,114 @@ class MLTracker(TCMLTracker):
             if trajectory.observations >= self.parameters.stitch_min_length
         ]
         return self._trajectories
+
+    def detections_to_netcdf(self, output_file: str) -> None:
+        """Write the detected TC locations to a CF-compliant NetCDF point file.
+
+        The detections from :meth:`detect` are a set of independent points -
+        each a storm location at one time, with the input variables sampled
+        there - rather than connected tracks. They are therefore written with
+        ``featureType = "point"`` over a single ``observation`` dimension,
+        instead of the trajectory layout :meth:`to_netcdf` produces.
+
+        Parameters
+        ----------
+        output_file : str
+            Filename for the output NetCDF file. Placed in the working
+            directory unless a full path is given.
+
+        Warns
+        -----
+        UserWarning
+            If :meth:`detect` found no candidates, in which case no file is
+            written.
+
+        References
+        ----------
+        `CF-Conventions - H.1. Point Data
+        <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.11/cf-conventions.html#point-data>`_
+        """
+        if not self._time_metadata or not self._variable_metadata:
+            self.set_metadata()
+
+        if not self._candidates:
+            msg = (
+                "There are no detections to write, so no output file will be "
+                "created. Has detect() been run?"
+            )
+            warnings.warn(msg, category=UserWarning, stacklevel=2)
+            return
+
+        domain_axis = cf.DomainAxis(size=len(self._candidates))
+        domain_axis.nc_set_dimension("observation")
+        dim_obs = cf.DimensionCoordinate(
+            data=cf.Data(range(len(self._candidates))),
+            properties={
+                "standard_name": "observation",
+                "long_name": "detection index",
+            },
+        )
+
+        time_coord = cf.AuxiliaryCoordinate(
+            data=cf.Data(
+                date2num(
+                    [candidate["time"] for candidate in self._candidates],
+                    units=self.time_metadata["units"],
+                    calendar=self.time_metadata["calendar"],
+                ).tolist()
+            ),
+            properties={
+                "standard_name": "time",
+                "long_name": "time of detection",
+                "units": cf.Units(
+                    self.time_metadata["units"], calendar=self.time_metadata["calendar"]
+                ),
+            },
+        )
+        lat_coord = cf.AuxiliaryCoordinate(
+            data=cf.Data([candidate["lat"] for candidate in self._candidates]),
+            properties={
+                "standard_name": "latitude",
+                "long_name": "latitude of detection",
+                "units": "degrees_north",
+            },
+        )
+        lon_coord = cf.AuxiliaryCoordinate(
+            data=cf.Data([candidate["lon"] for candidate in self._candidates]),
+            properties={
+                "standard_name": "longitude",
+                "long_name": "longitude of detection",
+                "units": "degrees_east",
+            },
+        )
+
+        fields = []
+        for variable in self._candidates[0]:
+            if variable in {"time", "lat", "lon"}:
+                continue
+
+            metadata = self.variable_metadata.get(variable, TCTrackerMetadata({}))
+            metadata.properties["featureType"] = "point"
+            field = cf.Field(properties=metadata.properties)
+            if "standard_name" not in metadata.properties:
+                field.nc_set_variable(variable)
+
+            axis = field.set_construct(domain_axis)
+            field.set_construct(dim_obs, axes=(axis,))
+            field.set_construct(time_coord, axes=(axis,))
+            field.set_construct(lat_coord, axes=(axis,))
+            field.set_construct(lon_coord, axes=(axis,))
+            field.set_data(
+                cf.Data([candidate[variable] for candidate in self._candidates]),
+                axes=(axis,),
+            )
+
+            if self.global_metadata:
+                field.nc_set_global_attributes(self.global_metadata)
+
+            fields.append(field)
+
+        cf.write(fields, output_file)  # type: ignore[operator]
 
     def run_tracker(self, output_file: str) -> None:
         """Run the tracker to obtain the tropical cyclone trajectories.
