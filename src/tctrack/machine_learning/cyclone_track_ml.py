@@ -309,6 +309,57 @@ class MLTracker(TCMLTracker):
 
         return torch.from_numpy(data).float()
 
+    @property
+    def _channel_names(self) -> list[str]:
+        """Names for the model's input channels, in the order they are stacked.
+
+        Matches the loop in :meth:`preprocess`: each pressure variable at each
+        pressure level (variable-major), then the land/sea mask, then sea
+        surface temperature.
+        """
+        names = [
+            f"{variable}_{int(level)}"
+            for variable in self.parameters.pressure_variables
+            for level in self.parameters.pressure_levels
+        ]
+        return [*names, "land_mask", "sea_surface_temperature"]
+
+    def _colocated_variables(
+        self,
+        frame: np.ndarray,
+        candidate: dict,
+        mean: np.ndarray,
+        value_range: np.ndarray,
+    ) -> dict:
+        """Sample the input variables at a candidate's location.
+
+        Values are taken at the grid point nearest the candidate's reported
+        position and converted back to physical units, undoing the
+        ``(x - mean) / range`` scaling applied in :meth:`preprocess` so that
+        what is reported is e.g. a temperature in Kelvin rather than a
+        normalised number.
+
+        Parameters
+        ----------
+        frame : numpy.ndarray
+            This timestep's normalised input, shape ``(channel, lat, lon)``.
+        candidate : dict
+            A candidate with ``lat``/``lon`` keys.
+        mean : numpy.ndarray
+            Per-channel means used to normalise, shape ``(channel,)``.
+        value_range : numpy.ndarray
+            Per-channel ranges used to normalise, shape ``(channel,)``.
+
+        Returns
+        -------
+        dict
+            One entry per input channel, keyed by :attr:`_channel_names`.
+        """
+        i = int(np.argmin(np.abs(self._lats - candidate["lat"])))
+        j = int(np.argmin(np.abs(self._lons - candidate["lon"])))
+        physical = frame[:, i, j] * value_range + mean
+        return dict(zip(self._channel_names, physical.tolist(), strict=True))
+
     def detect(self) -> None:
         """Run the U-Net over the grid and locate the tropical cyclones in it.
 
@@ -332,6 +383,10 @@ class MLTracker(TCMLTracker):
         """
         data = self.preprocess()  # (channel, time, lat, lon)
         _, n_time, _, _ = data.shape
+
+        # Reused to convert the normalised input back to physical units when
+        # recording the variables co-located with each detection.
+        mean, value_range = self._load_normalisation_stats()
 
         self._scores = []
         self._candidates = []
@@ -366,8 +421,15 @@ class MLTracker(TCMLTracker):
 
                 candidates = self._cluster_candidates(is_storm, class_idx, class_prob)
                 candidates = self._merge_nearby_candidates(candidates)
+
+                frame_data = data[:, t, :, :].numpy()  # (channel, lat, lon)
                 for candidate in candidates:
                     candidate["time"] = self._times[t]
+                    candidate.update(
+                        self._colocated_variables(
+                            frame_data, candidate, mean, value_range
+                        )
+                    )
                 self._candidates.extend(candidates)
 
     def _cluster_candidates(
