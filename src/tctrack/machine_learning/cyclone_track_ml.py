@@ -447,16 +447,88 @@ class MLTracker(TCMLTracker):
             :attr:`parameters.stitch_max_distance_deg`, or ``None`` if none
             qualify.
         """
-        best_index, best_distance = None, self.parameters.stitch_max_distance_deg
+        best_index, best_distance = None, self.parameters.stitch_max_distance_deg #best distance is closest distance found so far
         for i in unmatched:
             candidate = candidates[i]
             distance = np.hypot(
                 candidate["lat"] - track["last"]["lat"],
                 candidate["lon"] - track["last"]["lon"],
             )
-            if distance < best_distance:
+            if distance < best_distance: #condition to check if the distance is less than the best distance found so far
                 best_index, best_distance = i, distance
         return best_index
+    
+    def stitch(self) -> list[Trajectory]:
+        """Link per-timestep detections into cyclone trajectories.
+
+        Returns
+        -------
+        list[Trajectory]
+            One :class:`~tctrack.core.Trajectory` per track with at least
+            :attr:`parameters.stitch_min_length` observations.
+        """
+        n_lat, n_lon = len(self._lats), len(self._lons)
+        n_per_frame = n_lat * n_lon
+
+
+        active_tracks: list[dict] = [] #list of dictionaries with trajectories, location of last storm point, missed timesteps
+        finished: list[Trajectory] = [] #list of dictionaries with trajectories that have been completed and no longer active
+        next_id = 0
+
+
+        for t, time in enumerate(self._times):
+            frame = self._scores[t * n_per_frame : (t + 1) * n_per_frame]
+            probs = np.array([point["probs"] for point in frame]).reshape(
+                n_lat, n_lon, -1
+            )
+            class_idx = probs.argmax(axis=-1)
+            class_prob = probs.max(axis=-1)
+            is_storm = (class_idx != 0) & (class_prob >= self.parameters.threshold) #check if pixel is storm and clears the confidence threshold 
+
+
+            candidates = self._cluster_candidates(is_storm, class_idx, class_prob) #calls clustering function
+            candidates = self._merge_nearby_candidates(candidates) #calls merge candidates function
+
+            #set of pixels that are not yet matched to a track, used to avoid double-counting candidates
+            unmatched = set(range(len(candidates)))
+            for track in active_tracks:
+                match = self._nearest_candidate(track, candidates, unmatched) #calls nearest candidate check function.
+                if match is None:
+                    track["missed"] += 1
+                    continue
+                point = candidates[match]
+                track["traj"].add_point(time, point)
+                track["last"] = point
+                track["missed"] = 0
+                unmatched.discard(match)
+
+
+            still_active = []
+            for track in active_tracks:
+                if track["missed"] > self.parameters.stitch_max_gap:
+                    finished.append(track["traj"])
+                else:
+                    still_active.append(track)
+            active_tracks = still_active
+
+
+            for i in unmatched:
+                point = candidates[i]
+                trajectory = Trajectory(next_id, time)
+                trajectory.add_point(time, point)
+                active_tracks.append(
+                    {"traj": trajectory, "last": point, "missed": 0}
+                )
+                next_id += 1
+
+
+        finished.extend(track["traj"] for track in active_tracks)
+        self._trajectories = [
+            trajectory
+            for trajectory in finished
+            if trajectory.observations >= self.parameters.stitch_min_length
+        ]
+        return self._trajectories
 
     def run_tracker(self, output_file: str) -> None:
         """Run the tracker to obtain the tropical cyclone trajectories.
