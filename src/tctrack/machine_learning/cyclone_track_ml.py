@@ -6,12 +6,11 @@ References
   <https://tctrack.readthedocs.io/en/latest/developer/adding_algorithms.html>`__
 """
 
+import itertools
+import warnings
 from collections import deque
 from collections.abc import Sequence
 from dataclasses import dataclass
-
-import itertools
-import warnings
 
 import cf
 import h5py
@@ -256,10 +255,11 @@ class MLTracker(TCMLTracker):
             self.parameters.pressure_variables, self.parameters.pressure_levels
         ):
             standard_name, units = colocated_metadata[variable]
+            described = standard_name.replace("_", " ")
             self._variable_metadata[f"{variable}_{int(level)}"] = TCTrackerMetadata(
                 properties={
                     "standard_name": standard_name,
-                    "long_name": f"{standard_name.replace('_', ' ')} at {int(level)} hPa",
+                    "long_name": f"{described} at {int(level)} hPa",
                     "units": units,
                 }
             )
@@ -802,11 +802,13 @@ class MLTracker(TCMLTracker):
     def run_tracker(self, output_file: str) -> None:
         """Run the tracker to obtain the tropical cyclone trajectories.
 
-        This runs each of the individual steps of the tracking algorithm.
+        Runs :meth:`detect` to locate the cyclones at each timestep - which
+        reads and prepares the input itself, via :meth:`preprocess` - then
+        links those detections into tracks with :meth:`stitch`, and finally
+        writes the tracks out with :meth:`to_netcdf`.
 
-        Finally, the output is saved as a CF-netCDF file by calling :meth:`to_netcdf`.
-        If the tracking algorithm doesn't produce an intermediate output file then the
-        trajectories should be passed to it as an argument.
+        The detections behind those tracks can be saved separately, as CF
+        point data, with :meth:`detections_to_netcdf`.
 
         Arguments
         ---------
@@ -822,10 +824,6 @@ class MLTracker(TCMLTracker):
         >>> tracker = MLTracker(params)
         >>> tracker.run_tracker("trajectories.nc")
         """
-        # Run the steps for the tracking algorithm, eg:
-        # self.preprocess()
-        # self.detect()
-        # trajectories = self.stitch()
-
-        # Output the trajectories as a CF-netcdf file.
-        # self.to_netcdf(output_file, trajectories)
+        self.detect()
+        self.stitch()
+        self.to_netcdf(output_file)
