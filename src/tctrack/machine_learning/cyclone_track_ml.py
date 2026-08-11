@@ -82,6 +82,18 @@ class MLParameters(TCMLParameters):
     raises rather than silently passing unnormalised data to the model.
     """
 
+    merge_distance_deg: float = 2.0
+    """Distance (degrees lat/lon) within which candidates in the same timestep
+    are merged, keeping only the highest-scoring one.
+
+    The model often splits a single storm into several adjacent clusters -
+    either side of a lifecycle-class boundary, or where confidence dips below
+    :attr:`~TCMLParameters.threshold` mid-storm - which would otherwise each
+    become a separate track. Mirrors ``merge_dist`` in TempestExtremes'
+    ``DetectNodes``, which resolves the same problem for its own candidates.
+    Set to ``0`` to disable merging.
+    """
+
     stitch_max_distance_deg: float = 3.0
     """Maximum distance (degrees lat/lon) between a track's last point and a
     candidate in the next timestep for them to be linked as the same storm.
@@ -146,6 +158,10 @@ class MLTracker(TCMLTracker):
         self.parameters: MLParameters = parameters
         self._trajectories: list[Trajectory] = []
         self._scores: list[dict] = []
+        # Grid/time coordinates of the input file, populated by preprocess().
+        self._lats: np.ndarray = np.array([])
+        self._lons: np.ndarray = np.array([])
+        self._times: np.ndarray = np.array([])
         self._load_model(parameters)
 
     @property
@@ -255,7 +271,7 @@ class MLTracker(TCMLTracker):
         for variable in self.parameters.pressure_variables:
             field = fields.select_field(variable)
             for level in self.parameters.pressure_levels:
-                pressure_channels.append(field.subspace(Z=level).squeeze().array)
+                pressure_channels.append(field.subspace(Z=level).squeeze("Z").array)
 
         sst = fields.select_field(self.parameters.sst_variable).array
         t2m = fields.select_field(self.parameters.t2m_variable).array
@@ -293,8 +309,6 @@ class MLTracker(TCMLTracker):
         data = self.preprocess()  # (channel, time, lat, lon)
         _, n_time, _, _ = data.shape
 
-        out_lats, out_lons = self._lats, self._lons
-
         self._scores = []
         with torch.no_grad():
             for t in range(n_time):
@@ -302,15 +316,15 @@ class MLTracker(TCMLTracker):
                 output = self.model(frame)  # (1, 5, lat', lon')
                 probs = torch.softmax(output, dim=1)[0].numpy()  # (5, lat', lon')
 
-                if probs.shape[1:] != (len(out_lats), len(out_lons)):
+                if probs.shape[1:] != (len(self._lats), len(self._lons)):
                     msg = (
                         f"Model output shape {probs.shape[1:]} does not match "
-                        f"the input grid {(len(out_lats), len(out_lons))}."
+                        f"the input grid {(len(self._lats), len(self._lons))}."
                     )
                     raise ValueError(msg)
 
-                for i, lat in enumerate(out_lats):
-                    for j, lon in enumerate(out_lons):
+                for i, lat in enumerate(self._lats):
+                    for j, lon in enumerate(self._lons):
                         self._scores.append(
                             {
                                 "time": self._times[t],
@@ -319,6 +333,93 @@ class MLTracker(TCMLTracker):
                                 "probs": probs[:, i, j].tolist(),
                             }
                         )
+
+    def _cluster_candidates(
+        self,
+        is_storm: np.ndarray,
+        class_idx: np.ndarray,
+        class_prob: np.ndarray,
+    ) -> list[dict]:
+        """Group adjacent same-class detected pixels into single point candidates.
+
+        Parameters
+        ----------
+        is_storm : numpy.ndarray
+            Boolean array, shape ``(lat, lon)``, True for detected pixels.
+        class_idx : numpy.ndarray
+            Winning class index per pixel, shape ``(lat, lon)``.
+        class_prob : numpy.ndarray
+            Winning class probability per pixel, shape ``(lat, lon)``.
+
+        Returns
+        -------
+        list[dict]
+            One dict per cluster with keys ``lat``, ``lon``, ``class_index``,
+            and ``score`` - the probability-weighted centroid, class, and
+            peak probability of each connected group of same-class pixels.
+        """
+        unvisited = set(zip(*np.nonzero(is_storm), strict=False))
+        candidates = []
+
+        while unvisited:
+            start = unvisited.pop()
+            component_class = class_idx[start]
+            queue = deque([start])
+            pixels = [start]
+
+            while queue:
+                y, x = queue.popleft()
+                for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                    neighbour = (y + dy, x + dx)
+                    if (
+                        neighbour in unvisited
+                        and class_idx[neighbour] == component_class
+                    ):
+                        unvisited.discard(neighbour)
+                        queue.append(neighbour)
+                        pixels.append(neighbour)
+
+            ys, xs = zip(*pixels, strict=False)
+            ys_arr, xs_arr = np.array(ys), np.array(xs)
+            weights = class_prob[ys_arr, xs_arr]
+            candidates.append(
+                {
+                    "lat": float(np.average(self._lats[ys_arr], weights=weights)),
+                    "lon": float(np.average(self._lons[xs_arr], weights=weights)),
+                    "class_index": float(component_class),
+                    "score": float(weights.max()),
+                }
+            )
+
+        return candidates
+
+    def _merge_nearby_candidates(self, candidates: list[dict]) -> list[dict]:
+        """Merges candidates that are too close together into the strongest one.
+
+        Parameters
+        ----------
+        candidates : list[dict]
+            This timestep's candidates, as built by :meth:`_cluster_candidates`.
+
+        Returns
+        -------
+        list[dict]
+            The retained candidates, strongest first.
+        """
+        if self.parameters.merge_distance_deg <= 0:
+            return candidates
+
+        kept: list[dict] = []
+        for candidate in sorted(candidates, key=lambda c: c["score"], reverse=True):
+            if all(
+                np.hypot(
+                    candidate["lat"] - other["lat"], candidate["lon"] - other["lon"]
+                )
+                >= self.parameters.merge_distance_deg
+                for other in kept
+            ):
+                kept.append(candidate)
+        return kept
 
     def run_tracker(self, output_file: str) -> None:
         """Run the tracker to obtain the tropical cyclone trajectories.
