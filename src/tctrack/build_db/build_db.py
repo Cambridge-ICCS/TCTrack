@@ -201,12 +201,9 @@ def extract_trajectory(netcdf_data: dict, traj_idx: int) -> dict:
     }
 
 
-def build_geojson(traj: dict) -> str:
+def build_geojson_track(traj: dict) -> dict:
     """
-    Build a GeoJSON FeatureCollection for a single trajectory.
-
-    Contains a LineString feature for the full path and Point features
-    for each observation along with attributes.
+    Build a GeoJSON LineString Feature for the full trajectory path.
 
     Parameters
     ----------
@@ -215,31 +212,39 @@ def build_geojson(traj: dict) -> str:
 
     Returns
     -------
-    Trajectory vector line and points in a GeoJSON string.
+    GeoJSON Feature dictionary with a LineString for the trajectory.
+    """
+    coordinates = [[traj["longitude"][i], traj["latitude"][i]] for i in traj["indices"]]
+
+    return {
+        "type": "Feature",
+        "geometry": {
+            "type": "LineString",
+            "coordinates": coordinates,
+        },
+        "properties": {
+            "feature_type": "track",
+            "start_end": traj["start_end"],
+            "source_file": os.path.basename(traj["filepath"]),
+        },
+    }
+
+
+def build_geojson_points(traj: dict) -> dict:
+    """
+    Build GeoJSON FeatureCollection for all observation points along the trajectory.
+
+    Parameters
+    ----------
+    traj
+        Dictionary from `extract_trajectory`.
+
+    Returns
+    -------
+    GeoJSON FeatureCollection dictionary with a Point for each observation.
     """
     features = []
 
-    # 1. Vector track (LineString)
-    coordinates = []
-    for i in traj["indices"]:
-        coordinates.append([traj["longitude"][i], traj["latitude"][i]])
-
-    features.append(
-        {
-            "type": "Feature",
-            "geometry": {
-                "type": "LineString",
-                "coordinates": coordinates,
-            },
-            "properties": {
-                "feature_type": "track",
-                "start_end": traj["start_end"],
-                "source_file": os.path.basename(traj["filepath"]),
-            },
-        }
-    )
-
-    # 2. Point features for each observation (Point)
     for idx, i in enumerate(traj["indices"]):
         features.append(
             {
@@ -268,7 +273,7 @@ def build_geojson(traj: dict) -> str:
             }
         )
 
-    return json.dumps({"type": "FeatureCollection", "features": features})
+    return {"type": "FeatureCollection", "features": features}
 
 
 def insert_file(
@@ -348,11 +353,13 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
     -------
     Row id of trajectory in the database.
     """
-    geojson_str = build_geojson(traj)
+    geojson_track = json.dumps(build_geojson_track(traj))
+    geojson_points = json.dumps(build_geojson_points(traj))
 
     cur = db.execute(
-        "insert into trajectories (file_id, start_end, geojson) values (?, ?, ?)",
-        (file_id, traj["start_end"], geojson_str),
+        "insert into trajectories (file_id, start_end, geojson_track, geojson_points)"
+        " values (?, ?, ?, ?)",
+        (file_id, traj["start_end"], geojson_track, geojson_points),
     )
     if cur.lastrowid is None:
         msg = "Insert into trajectories table failed"

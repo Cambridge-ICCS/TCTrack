@@ -56,7 +56,7 @@ build-db --output tracks.db --collection hadgem3 more_tracks.nc
 ```
 collections              Named groups of track files.
 └─ files                 Individual NetCDF files with metadata.
-   └─ trajectories       Cyclone tracks stored as GeoJSON FeatureCollections.
+   └─ trajectories       Cyclone tracks stored as GeoJSON (track and points).
       └─ observations    Individual observation rows.
 ```
 
