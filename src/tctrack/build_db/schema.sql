@@ -47,24 +47,23 @@ create index files_collection_idx on files(collection_id);
 -- Trajectories
 -- A single cyclone trajectory stored as GeoJSON.
 --
--- The geojson column contains a LineString feature for the full vector path
--- plus Point features for each path point along with attributes.
+-- geojson_track  LineString for the full vector path.
+-- geojson_points FeatureCollection with a Point for each observation.
 create table trajectories (
-    id         integer primary key,
-    file_id    integer not null references files(id) on delete cascade,
+    id              integer primary key,
+    file_id         integer not null references files(id) on delete cascade,
 
-    start_end  text    check (start_end in ('S', 'E', 'SE')),
+    start_end       text    check (start_end in ('S', 'E', 'SE')),
 
-    geojson    text    not null
+    geojson_track   text    not null,
+    geojson_points  text    not null
 );
 
 create index trajectories_file_idx on trajectories(file_id);
 
 
 -- Observations
--- An individual observation from a trajectory.
---
--- Data is the same as trajectories.geojson but as individual, searchable rows.
+-- Individual observations from a trajectory.
 create table observations (
     trajectory_id                  integer not null references trajectories(id) on delete cascade,
     date                           text not null default current_timestamp,
@@ -82,6 +81,7 @@ create index observations_trajectory_idx on observations(trajectory_id);
 create index air_pressure_idx on observations(air_pressure_at_sea_level);
 create index surface_altitude_idx on observations(surface_altitude);
 create index wind_speed_idx on observations(wind_speed);
+
 
 -- Observation view
 create view observation_view as

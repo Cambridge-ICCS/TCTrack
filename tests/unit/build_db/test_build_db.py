@@ -129,18 +129,21 @@ class TestGeoJSONConversion:
         build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
 
-        row = db.execute("select geojson from trajectories limit 1").fetchone()
-        geojson = json.loads(row[0])
+        row = db.execute(
+            "select geojson_track, geojson_points from trajectories limit 1"
+        ).fetchone()
+        track = json.loads(row[0])
+        points = json.loads(row[1])
 
-        assert geojson["type"] == "FeatureCollection"
+        # Track is a single LineString feature
+        assert track["type"] == "Feature"
+        assert track["geometry"]["type"] == "LineString"
+        assert track["properties"]["source_file"] == "test_tracks.nc"
 
-        # First feature is the LineString path
-        features = geojson["features"]
-        assert features[0]["geometry"]["type"] == "LineString"
-        assert features[0]["properties"]["source_file"] == "test_tracks.nc"
-
-        # Remaining features are Points
-        for f in features[1:]:
+        # Points is a FeatureCollection with a Point per observation
+        assert points["type"] == "FeatureCollection"
+        point_features = points["features"]
+        for f in point_features:
             assert f["geometry"]["type"] == "Point"
             assert "date" in f["properties"]
             assert "air_pressure_at_sea_level" in f["properties"]
@@ -152,23 +155,25 @@ class TestGeoJSONConversion:
         build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
 
-        row = db.execute("select geojson from trajectories limit 1").fetchone()
-        geojson = json.loads(row[0])
+        row = db.execute(
+            "select geojson_track, geojson_points from trajectories limit 1"
+        ).fetchone()
+        track = json.loads(row[0])
+        points = json.loads(row[1])
 
         # First trajectory has 1 LineString and 11 valid observations
-        features = geojson["features"]
-        assert len(features) == 12
-        assert len(features[0]["geometry"]["coordinates"]) == 11
+        assert len(track["geometry"]["coordinates"]) == 11
+        assert len(points["features"]) == 11
 
     def test_geojson_start_end_flag(self, tmp_db):
         """Test that start_end is present in geojson."""
         build_db.build(tmp_db, NETCDF_SE_FILE)
         db = open_db(tmp_db)
 
-        row = db.execute("select geojson from trajectories limit 1").fetchone()
-        geojson = json.loads(row[0])
+        row = db.execute("select geojson_track from trajectories limit 1").fetchone()
+        track = json.loads(row[0])
 
-        linestring_props = geojson["features"][0]["properties"]
+        linestring_props = track["properties"]
         assert "start_end" in linestring_props
         assert linestring_props["start_end"] == "S"
 
@@ -347,10 +352,16 @@ class TestLongitudeWrapping:
         """Test that longitude values are wrapped in geojson output."""
         build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
-        rows = db.execute("select geojson from trajectories").fetchall()
-        for (geojson_str,) in rows:
-            geojson = json.loads(geojson_str)
-            for feature in geojson["features"]:
+        rows = db.execute(
+            "select geojson_track, geojson_points from trajectories"
+        ).fetchall()
+        for track_str, points_str in rows:
+            track = json.loads(track_str)
+            for lon, _lat in track["geometry"]["coordinates"]:
+                assert -180 <= lon <= 180
+
+            points = json.loads(points_str)
+            for feature in points["features"]:
                 geom = feature["geometry"]
                 if geom["type"] == "LineString":
                     for lon, _lat in geom["coordinates"]:
