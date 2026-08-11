@@ -118,100 +118,47 @@ class TETracker(TCTracker):
             list of strings that can be combined to form a DetectNodes command
             based on the parameters set in self.detect_parameters
         """
+        dn_params = self.detect_parameters
         dn_argslist = ["DetectNodes"]
 
         dn_argslist.extend(["--in_data", ";".join(self._input_files)])
-        out_file = str(
-            Path(self.detect_parameters.output_dir) / self.detect_parameters.output_file
-        )
+        out_file = str(Path(dn_params.output_dir) / dn_params.output_file)
         dn_argslist.extend(["--out", out_file])
-        if self.detect_parameters.out_header:
+        if dn_params.out_header:
             dn_argslist.extend(["--out_header"])
-        if self.detect_parameters.search_by_min is not None:
+        if dn_params.search_by_min is not None:
+            dn_argslist.extend(["--searchbymin", dn_params.search_by_min])
+        if dn_params.search_by_max is not None:
+            dn_argslist.extend(["--searchbymax", dn_params.search_by_max])
+        if dn_params.closed_contours is not None:
             dn_argslist.extend(
-                [
-                    "--searchbymin",
-                    self.detect_parameters.search_by_min,
-                ]
+                ["--closedcontourcmd", lod_to_te(dn_params.closed_contours)]
             )
-        if self.detect_parameters.search_by_max is not None:
+        if dn_params.no_closed_contours is not None:
             dn_argslist.extend(
-                [
-                    "--searchbymax",
-                    self.detect_parameters.search_by_max,
-                ]
+                ["--noclosedcontourcmd", lod_to_te(dn_params.no_closed_contours)]
             )
-        if self.detect_parameters.closed_contours is not None:
-            dn_argslist.extend(
-                [
-                    "--closedcontourcmd",
-                    lod_to_te(self.detect_parameters.closed_contours),
-                ]
-            )
-        dn_argslist.extend(
-            [
-                "--mergedist",
-                str(self.detect_parameters.merge_dist),
-            ]
-        )
-        if self.detect_parameters.time_filter is not None:
-            dn_argslist.extend(
-                [
-                    "--timefilter",
-                    self.detect_parameters.time_filter,
-                ]
-            )
-        if self.detect_parameters.lat_name is not None:
-            dn_argslist.extend(
-                [
-                    "--latname",
-                    self.detect_parameters.lat_name,
-                ]
-            )
-        if self.detect_parameters.lon_name is not None:
-            dn_argslist.extend(
-                [
-                    "--lonname",
-                    self.detect_parameters.lon_name,
-                ]
-            )
-        if self.detect_parameters.min_lat is not None:
-            dn_argslist.extend(
-                [
-                    "--minlat",
-                    str(self.detect_parameters.min_lat),
-                ]
-            )
-        if self.detect_parameters.max_lat is not None:
-            dn_argslist.extend(
-                [
-                    "--maxlat",
-                    str(self.detect_parameters.max_lat),
-                ]
-            )
-        if self.detect_parameters.min_lon is not None:
-            dn_argslist.extend(
-                [
-                    "--minlon",
-                    str(self.detect_parameters.min_lon),
-                ]
-            )
-        if self.detect_parameters.max_lon is not None:
-            dn_argslist.extend(
-                [
-                    "--maxlon",
-                    str(self.detect_parameters.max_lon),
-                ]
-            )
-        if self.detect_parameters.regional:
+        if dn_params.thresholds is not None:
+            dn_argslist.extend(["--thresholdcmd", lod_to_te(dn_params.thresholds)])
+        dn_argslist.extend(["--mergedist", str(dn_params.merge_dist)])
+        if dn_params.time_filter is not None:
+            dn_argslist.extend(["--timefilter", dn_params.time_filter])
+        if dn_params.lat_name is not None:
+            dn_argslist.extend(["--latname", dn_params.lat_name])
+        if dn_params.lon_name is not None:
+            dn_argslist.extend(["--lonname", dn_params.lon_name])
+        if dn_params.min_lat is not None:
+            dn_argslist.extend(["--minlat", str(dn_params.min_lat)])
+        if dn_params.max_lat is not None:
+            dn_argslist.extend(["--maxlat", str(dn_params.max_lat)])
+        if dn_params.min_lon is not None:
+            dn_argslist.extend(["--minlon", str(dn_params.min_lon)])
+        if dn_params.max_lon is not None:
+            dn_argslist.extend(["--maxlon", str(dn_params.max_lon)])
+        if dn_params.regional:
             dn_argslist.extend(["--regional"])
-        if self.detect_parameters.output_commands is not None:
-            dn_argslist.extend(
-                [
-                    "--outputcmd",
-                    lod_to_te(self.detect_parameters.output_commands),
-                ]
-            )
+        if dn_params.output_commands is not None:
+            dn_argslist.extend(["--outputcmd", lod_to_te(dn_params.output_commands)])
 
         return dn_argslist
 
