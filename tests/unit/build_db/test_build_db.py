@@ -222,9 +222,9 @@ class TestObservationImport:
         build_db.build(tmp_db, NETCDF_FILE)
         db = open_db(tmp_db)
 
-        # Observations ordered by rowid to retain insertion order
         rows = db.execute(
-            "select trajectory_id, date from observations order by trajectory_id, rowid"
+            "select trajectory_id, date from observations "
+            "order by trajectory_id, sequence"
         ).fetchall()
 
         for _traj_id, date_str in rows:
@@ -260,7 +260,7 @@ class TestObservationImport:
 
         rows = db.execute(
             "select trajectory_id, latitude, longitude from observations "
-            "order by trajectory_id, date"
+            "order by trajectory_id, sequence"
         ).fetchall()
 
         assert len(rows) == len(expected)
@@ -270,6 +270,21 @@ class TestObservationImport:
             assert db_traj == exp_traj
             assert db_lat == pytest.approx(exp_lat)
             assert db_lon == pytest.approx(exp_lon)
+
+    def test_observation_sequence(self, tmp_db):
+        """Test that sequence is 0-based, contiguous, and unique per trajectory."""
+        build_db.build(tmp_db, NETCDF_FILE)
+        db = open_db(tmp_db)
+
+        rows = db.execute(
+            "select trajectory_id, sequence from observations "
+            "order by trajectory_id, sequence"
+        ).fetchall()
+
+        # Group by trajectory and verify each group is 0-based and contiguous
+        for _traj_id, group in groupby(rows, key=lambda r: r[0]):
+            sequences = [r[1] for r in group]
+            assert sequences == list(range(len(sequences)))
 
 
 class TestCollections:

@@ -370,6 +370,7 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
     rows = [
         (
             traj_id,
+            idx,
             traj["times"][i].isoformat(" "),
             traj["latitude"][i],
             traj["longitude"][i],
@@ -378,16 +379,16 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
             v[i] if (v := traj["wind_speed"]) is not None else None,
             v[i] if (v := traj["atmosphere_relative_vorticity"]) is not None else None,
         )
-        for i in traj["indices"]
+        for idx, i in enumerate(traj["indices"])
     ]
 
     if rows:
         cur = db.executemany(
             "insert into observations"
-            " (trajectory_id, date, latitude, longitude,"
+            " (trajectory_id, sequence, date, latitude, longitude,"
             "  air_pressure_at_sea_level, surface_altitude, wind_speed,"
             "  atmosphere_relative_vorticity)"
-            " values (?, ?, ?, ?, ?, ?, ?, ?)",
+            " values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             rows,
         )
         if cur.rowcount != len(rows):

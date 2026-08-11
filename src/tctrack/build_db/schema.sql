@@ -66,6 +66,7 @@ create index trajectories_file_idx on trajectories(file_id);
 -- Individual observations from a trajectory.
 create table observations (
     trajectory_id                  integer not null references trajectories(id) on delete cascade,
+    sequence                       integer not null,
     date                           text not null default current_timestamp,
 
     latitude                       real not null,
@@ -74,10 +75,11 @@ create table observations (
     air_pressure_at_sea_level      real,
     surface_altitude               real,
     wind_speed                     real,
-    atmosphere_relative_vorticity  real
+    atmosphere_relative_vorticity  real,
+
+    primary key (trajectory_id, sequence)
 );
 
-create index observations_trajectory_idx on observations(trajectory_id);
 create index air_pressure_idx on observations(air_pressure_at_sea_level);
 create index surface_altitude_idx on observations(surface_altitude);
 create index wind_speed_idx on observations(wind_speed);
@@ -85,8 +87,10 @@ create index wind_speed_idx on observations(wind_speed);
 
 -- Observation view
 create view observation_view as
-select file_id, trajectory_id, files.filename,
-	ob.date, ob.latitude, ob.longitude, ob.air_pressure_at_sea_level, ob.surface_altitude, ob.wind_speed, ob.atmosphere_relative_vorticity
+select file_id, files.filename, trajectory_id,
+	ob.sequence, ob.date, ob.latitude, ob.longitude,
+	ob.air_pressure_at_sea_level, ob.surface_altitude, ob.wind_speed, ob.atmosphere_relative_vorticity,
+	cast(ob.sequence = 0 as integer) as genesis
 from observations ob
 	join trajectories on trajectories.id = trajectory_id
 	join files on files.id = file_id;
