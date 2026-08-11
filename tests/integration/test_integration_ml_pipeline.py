@@ -171,13 +171,16 @@ def test_pipeline(input_file: str, stats_file: str) -> None:
 
 
 def test_output_writers(work_dir: str, input_file: str, stats_file: str) -> None:
-    """Check both writers produce readable CF-NetCDF files.
+    """Check run_tracker() and both writers produce readable CF-NetCDF files.
+
+    Drives the pipeline through run_tracker(), the public entry point, rather
+    than calling the steps by hand, so that is covered too.
 
     Uses a lowered threshold so that detections actually exist: at the default
     the model finds nothing in this small window, and the writers would take
     their empty-input path without the file-writing code ever running.
     """
-    section("output writers: detections_to_netcdf() and to_netcdf()")
+    section("run_tracker() and the output writers")
 
     tracker = make_tracker(
         input_file,
@@ -185,16 +188,20 @@ def test_output_writers(work_dir: str, input_file: str, stats_file: str) -> None
         threshold=LOW_THRESHOLD,
         stitch_min_length=1,  # keep single-timestep tracks, so tracks exist
     )
-    tracker.detect()
-    trajectories = tracker.stitch()
+
+    # run_tracker() runs detect() and stitch() and writes the trajectories.
+    tracks_file = f"{work_dir}/tracks.nc"
+    tracker.run_tracker(tracks_file)
+
+    trajectories = tracker.read_trajectories()
     assert tracker._candidates, (
         f"no detections even at threshold={LOW_THRESHOLD}, so the writers "
         "below cannot be exercised"
     )
-    assert trajectories, "no trajectories to write"
+    assert trajectories, "run_tracker() produced no trajectories"
     print(
-        f"  {len(tracker._candidates)} detections, "
-        f"{len(trajectories)} trajectories to write"
+        f"  run_tracker(): {len(tracker._candidates)} detections, "
+        f"{len(trajectories)} trajectories                OK"
     )
 
     # -- detections: CF point layout ---------------------------------------
@@ -224,9 +231,7 @@ def test_output_writers(work_dir: str, input_file: str, stats_file: str) -> None
     assert np.allclose(sst.array.tolist(), in_memory), "values changed on write/read"
     print(f"  detections_to_netcdf(): {len(fields)} variables, point layout    OK")
 
-    # -- trajectories: CF trajectory layout --------------------------------
-    tracks_file = f"{work_dir}/tracks.nc"
-    tracker.to_netcdf(tracks_file)
+    # -- trajectories: CF trajectory layout, written by run_tracker() ------
     track_fields = cf.read(tracks_file)
     assert track_fields, "trajectory file has no variables"
     assert track_fields[0].get_property("featureType") == "trajectory"
