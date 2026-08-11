@@ -60,6 +60,47 @@ class TEContour(TypedDict):
     """
 
 
+class TEDetectThreshold(TypedDict):
+    """Data for a threshold filter during the detection of candidate points.
+
+    Any candidates that do not satisfy the threshold value within a certain distance are
+    filtered out.
+
+    When calling TempestExtremes each filter is mapped to the form "var,op,value,dist"
+    and multiple conditions are separated by ";".
+
+    See Also
+    --------
+    TETracker.detect : The DetectNodes call from the TETracker object
+    TEDetectParameters : The detection parameter class
+
+    References
+    ----------
+    `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#DetectNodes>`__
+    and the `DetectNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/DetectNodes.cpp>`_
+
+    Examples
+    --------
+    To add a filter requiring surface windspeed ``"sfcWind"`` to be greater than 16 m/s
+    somewhere within 1 degree of the centre:
+
+    >>> TEDetectThreshold(var="sfcWind", op=">", value=16, dist=1)
+    {"var": "sfcWind", "op": ">", "value": 16, "dist": 1},
+    """
+
+    var: str
+    """Name of the variable being tested."""
+
+    op: str
+    """Operator used for the comparison (options include >,>=,<,<=,=,!=)."""
+
+    value: float
+    """Value on the right-hand-side of the comparison."""
+
+    dist: float | str
+    """Great-circle distance within which the threshold must be satisfied."""
+
+
 class TEOutputCommand(TypedDict):
     """
     Data required to specify an additional column in the detection output.
@@ -192,6 +233,17 @@ class TEDetectParameters(TCTrackerParameters):
     """
     Criteria for candidates to be eliminated if they do not have a closed contour
     as a list of separate :class:`TEContour` criteria.
+    """
+
+    no_closed_contours: list[TEContour] | None = None
+    """Criteria for candidates to be eliminated if they *do* have a closed contour
+    as a list of separate :class:`TEContour` criteria.
+    """
+
+    thresholds: list[TEDetectThreshold] | None = None
+    """Threshold criteria for candidates to be eliminated. I.e. if there is not a point
+    within a given distance that satisfies the condition. Given as a list of separate
+    :class:`TEDetectThreshold` criteria.
     """
 
     merge_dist: float = 0.0
