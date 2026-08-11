@@ -1,62 +1,82 @@
+# MLTracker Pipeline — Full Sequence (as implemented)
+
 flowchart TD
-    InputNC[("Input NetCDF
-    CF-compliant
-    climate data")]
 
-    MLParameters["<b>MLParameters</b>
-    -----------------
-    input_file: str
-    (add more fields as needed)"]
+    IN[("Input CF-NetCDF\nERA5 pressure + surface fields")]
 
-    subgraph MLTracker["MLTracker – machine_learning.py"]
-        Init["__init__(parameters)
-        store MLParameters"]
-        Preprocess["preprocess()
-        ☐ TO IMPLEMENT
-        e.g. normalise fields,
-        extract features"]
-        Detect["detect()
-        ☐ TO IMPLEMENT
-        run your ML model
-        output candidate points"]
-        Stitch["stitch() or track()
-        ☐ TO IMPLEMENT
-        link candidates
-        into trajectories"]
-        BuildTrajectories["Build list of
-        Trajectory objects
-        directly in Python
-        (no intermediate file)"]
-
-        Init --> Preprocess --> Detect --> Stitch --> BuildTrajectories
+    subgraph PRE["preprocess()"]
+        direction TB
+        P0["Save _lats / _lons / _times\nfrom input coordinates"]
+        P1["5 pressure vars × 3 levels\n→ 15 channels"]
+        P2["Land/sea mask from\nmissing SST (first timestep)"]
+        P3["SST, gap-filled with\n2m temperature over land"]
+        P4["Stack → 17 channels\n(channel, time, lat, lon)"]
+        P6["_load_normalisation_stats()\nmean + range via h5py"]
+        P7["Normalise:\n(x - mean) / range"]
+        P0 --> P1
+        P0 --> P2
+        P0 --> P3
+        P1 --> P4
+        P2 --> P4
+        P3 --> P4
+        P4 --> P7
+        P6 --> P7
     end
 
-    subgraph BaseClass["Inherited from TCTracker base class"]
-        SetMetadata["_set_metadata()
-        ✅ skeleton provided
-        reads time from input NetCDF
-        add variable metadata here"]
-        ToNetcdf["to_netcdf(output_file, trajectories)
-        ✅ fully implemented
-        writes CF-compliant output"]
+    subgraph DET["detect()  —  one timestep at a time"]
+        direction TB
+        D1["Take frame t:\n(17, lat, lon)"]
+        D2["Run U-Net\n(no memory of other frames)"]
+        D3["Softmax → 5 class\nprobabilities per pixel"]
+        D4["Check output grid matches\ninput grid, else raise"]
+        D5["Append {time, lat, lon, probs}\nfor EVERY pixel → _scores"]
+        D1 --> D2 --> D3 --> D4 --> D5
+        D5 -.next timestep.-> D1
     end
 
-    OutputNC[("Output tracks.nc
-    CF-compliant
-    trajectory file")]
+    SCORES[("_scores\nevery pixel × every timestep\n(no candidates yet)")]
 
-    InputNC --> MLParameters
-    InputNC --> SetMetadata
-    MLParameters --> Init
-    BuildTrajectories -- "pass trajectories list" --> ToNetcdf
-    SetMetadata --> ToNetcdf
-    ToNetcdf --> OutputNC
+    subgraph STITCH["stitch()  —  one timestep at a time, in strict order"]
+        direction TB
+        S1["Reshape this frame's scores\nback to (lat, lon, 5)"]
+        S2["is_storm = winning class ≠ background\nAND prob ≥ threshold"]
+        S3["_cluster_candidates()\nflood-fill adjacent SAME-CLASS\npixels → weighted centroids"]
+        S4["_merge_nearby_candidates()\ndrop weaker candidates within\nmerge_distance_deg (NMS)"]
 
-    style InputNC fill:#d5e8d4,stroke:#82b366
-    style OutputNC fill:#dae8fc,stroke:#6c8ebf
-    style MLParameters fill:#fdf6d8,stroke:#d6b656
-    style MLTracker fill:#fde9d0,stroke:#d79b00
-    style BaseClass fill:#d5e8d4,stroke:#82b366
-    style Preprocess fill:#f5f5f5,stroke:#666,stroke-dasharray: 4 3
-    style Detect fill:#f5f5f5,stroke:#666,stroke-dasharray: 4 3
-    style Stitch fill:#f5f5f5,stroke:#666,stroke-dasharray: 4 3
+        S5{{"PASS 1 - extend\nfor each ACTIVE track:\n_nearest_candidate() within\nstitch_max_distance_deg?"}}
+        S6["Claim candidate, add point,\nreset missed = 0"]
+        S7["missed += 1"]
+
+        S8{{"PASS 2 - retire\nmissed > stitch_max_gap?"}}
+        S9[/"Close track:\nmove trail to finished"/]
+        S10["Stays in active_tracks"]
+
+        S11["PASS 3 - recruit\nany candidate left unclaimed\n→ new track, missed = 0"]
+
+        S1 --> S2 --> S3 --> S4 --> S5
+        S5 -->|"match"| S6
+        S5 -->|"no match"| S7
+        S6 --> S8
+        S7 --> S8
+        S8 -->|"yes"| S9
+        S8 -->|"no"| S10
+        S10 --> S11
+        S11 -.next timestep.-> S1
+    end
+
+    FILTER["After the last timestep:\nany still-active tracks join finished,\nthen keep only those with\n≥ stitch_min_length observations\n→ stored on _trajectories"]
+
+    OUT[("list[Trajectory]\nalso reachable via\nread_trajectories()")]
+
+    NEXT["run_tracker() → to_netcdf()\n— NOT YET WIRED UP"]
+
+    IN --> PRE --> DET --> SCORES --> STITCH --> FILTER --> OUT --> NEXT
+
+    style IN     fill:#d5f5e3,stroke:#1e8449
+    style OUT    fill:#aed6f1,stroke:#1a5276
+    style SCORES fill:#fef9e7,stroke:#f39c12
+    style PRE    fill:#fdebd0,stroke:#e67e22
+    style DET    fill:#eaf2f8,stroke:#2874a6
+    style STITCH fill:#eafaf1,stroke:#27ae60
+    style FILTER fill:#f4ecf7,stroke:#8e44ad
+    style NEXT   fill:#f9f9f9,stroke:#aaa,stroke-dasharray: 5 5
