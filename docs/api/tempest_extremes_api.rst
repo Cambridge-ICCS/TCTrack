@@ -32,6 +32,11 @@ For an overview of the functionalities, installation, and usage see the
    :undoc-members:
    :show-inheritance:
 
+.. autoclass:: TEDetectThreshold
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 .. autoclass:: TEOutputCommand
    :members:
    :undoc-members:

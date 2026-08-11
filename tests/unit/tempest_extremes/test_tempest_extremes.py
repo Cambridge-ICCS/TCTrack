@@ -19,6 +19,7 @@ from tctrack.core import TCTrackerMetadata
 from tctrack.tempest_extremes import (
     TEContour,
     TEDetectParameters,
+    TEDetectThreshold,
     TEOutputCommand,
     TEStitchParameters,
     TEThreshold,
@@ -39,6 +40,8 @@ class TestTETypes:
         assert params.search_by_min is None
         assert params.search_by_max is None
         assert params.closed_contours is None
+        assert params.no_closed_contours is None
+        assert params.thresholds is None
         assert params.merge_dist == 0.0
         assert params.lat_name == "lat"
         assert params.lon_name == "lon"
@@ -128,6 +131,17 @@ class TestTETypes:
         assert output_command["dist"] == 0.0
         # Check item created is a dict as expected
         assert output_command == {"var": "psl", "operator": "min", "dist": 0.0}
+
+    def test_te_detect_threshold(self) -> None:
+        """Test that TEDetectThreshold creates the appropriate typed dict."""
+        threshold = TEDetectThreshold(var="sfcWind", op=">=", value=16, dist=1)
+        # Check attributes are set properly and can be called from object
+        assert threshold["var"] == "sfcWind"
+        assert threshold["op"] == ">="
+        assert threshold["value"] == 16
+        assert threshold["dist"] == 1
+        # Check item created is a dict as expected
+        assert threshold == {"var": "sfcWind", "op": ">=", "value": 16, "dist": 1}
 
     def test_te_threshold(self) -> None:
         """Test that TEThreshold creates the appropriate typed dict."""
@@ -864,6 +878,10 @@ class TestTETrackerDetect:
             closed_contours=[
                 TEContour(var="psl", delta=200.0, dist=5.5, minmaxdist=0.0)
             ],
+            no_closed_contours=[
+                TEContour(var="orog", delta=100.0, dist=2.0, minmaxdist=0.0)
+            ],
+            thresholds=[TEDetectThreshold(var="sfcWind", op=">=", value=16, dist=1)],
             time_filter="3hr",
             output_commands=[
                 TEOutputCommand(var="psl", operator="min", dist=0.0),
@@ -888,6 +906,10 @@ class TestTETrackerDetect:
                 "psl",
                 "--closedcontourcmd",
                 "psl,200.0,5.5,0.0",
+                "--noclosedcontourcmd",
+                "orog,100.0,2.0,0.0",
+                "--thresholdcmd",
+                "sfcWind,>=,16,1",
                 "--mergedist",
                 "0.0",
                 "--timefilter",
