@@ -394,7 +394,7 @@ class MLTracker(TCMLTracker):
         return candidates
 
     def _merge_nearby_candidates(self, candidates: list[dict]) -> list[dict]:
-        """Merges candidates that are too close together into the strongest one.
+        """Merge candidates that are too close together into the strongest one.
 
         Parameters
         ----------
@@ -420,6 +420,43 @@ class MLTracker(TCMLTracker):
             ):
                 kept.append(candidate)
         return kept
+
+    def _nearest_candidate(
+        self,
+        track: dict,
+        candidates: list[dict],
+        unmatched: set[int],
+    ) -> int | None:
+        """Find the closest unmatched candidate to a track's last point.
+
+        Parameters
+        ----------
+        track : dict
+            Active track state, with a ``last`` dict holding its most recent
+            ``lat``/``lon``.
+        candidates : list[dict]
+            This timestep's candidate detections, as built by
+            :meth:`_cluster_candidates`.
+        unmatched : set[int]
+            Indices into ``candidates`` not yet claimed this timestep.
+
+        Returns
+        -------
+        int | None
+            Index of the nearest candidate within
+            :attr:`parameters.stitch_max_distance_deg`, or ``None`` if none
+            qualify.
+        """
+        best_index, best_distance = None, self.parameters.stitch_max_distance_deg
+        for i in unmatched:
+            candidate = candidates[i]
+            distance = np.hypot(
+                candidate["lat"] - track["last"]["lat"],
+                candidate["lon"] - track["last"]["lon"],
+            )
+            if distance < best_distance:
+                best_index, best_distance = i, distance
+        return best_index
 
     def run_tracker(self, output_file: str) -> None:
         """Run the tracker to obtain the tropical cyclone trajectories.
