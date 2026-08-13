@@ -1,0 +1,104 @@
+# TCTrack Dashboard - Datasette configuration
+
+title: TCTrack Dashboard
+description: Explore and compare tropical cyclone trajectories from TCTrack.
+
+extra_css_urls:
+  - url: /assets/light.css  # dark.css
+
+# Plugin settings
+
+plugins:
+  datasette-cluster-map:
+    tile_layer: https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}
+    tile_layer_options:
+      attribution: Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community
+      # detectRetina: True  # use hi-res tiles - can result in tiny text labels
+
+  datasette-geojson-map:
+    tile_layer: https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}
+    tile_layer_options:
+      attribution: Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community
+
+# Database and table metadata - optional
+# This is linked to the served database by the filename given here (tracks). Its
+# purpose is to show descriptions for each table and field. If there is no link
+# to the served database, no metadata will be shown but all other functionality
+# will remain.
+
+databases:
+  tracks:
+    title: Cyclone Tracks
+    description_html: >-
+      <p>Cyclone trajectories imported from TCTrack NetCDF files.</p>
+      <p>Data is organised:
+        <code>collections</code> &rarr; <code>files</code> &rarr;
+        <code>trajectories</code> &rarr; <code>observations</code>
+      </p>
+    source: TCTrack
+
+    tables:
+      collections:
+        label_column: name
+        description: Named groups of imported track files.
+        columns:
+          name: Collection name.
+          created: Date the collection was created (UTC).
+
+      files:
+        label_column: filename
+        description: Individual TCTrack NetCDF files imported by build-db.
+        facets: [collection_id, tracker_name]
+        columns:
+          filepath: Path of the imported file on the build machine.
+          tctrack_version: TCTrack version that produced the file.
+          tracker_name: Tracking algorithm used for this file.
+          tracker_parameters: Tracker configuration for the run (JSON).
+          trajectories: Number of trajectories imported from this file.
+          observations: Total observation points imported from this file.
+          time_units: Time units of the source timestamps.
+          time_calendar: Calendar of the source timestamps.
+          created: Import timestamp (UTC).
+
+      trajectories:
+        description: One row per cyclone track. Use trajectory_view to render tracks on a map.
+        facets: [file_id, start_end]
+        columns:
+          start_end: Start/end marker from the source file (S, E or SE).
+          geojson_track: Track path as GeoJSON containing a single LineString feature.
+          geojson_points: Observation points as a list of GeoJSON Point features carrying the observation properties.
+
+      observations:
+        description: One row per trajectory observation point.
+        columns:
+          sequence: Zero-based order of the observation within the trajectory.
+          date: Observation timestamp decoded from the NetCDF time coordinate.
+          air_pressure_at_sea_level: Sea level pressure at the observation point.
+          surface_altitude: Model surface altitude at the observation point.
+          wind_speed: Wind speed at the observation point.
+          atmosphere_relative_vorticity: Relative vorticity of the atmosphere at the observation point.
+
+      trajectory_view:
+        description: Trajectories from all files with the track GeoJSON exposed as a geometry column for map rendering.
+
+      observation_view:
+        description: Every observation joined with its file name, exposing latitude and longitude so points render on a clustered map.
+
+    # Useful queries
+
+    queries:
+      longest_tracks:
+        title: Longest tracks
+        description: Trajectories with the most observation points.
+        sql: |-
+          select
+              t.id as trajectory_id,
+              f.filename,
+              count(*) as observations,
+              min(o.date) as first_observation,
+              max(o.date) as last_observation
+          from trajectories as t
+              join files as f on f.id = t.file_id
+              join observations as o on o.trajectory_id = t.id
+          group by t.id
+          order by observations desc
