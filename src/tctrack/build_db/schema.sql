@@ -94,3 +94,13 @@ select file_id, files.filename, trajectory_id,
 from observations ob
 	join trajectories on trajectories.id = trajectory_id
 	join files on files.id = file_id;
+
+
+-- Trajectory view
+create view trajectory_view as
+select trajectories.id as trajectory_id, start_end,
+	geojson_track as geometry,
+	file_id, filename, filepath,
+	tctrack_version, tracker_name
+from trajectories
+	join files on files.id = file_id;

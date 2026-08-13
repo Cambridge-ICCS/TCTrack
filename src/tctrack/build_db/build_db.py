@@ -217,16 +217,8 @@ def build_geojson_track(traj: dict) -> dict:
     coordinates = [[traj["longitude"][i], traj["latitude"][i]] for i in traj["indices"]]
 
     return {
-        "type": "Feature",
-        "geometry": {
-            "type": "LineString",
-            "coordinates": coordinates,
-        },
-        "properties": {
-            "feature_type": "track",
-            "start_end": traj["start_end"],
-            "source_file": os.path.basename(traj["filepath"]),
-        },
+        "type": "LineString",
+        "coordinates": coordinates,
     }
 
 

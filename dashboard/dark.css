@@ -1,0 +1,522 @@
+/* =========================================================================
+   Datasette Dark Theme
+   Material Design colors: Blue Grey palette base with Orange accents.
+   ========================================================================= */
+
+/* Design tokens ----------------------------------------------------------- */
+:root {
+    color-scheme: dark;
+    /* Material Blue Grey */
+    --blue-grey-50:  #ECEFF1;
+    --blue-grey-100: #CFD8DC;
+    --blue-grey-200: #B0BEC5;
+    --blue-grey-300: #90A4AE;
+    --blue-grey-400: #78909C;
+    --blue-grey-500: #607D8B;
+    --blue-grey-600: #546E7A;
+    --blue-grey-700: #455A64;
+    --blue-grey-800: #37474F;
+    --blue-grey-900: #263238;
+
+    /* Material Orange (complementary accent) */
+    --orange-100: #FFE0B2;
+    --orange-200: #FFCC80;
+    --orange-300: #FFB74D;
+    --orange-400: #FFA726;
+    --orange-500: #FF9800;
+    --orange-600: #FB8C00;
+    --orange-700: #F57C00;
+
+    /* Semantic surfaces */
+    --bg:             var(--blue-grey-900);
+    --surface:        #2D3941;
+    --surface-raised: var(--blue-grey-800);
+    --border:         var(--blue-grey-800);
+    --border-strong:  var(--blue-grey-700);
+
+    /* Text */
+    --text:           var(--blue-grey-50);
+    --text-secondary: var(--blue-grey-200);
+    --text-muted:     var(--blue-grey-400);
+
+    /* Accent */
+    --accent:       var(--orange-500);
+    --accent-hover: var(--orange-300);
+    --accent-strong: var(--orange-700);
+    --link:         var(--orange-300);
+    --link-hover:   var(--orange-200);
+    --focus-ring:   rgba(255, 152, 0, 0.35);
+
+    /* Typography */
+    --font-sans: sans-serif;
+    --font-mono: monospace;
+
+    /* Shared modal variables used by Datasette web components */
+    --modal-backdrop-bg: rgba(0, 0, 0, 0.65);
+}
+
+/* Base -------------------------------------------------------------------- */
+body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.55;
+}
+
+h1, h2, h3, h4, h5, h6,
+.header1, .header2, .header3, .header4, .header5, .header6 {
+    color: var(--text);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+}
+
+h1, .header1 { font-size: 1.75rem; }
+h2 em {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+::selection {
+    background: var(--focus-ring);
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent-hover);
+    outline-offset: 2px;
+}
+
+.meta,
+.metadata-description,
+.facet-info-total {
+    color: var(--text-muted);
+}
+
+/* Links ------------------------------------------------------------------- */
+a:link    { color: var(--link); }
+a:visited { color: var(--orange-400); }
+a:hover, a:focus, a:active {
+    color: var(--link-hover);
+    text-decoration-color: var(--link-hover);
+}
+
+button.button-as-link {
+    color: var(--link);
+}
+button.button-as-link:hover,
+button.button-as-link:focus {
+    color: var(--link-hover);
+}
+
+/* Header and footer ------------------------------------------------------- */
+header.hd,
+footer.ft {
+    background: #2A363E;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-strong);
+    box-shadow: 0 1px 0 var(--accent);
+}
+footer.ft {
+    border-bottom: none;
+    border-top: 1px solid var(--border);
+    box-shadow: none;
+}
+
+header.hd a:link, header.hd a:visited,
+footer.ft a:link, footer.ft a:visited,
+header.hd button.button-as-link {
+    color: var(--text);
+}
+header.hd a:hover, header.hd a:focus,
+footer.ft a:hover, footer.ft a:focus,
+header.hd button.button-as-link:hover {
+    color: var(--link-hover);
+}
+
+/* Dropdown navigation menu */
+details .nav-menu-inner {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+    overflow: hidden;
+}
+.nav-menu-inner li,
+form.nav-menu-logout {
+    border-top-color: var(--border);
+}
+.nav-menu-inner li:first-child {
+    border-top: none;
+}
+.nav-menu-inner a:hover {
+    background: rgba(255, 152, 0, 0.1);
+}
+.nav-menu-inner .keyboard-shortcut {
+    border-color: var(--border-strong);
+    background: var(--blue-grey-900);
+    color: var(--text-secondary);
+}
+
+/* Page header and action menus -------------------------------------------- */
+.page-header {
+    border-left: 4px solid var(--accent);
+    padding-left: 12px;
+}
+.page-header h1 {
+    font-weight: 700;
+}
+
+.page-action-menu .icon-text {
+    background: var(--accent-strong);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    padding: 6px 12px 4px 7px;
+}
+.page-action-menu .icon-text:hover {
+    background: var(--accent);
+}
+
+.actions-menu-links .dropdown-menu {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+.dropdown-menu a:hover {
+    background: rgba(255, 152, 0, 0.1);
+}
+
+/* Tables ------------------------------------------------------------------ */
+.table-wrapper {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+}
+
+table.rows-and-columns {
+    width: 100%;
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+
+table.rows-and-columns th {
+    background: var(--surface-raised);
+    color: var(--text);
+    font-weight: 600;
+    text-align: left;
+    padding: 7px 10px;
+    border-bottom: 2px solid var(--border-strong);
+    white-space: nowrap;
+}
+table.rows-and-columns th a:link,
+table.rows-and-columns th a:visited {
+    color: var(--text);
+}
+
+table.rows-and-columns td {
+    padding: 5px 10px;
+    border-top: 1px solid #33424B;
+    border-right: 1px solid #30404A;
+    vertical-align: top;
+}
+table.rows-and-columns td.type-pk {
+    font-weight: 600;
+    color: var(--link);
+}
+
+/* Zebra striping and row hover */
+table.rows-and-columns tbody tr:nth-child(even) td {
+    background: rgba(255, 255, 255, 0.02);
+}
+table.rows-and-columns tbody tr:hover td {
+    background: var(--blue-grey-900);
+}
+
+/* NULLs and secondary cell annotations */
+table.rows-and-columns td em {
+    color: var(--text-muted);
+}
+
+/* Numeric values */
+.type-float,
+.type-int {
+    color: var(--blue-grey-100);
+}
+
+a.blob-download {
+    color: var(--link);
+}
+
+/* Turn off animation */
+.anim-scale-in {
+    animation-name: none;
+}
+
+/* Forms ------------------------------------------------------------------- */
+.core input[type=text],
+input.core[type=text],
+.core input[type=search],
+input.core[type=search],
+.core input[type=number],
+form.sql textarea,
+.select-wrapper select,
+.filters input.filter-value,
+.filters #_search {
+    background: #2A363E;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    padding: 8px 10px;
+}
+
+.core input:focus,
+form.sql textarea:focus,
+.select-wrapper select:focus,
+.filters input.filter-value:focus,
+.filters #_search:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--focus-ring);
+    outline: none;
+}
+
+::placeholder {
+    color: var(--text-muted);
+}
+
+/* Primary action */
+.core input[type=submit],
+input.core[type=submit],
+.filters input[type=submit] {
+    background: var(--accent-strong);
+    border: 1px solid var(--accent-strong);
+    border-radius: 6px;
+    color: #fff;
+    font-weight: 500;
+    cursor: pointer;
+}
+.core input[type=submit]:hover,
+input.core[type=submit]:hover,
+.filters input[type=submit]:hover,
+.filters input[type=submit]:focus {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+/* Secondary action */
+.core button[type=button],
+button.core[type=button] {
+    background: transparent;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    color: var(--link);
+}
+.core button[type=button]:hover,
+button.core[type=button]:hover {
+    background: rgba(255, 152, 0, 0.12);
+}
+
+form.sql textarea {
+    width: 100%;
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+/* Filter builder (uses Datasette's own CSS variables) --------------------- */
+.filters {
+    --filter-ink: var(--text);
+    --filter-paper: var(--surface);
+    --filter-muted: var(--text-muted);
+    --filter-rule: var(--border);
+    --filter-accent: var(--accent);
+    --filter-control-border: var(--border-strong);
+
+    border-radius: 8px;
+    background: var(--filter-paper);
+    color: var(--filter-ink);
+}
+
+.filters button.filter-row-icon {
+    background: var(--surface-raised);
+    border-color: var(--border);
+    color: var(--text-secondary);
+}
+.filters button.filter-row-icon:hover {
+    background: var(--surface);
+    color: var(--text);
+}
+.filters button.filter-row-add {
+    background: var(--accent-strong);
+    border-color: var(--accent-strong);
+    color: #fff;
+}
+.filters button.filter-row-add:hover,
+.filters button.filter-row-add:focus {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.select-wrapper select {
+    cursor: pointer;
+}
+
+/* Facets and cards -------------------------------------------------------- */
+.facet-info {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+}
+.facet-info a:link {
+    text-decoration: none;
+}
+.facet-info a:hover {
+    text-decoration: underline;
+}
+
+.advanced-export {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: none;
+}
+
+p.zero-results {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+}
+
+/* Code and SQL ------------------------------------------------------------ */
+code, pre {
+    font-family: var(--font-mono);
+}
+
+code {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
+    color: var(--orange-200);
+    font-size: 0.9em;
+}
+
+pre#sql-query,
+.wrapped-sql {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    color: var(--orange-100);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+/* Messages ---------------------------------------------------------------- */
+.message-info,
+.message-warning,
+.message-error {
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    color: var(--text);
+}
+.message-info {
+    background: rgba(255, 152, 0, 0.12);
+    border: 1px solid rgba(255, 152, 0, 0.35);
+}
+.message-warning {
+    background: rgba(255, 111, 0, 0.16);
+    border: 1px solid rgba(255, 111, 0, 0.4);
+}
+.message-error {
+    background: rgba(207, 102, 121, 0.14);
+    border: 1px solid rgba(207, 102, 121, 0.45);
+}
+
+/* Mobile column actions dialog -------------------------------------------- */
+dialog.mobile-column-actions-dialog {
+    --ink: var(--text);
+    --paper: var(--surface);
+    --muted: var(--text-muted);
+    --rule: var(--border);
+    --accent: var(--accent);
+    --card: var(--blue-grey-900);
+}
+
+/* Scrollbars -------------------------------------------------------------- */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--blue-grey-700) var(--surface);
+}
+
+/* Leaflet Map ------------------------------------------------------------- */
+/* Leaflet's CSS is injected dynamically at runtime (after this stylesheet),
+   so !important is needed on properties used to ensure they're overridden.  */
+
+.leaflet-container {
+	height: 100dvh !important;
+}
+
+/* Leaflet popups */
+
+.leaflet-popup-content-wrapper {
+    background: var(--surface-raised) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border);
+    border-radius: 8px !important;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55) !important;
+}
+
+.leaflet-popup-tip {
+    background: var(--surface-raised) !important;
+    box-shadow: none !important;
+}
+
+.leaflet-popup-close-button {
+    color: var(--text-muted) !important;
+}
+
+.leaflet-popup-close-button:hover {
+    color: var(--text) !important;
+}
+
+.leaflet-popup-content {
+    color: var(--text);
+    font-family: var(--font-sans);
+}
+
+/* Key-value pairs from datasette-geojson-map (dl.properties) */
+.leaflet-popup-content .properties dt {
+    color: var(--text-secondary);
+}
+
+.leaflet-popup-content .properties dd {
+    color: var(--text);
+}
+
+/* Key-value pairs from datasette-cluster-map (dl.cluster-map-dl) */
+.leaflet-popup-content .cluster-map-dl dd span {
+    color: var(--text-muted) !important;
+}
+
+/* datasette-cluster-map custom popups */
+.leaflet-popup-content p {
+    color: var(--text) !important;
+}
+
+/* Links inside popups */
+.leaflet-popup-content a:link,
+.leaflet-popup-content a:visited {
+    color: var(--link);
+}
+
+.leaflet-popup-content a:hover,
+.leaflet-popup-content a:focus {
+    color: var(--link-hover);
+}

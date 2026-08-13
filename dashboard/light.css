@@ -1,0 +1,467 @@
+/* =========================================================================
+   Datasette Light Theme
+   Material Design colors: Grey palette base with Blue accents.
+   ========================================================================= */
+
+/* Design tokens ----------------------------------------------------------- */
+:root {
+    color-scheme: light;
+    /* Material Grey */
+    --grey-50:  #FAFAFA;
+    --grey-100: #F5F5F5;
+    --grey-200: #EEEEEE;
+    --grey-300: #E0E0E0;
+    --grey-400: #BDBDBD;
+    --grey-500: #9E9E9E;
+    --grey-600: #757575;
+    --grey-700: #616161;
+    --grey-800: #424242;
+    --grey-900: #212121;
+
+    /* Material Blue (accent) */
+    --blue-50:  #E3F2FD;
+    --blue-100: #BBDEFB;
+    --blue-200: #90CAF9;
+    --blue-300: #64B5F6;
+    --blue-400: #42A5F5;
+    --blue-500: #2196F3;
+    --blue-600: #1E88E5;
+    --blue-700: #1976D2;
+    --blue-800: #1565C0;
+    --blue-900: #0D47A1;
+
+    /* Semantic surfaces */
+    --bg:             var(--grey-100);
+    --surface:        #FFFFFF;
+    --surface-raised: var(--grey-50);
+    --border:         var(--grey-300);
+    --border-strong:  var(--grey-400);
+
+    /* Text */
+    --text:           var(--grey-900);
+    --text-secondary: var(--grey-700);
+    --text-muted:     var(--grey-500);
+
+    /* Accent */
+    --accent:       var(--blue-500);
+    --accent-hover: var(--blue-400);
+    --accent-strong: var(--blue-700);
+    --link:         var(--blue-700);
+    --link-hover:   var(--blue-800);
+    --focus-ring:   rgba(33, 150, 243, 0.25);
+
+    /* Typography */
+    --font-sans: sans-serif;
+    --font-mono: monospace;
+
+    /* Shared modal variables used by Datasette web components */
+    --modal-backdrop-bg: rgba(0, 0, 0, 0.5);
+}
+
+/* Base -------------------------------------------------------------------- */
+body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.55;
+}
+
+h1, h2, h3, h4, h5, h6,
+.header1, .header2, .header3, .header4, .header5, .header6 {
+    color: var(--text);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+}
+
+h1, .header1 { font-size: 1.75rem; }
+h2 em {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+::selection {
+    background: var(--focus-ring);
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.meta,
+.metadata-description,
+.facet-info-total {
+    color: var(--text-muted);
+}
+
+/* Links ------------------------------------------------------------------- */
+a:link    { color: var(--link); }
+a:visited { color: var(--blue-900); }
+a:hover, a:focus, a:active {
+    color: var(--link-hover);
+    text-decoration-color: var(--link-hover);
+}
+
+button.button-as-link {
+    color: var(--link);
+}
+button.button-as-link:hover,
+button.button-as-link:focus {
+    color: var(--link-hover);
+}
+
+/* Header and footer ------------------------------------------------------- */
+header.hd,
+footer.ft {
+    background: #FFFFFF;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 1px 0 var(--accent);
+}
+footer.ft {
+    border-bottom: none;
+    border-top: 1px solid var(--border);
+    box-shadow: none;
+}
+
+header.hd a:link, header.hd a:visited,
+footer.ft a:link, footer.ft a:visited,
+header.hd button.button-as-link {
+    color: var(--text);
+}
+header.hd a:hover, header.hd a:focus,
+footer.ft a:hover, footer.ft a:focus,
+header.hd button.button-as-link:hover {
+    color: var(--link);
+}
+
+/* Dropdown navigation menu */
+details .nav-menu-inner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+}
+.nav-menu-inner li,
+form.nav-menu-logout {
+    border-top-color: var(--border);
+}
+.nav-menu-inner li:first-child {
+    border-top: none;
+}
+.nav-menu-inner a:hover {
+    background: rgba(33, 150, 243, 0.1);
+}
+.nav-menu-inner .keyboard-shortcut {
+    border-color: var(--border-strong);
+    background: var(--grey-100);
+    color: var(--text-secondary);
+}
+
+/* Page header and action menus -------------------------------------------- */
+.page-header {
+    border-left: 4px solid var(--accent);
+    padding-left: 12px;
+}
+.page-header h1 {
+    font-weight: 700;
+}
+
+.page-action-menu .icon-text {
+    background: var(--accent-strong);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    padding: 6px 12px 4px 7px;
+}
+.page-action-menu .icon-text:hover {
+    background: var(--accent);
+}
+
+.actions-menu-links .dropdown-menu {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+}
+.dropdown-menu a:hover {
+    background: rgba(33, 150, 243, 0.1);
+}
+
+/* Tables ------------------------------------------------------------------ */
+.table-wrapper {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+}
+
+table.rows-and-columns {
+    width: 100%;
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+
+table.rows-and-columns th {
+    background: var(--surface-raised);
+    color: var(--text);
+    font-weight: 600;
+    text-align: left;
+    padding: 7px 10px;
+    border-bottom: 2px solid var(--border-strong);
+    white-space: nowrap;
+}
+table.rows-and-columns th a:link,
+table.rows-and-columns th a:visited {
+    color: var(--text);
+}
+
+table.rows-and-columns td {
+    padding: 5px 10px;
+    border-top: 1px solid var(--grey-200);
+    border-right: 1px solid var(--grey-200);
+    vertical-align: top;
+}
+table.rows-and-columns td.type-pk {
+    font-weight: 600;
+    color: var(--link);
+}
+
+/* Zebra striping and row hover */
+table.rows-and-columns tbody tr:nth-child(even) td {
+    background: rgba(0, 0, 0, 0.025);
+}
+table.rows-and-columns tbody tr:hover td {
+    background: rgba(33, 150, 243, 0.07);
+}
+
+/* NULLs and secondary cell annotations */
+table.rows-and-columns td em {
+    color: var(--text-muted);
+}
+
+/* Numeric values */
+.type-float,
+.type-int {
+    color: var(--grey-600);
+}
+
+a.blob-download {
+    color: var(--link);
+}
+
+/* Turn off animation */
+.anim-scale-in {
+    animation-name: none;
+}
+
+/* Forms ------------------------------------------------------------------- */
+.core input[type=text],
+input.core[type=text],
+.core input[type=search],
+input.core[type=search],
+.core input[type=number],
+form.sql textarea,
+.select-wrapper select,
+.filters input.filter-value,
+.filters #_search {
+    background: #FFFFFF;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    padding: 8px 10px;
+}
+
+.core input:focus,
+form.sql textarea:focus,
+.select-wrapper select:focus,
+.filters input.filter-value:focus,
+.filters #_search:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--focus-ring);
+    outline: none;
+}
+
+::placeholder {
+    color: var(--text-muted);
+}
+
+/* Primary action */
+.core input[type=submit],
+input.core[type=submit],
+.filters input[type=submit] {
+    background: var(--accent-strong);
+    border: 1px solid var(--accent-strong);
+    border-radius: 6px;
+    color: #fff;
+    font-weight: 500;
+    cursor: pointer;
+}
+.core input[type=submit]:hover,
+input.core[type=submit]:hover,
+.filters input[type=submit]:hover,
+.filters input[type=submit]:focus {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+/* Secondary action */
+.core button[type=button],
+button.core[type=button] {
+    background: transparent;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    color: var(--link);
+}
+.core button[type=button]:hover,
+button.core[type=button]:hover {
+    background: rgba(33, 150, 243, 0.1);
+}
+
+form.sql textarea {
+    width: 100%;
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+/* Filter builder (uses Datasette's own CSS variables) --------------------- */
+.filters {
+    --filter-ink: var(--text);
+    --filter-paper: var(--surface);
+    --filter-muted: var(--text-muted);
+    --filter-rule: var(--border);
+    --filter-accent: var(--accent);
+    --filter-control-border: var(--border-strong);
+
+    border-radius: 8px;
+    background: var(--filter-paper);
+    color: var(--filter-ink);
+}
+
+.filters button.filter-row-icon {
+    background: var(--surface-raised);
+    border-color: var(--border);
+    color: var(--text-secondary);
+}
+.filters button.filter-row-icon:hover {
+    background: var(--grey-200);
+    color: var(--text);
+}
+.filters button.filter-row-add {
+    background: var(--accent-strong);
+    border-color: var(--accent-strong);
+    color: #fff;
+}
+.filters button.filter-row-add:hover,
+.filters button.filter-row-add:focus {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.select-wrapper select {
+    cursor: pointer;
+}
+
+/* Facets and cards -------------------------------------------------------- */
+.facet-info {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+}
+.facet-info a:link {
+    text-decoration: none;
+}
+.facet-info a:hover {
+    text-decoration: underline;
+}
+
+.advanced-export {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: none;
+}
+
+p.zero-results {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+}
+
+/* Code and SQL ------------------------------------------------------------ */
+code, pre {
+    font-family: var(--font-mono);
+}
+
+code {
+    background: var(--grey-100);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
+    color: var(--blue-800);
+    font-size: 0.9em;
+}
+
+pre#sql-query,
+.wrapped-sql {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    color: var(--grey-800);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+/* Messages ---------------------------------------------------------------- */
+.message-info,
+.message-warning,
+.message-error {
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    color: var(--text);
+}
+.message-info {
+    background: rgba(33, 150, 243, 0.08);
+    border: 1px solid rgba(33, 150, 243, 0.3);
+}
+.message-warning {
+    background: rgba(255, 152, 0, 0.1);
+    border: 1px solid rgba(255, 152, 0, 0.35);
+}
+.message-error {
+    background: rgba(244, 67, 54, 0.08);
+    border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+/* Mobile column actions dialog -------------------------------------------- */
+dialog.mobile-column-actions-dialog {
+    --ink: var(--text);
+    --paper: var(--surface);
+    --muted: var(--text-muted);
+    --rule: var(--border);
+    --accent: var(--accent);
+    --card: var(--grey-100);
+}
+
+/* Scrollbars -------------------------------------------------------------- */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--grey-400) var(--grey-200);
+}
+
+/* Leaflet Map ------------------------------------------------------------- */
+/* Leaflet's CSS is injected dynamically at runtime (after this stylesheet),
+   so !important is needed on properties used to ensure they're overridden.  */
+
+.leaflet-container {
+	height: 100dvh !important;
+}
