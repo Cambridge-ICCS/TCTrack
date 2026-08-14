@@ -4,6 +4,7 @@ from .parameters import (
     TSTORMSBaseParameters,
     TSTORMSDetectParameters,
     TSTORMSStitchParameters,
+    parameter_set,
 )
 from .tstorms import TSTORMSTracker
 
@@ -12,4 +13,5 @@ __all__ = [
     "TSTORMSDetectParameters",
     "TSTORMSStitchParameters",
     "TSTORMSTracker",
+    "parameter_set",
 ]

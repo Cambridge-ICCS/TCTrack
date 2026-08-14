@@ -33,6 +33,8 @@ For an overview of the functionalities, installation, and usage see the
    :show-inheritance:
    :inherited-members:
 
+.. autofunction:: parameter_set
+
 The classes below are base classes for adding other machine learning tracking
 algorithms to TCTrack. They are not intended to be used directly.
 
