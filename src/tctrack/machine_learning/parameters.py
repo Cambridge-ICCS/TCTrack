@@ -106,3 +106,35 @@ class MLStitchParameters(TCTrackerParameters):
     """Minimum number of observations a track must have to be kept, filtering
     out single-timestep detections likely to be noise.
     """
+
+
+def parameter_set(name: str) -> tuple[MLParameters, MLStitchParameters]:
+    """Return a default machine learning parameter set.
+
+    Parameters
+    ----------
+    name : str
+        The parameter set to return. Valid values are:
+
+        - ``"default"`` for the default parameter values used by the model.
+
+    Returns
+    -------
+    tuple[MLParameters, MLStitchParameters]
+        Detection and stitching parameters.
+
+    Raises
+    ------
+    ValueError
+        If ``name`` is not a supported parameter set.
+    """
+    parameter_sets = [
+        (["default"], (MLParameters(), MLStitchParameters())),
+    ]
+    for aliases, parameter_set in parameter_sets:
+        if name in aliases:
+            return parameter_set
+
+    available = ", ".join("/".join(aliases) for aliases, _ in parameter_sets)
+    msg = f"Unknown parameter set: {name}. Available sets: {available}."
+    raise ValueError(msg)
