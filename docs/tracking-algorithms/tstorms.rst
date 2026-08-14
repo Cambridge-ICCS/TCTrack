@@ -102,7 +102,7 @@ documentation:
     )
     detect_params = TSTORMSDetectParameters(
         vort_crit=3.5e-5,
-        tm_crit=0.0,
+        tm_crit=0.5,
         thick_crit=50.0,
         dist_crit=4.0,
         lat_bound_n=70.0,
@@ -136,10 +136,10 @@ Full details of each input are given in the :class:`TSTORMSStitchParameters` doc
     from tctrack.tstorms import TSTORMSStitchParameters
 
     stitch_params = TSTORMSStitchParameters(
-        r_crit=900.0,
-        wind_crit=17.0,
+        r_crit=800.0,
+        wind_crit=12.0,
         vort_crit=3.5e-5,
-        tm_crit=0.0,
+        tm_crit=0.5,
         n_day_crit=2,
         do_filter=True,
         lat_bound_n=70.0,

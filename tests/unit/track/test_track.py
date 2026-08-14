@@ -16,7 +16,7 @@ import pytest
 from netCDF4 import Dataset
 from numpy.testing import assert_array_equal
 
-from tctrack.track import TRACKParameters, TRACKTracker
+from tctrack.track import TRACKParameters, TRACKTracker, parameter_set
 
 
 class TestTrackParameters:
@@ -36,6 +36,25 @@ class TestTrackParameters:
         assert params.export_inputs is False
         assert params.read_inputs is False
         assert params.inputs_directory is None
+
+
+class TestTrackParameterSet:
+    """Tests for the parameter_set function."""
+
+    @pytest.mark.parametrize("name", ["default", "Hodges2017"])
+    def test_parameter_set_hodges(self, name):
+        """Check the Hodges parameter set values."""
+        params = parameter_set(name, "/path/to/track")
+
+        assert params.base_dir == "/path/to/track"
+        assert params.filter_distance is None
+        assert params.wind_var_names == ("ua", "va")
+        assert params.pressure_level == 85000
+
+    def test_parameter_set_invalid_name(self):
+        """Check parameter_set fails for unknown names."""
+        with pytest.raises(ValueError, match="Unknown parameter set: unknown"):
+            parameter_set("unknown", "/path/to/track")
 
 
 class TestTrackTracker:

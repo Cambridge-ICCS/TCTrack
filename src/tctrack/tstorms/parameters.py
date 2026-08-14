@@ -240,3 +240,88 @@ class TSTORMSStitchParameters(TCTrackerParameters):
                 "implemented in TSTORMS."
             )
             warnings.warn(msg, category=UserWarning, stacklevel=3)
+
+
+def parameter_set(
+    name: str,
+    tstorms_dir: str,
+    output_dir: str,
+    use_sfc_wind: bool = True,
+) -> tuple[
+    TSTORMSBaseParameters,
+    TSTORMSDetectParameters,
+    TSTORMSStitchParameters,
+]:
+    """Return a default TSTORMS parameter set.
+
+    Parameters
+    ----------
+    name : str
+        The parameter set to return. Valid values are:
+
+        - ``"default"`` or ``"Vitart2001"`` for the original TSTORMS algorithm presented
+          in [Vitart2001]_.
+    tstorms_dir : str
+        Path to the TSTORMS installation.
+    output_dir : str
+        Path where TSTORMS output is written.
+    use_sfc_wind : bool, optional
+        Whether to use surface windspeed (``True``, default) or 850 hPa windspeed
+        (``False``). For surface windspeed the detection criteria is 12 m/s, otherwise
+        it is 17 m/s.
+
+    Returns
+    -------
+    tuple[TSTORMSBaseParameters, TSTORMSDetectParameters, TSTORMSStitchParameters]
+        Base, detection, and stitching parameters.
+
+    Raises
+    ------
+    ValueError
+        If ``name`` is not a supported parameter set.
+
+    Notes
+    -----
+    In the ``"default"``/``"Vitart2001"`` set, ``do_spline`` is set to ``False`` for
+    performance reasons. This only uses gridpoints for the detection. Set ``do_spline``
+    to ``True`` to more accurately locate storm centers following the method in
+    [Vitart2001]_.
+    """
+    wind_crit = 12.0 if use_sfc_wind else 17.0
+
+    parameter_sets = [
+        (
+            ["default", "Vitart2001"],
+            (
+                TSTORMSBaseParameters(tstorms_dir=tstorms_dir, output_dir=output_dir),
+                TSTORMSDetectParameters(
+                    vort_crit=3.5e-5,
+                    tm_crit=0.5,
+                    thick_crit=50.0,
+                    dist_crit=4.0,
+                    lat_bound_n=70.0,
+                    lat_bound_s=-70.0,
+                    do_spline=False,
+                    do_thickness=False,
+                    use_sfc_wind=use_sfc_wind,
+                ),
+                TSTORMSStitchParameters(
+                    r_crit=800.0,
+                    wind_crit=wind_crit,
+                    vort_crit=3.5e-5,
+                    tm_crit=0.5,
+                    n_day_crit=2,
+                    do_filter=True,
+                    lat_bound_n=70.0,
+                    lat_bound_s=-70.0,
+                ),
+            ),
+        ),
+    ]
+    for aliases, parameter_set in parameter_sets:
+        if name in aliases:
+            return parameter_set
+
+    available = ", ".join("/".join(aliases) for aliases, _ in parameter_sets)
+    msg = f"Unknown parameter set: {name}. Available sets: {available}."
+    raise ValueError(msg)

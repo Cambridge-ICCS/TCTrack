@@ -52,3 +52,38 @@ class TRACKParameters(TCTrackerParameters):
     Directory containing files for exporting / reading command line inputs. This will be
     created if it does not exist. By default, the current directory is used.
     """
+
+
+def parameter_set(name: str, base_dir: str) -> TRACKParameters:
+    """Return a default TRACK parameter set.
+
+    Parameters
+    ----------
+    name : str
+        The parameter set to return. Valid values are:
+
+        - ``"default"`` or ``"Hodges2017"`` for the basic TRACK algorithm presented in
+          [Hodges2017]_.
+    base_dir : str
+        Path to the TRACK installation.
+
+    Returns
+    -------
+    TRACKParameters
+        TRACK parameters.
+
+    Raises
+    ------
+    ValueError
+        If ``name`` is not a supported parameter set.
+    """
+    parameter_sets = [
+        (["default", "Hodges2017"], TRACKParameters(base_dir=base_dir)),
+    ]
+    for aliases, parameter_set in parameter_sets:
+        if name in aliases:
+            return parameter_set
+
+    available = ", ".join("/".join(aliases) for aliases, _ in parameter_sets)
+    msg = f"Unknown parameter set: {name}. Available sets: {available}."
+    raise ValueError(msg)
