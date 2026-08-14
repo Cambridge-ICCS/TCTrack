@@ -33,6 +33,7 @@ from tctrack.machine_learning import (
     MLParameters,
     MLStitchParameters,
     MLTracker,
+    parameter_set,
 )
 from tctrack.machine_learning.cyclone_track_ml import (
     _angular_distance_deg,
@@ -175,6 +176,29 @@ class TestMLParameters:
         """Thresholds outside 0 to 1 raise a ValueError."""
         with pytest.raises(ValueError, match="threshold must be in"):
             MLParameters(threshold=threshold)
+
+
+class TestMLParameterSet:
+    """Tests for the parameter_set function."""
+
+    @pytest.mark.parametrize("name", ["default"])
+    def test_parameter_set_default(self, name) -> None:
+        """Check the default parameter set values."""
+        detect, stitch = parameter_set(name)
+
+        assert detect == MLParameters()
+        assert stitch == MLStitchParameters()
+
+    def test_parameter_set_returns_independent_parameters(self) -> None:
+        """Check each call returns a fresh parameter set."""
+        first_detect, _ = parameter_set("default")
+        second_detect, _ = parameter_set("default")
+        assert first_detect is not second_detect
+
+    def test_parameter_set_invalid_name(self) -> None:
+        """Check parameter_set fails for unknown names."""
+        with pytest.raises(ValueError, match="Unknown parameter set: unknown"):
+            parameter_set("unknown")
 
 
 class TestMLTrackerInit:

@@ -25,6 +25,7 @@ from tctrack.tstorms import (
     TSTORMSDetectParameters,
     TSTORMSStitchParameters,
     TSTORMSTracker,
+    parameter_set,
 )
 
 
@@ -192,6 +193,35 @@ class TestTSTORMSTypes:
             UserWarning, match="`do_thickness` is set, but will have no effect.*"
         ):
             TSTORMSStitchParameters(do_thickness=True)
+
+
+class TestTSTORMSParameterSet:
+    """Tests for the parameter_set function."""
+
+    @pytest.mark.parametrize("name", ["default", "Vitart2001"])
+    @pytest.mark.parametrize("use_sfc_wind", [True, False])
+    def test_parameter_set_vitart(self, name, use_sfc_wind) -> None:
+        """Check the Vitart parameter set values."""
+        base, detect, stitch = parameter_set(
+            name, "/path/to/tstorms", "/path/to/output", use_sfc_wind
+        )
+
+        assert base.tstorms_dir == "/path/to/tstorms"
+        assert base.output_dir == "/path/to/output"
+        assert detect.use_sfc_wind is use_sfc_wind
+        assert detect.tm_crit == 0.5
+        assert detect.lat_bound_n == 70.0
+        assert detect.lat_bound_s == -70.0
+        assert stitch.r_crit == 800.0
+        assert stitch.wind_crit == 12.0 if use_sfc_wind else 17.0
+        assert stitch.tm_crit == 0.5
+        assert stitch.lat_bound_n == 70.0
+        assert stitch.lat_bound_s == -70.0
+
+    def test_parameter_set_invalid_name(self) -> None:
+        """Check parameter_set fails for unknown names."""
+        with pytest.raises(ValueError, match="Unknown parameter set: unknown"):
+            parameter_set("unknown", "/path/to/tstorms", "/path/to/output")
 
 
 class TestTSTORMSTracker:
