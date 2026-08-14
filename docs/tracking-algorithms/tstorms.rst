@@ -69,7 +69,37 @@ Usage of TSTORMS in TCTrack is through the ``tstorms`` module.
 This provides the :class:`TSTORMSTracker` class that stores algorithm parameters and provides
 access to the methods. The detection and stitching algorithms can be configured through
 the various parameters in the :class:`TSTORMSBaseParameters`, :class:`TSTORMSDetectParameters`, and
-:class:`TSTORMSStitchParameters` dataclasses.
+:class:`TSTORMSStitchParameters` dataclasses, or by using :func:`parameter_set` to get a
+default set of parameters.
+
+The basic usage is illustrated below:
+
+.. code-block:: python
+
+    from tctrack.tstorms import parameter_set, TSTORMSTracker
+
+    input_files = [
+        "path/to/u_input.nc",
+        "path/to/v_input.nc",
+        "path/to/vort_input.nc",
+        "path/to/tm_input.nc",
+        "path/to/slp_input.nc",
+    ]
+
+    # Define the parameters
+    base_params, detect_params, stitch_params = parameter_set(
+        "default",
+        tstorms_dir="path/to/tstorms/installation/",
+        output_dir="path/to/place/outputs/",
+    )
+
+    # Define and run the tracking algorithm
+    tracker = TRACKTracker(base_params, detect_params, stitch_params)
+    tracker.run_tracker(input_files, "trajectories.nc")
+
+The sections below go into further detail about the stages of the tracking algorithm and
+manually defining the parameters.
+
 
 Detection
 ^^^^^^^^^
@@ -179,32 +209,6 @@ using :meth:`~TSTORMSTracker.to_netcdf`:
 This can be read using any NetCDF reading utility, though
 `cf-python <https://ncas-cms.github.io/cf-python/>`_ will load it following the
 `CF data model <https://ncas-cms.github.io/cf-python/#cf-data-model>`_.
-
-Combined run
-^^^^^^^^^^^^
-
-The above examples demonstrate running :meth:`~TSTORMSTracker.detect`,
-:meth:`~TSTORMSTracker.stitch`, and :meth:`~TSTORMSTracker.to_netcdf` separately.
-However, it is likely that users will want to these in succession which can be done
-using the :meth:`~TSTORMSTracker.run_tracker` method after defining a :class:`TSTORMSTracker`
-object with appropriate :class:`TSTORMSDetectParameters` and :class:`TSTORMSStitchParameters`:
-
-.. code-block:: python
-
-    from tctrack.tstorms import (
-        TSTORMSBaseParameters,
-        TSTORMSDetectParameters,
-        TSTORMSStitchParameters,
-        TSTORMSTracker,
-    )
-
-    input_files = [...]
-    tstorms_params = TSTORMSBaseParameters(...)
-    detect_params = TSTORMSDetectParameters(...)
-    stitch_params = TSTORMSStitchParameters(...)
-    tracker = TSTORMSTracker(tstorms_params, detect_params, stitch_params)
-
-    tracker.run_tracker(input_files, "my_tstorms_cf_trajectories.nc")
 
 Input data
 ----------
