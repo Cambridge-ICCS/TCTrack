@@ -91,8 +91,9 @@ Usage
 -----
 
 Usage of TRACK is performed using the :mod:`tctrack.track` module. This contains the
-:class:`TRACKTracker` class which is used to run the algorithm, and the
-:class:`TRACKParameters` dataclass for specifying the various parameters.
+:class:`TRACKTracker` class which is used to run the algorithm, the
+:class:`TRACKParameters` dataclass for specifying the various parameters, and the
+:func:`parameter_set` function for using pre-defined parameter sets.
 
 The example below illustrates how to use these to run TRACK using the default
 parameters. The output trajectories are written to the ``"trajectories.nc"`` file in a
