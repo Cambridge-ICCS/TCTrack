@@ -450,12 +450,13 @@ class MLTracker(TCMLTracker):
         self._scores = []
         self._candidates = []
         with torch.no_grad():
-            for t in range(n_time):
+            for t in range(n_time): #Loop runs once per timestep until all timesteps have been processed 
                 frame = data[:, t, :, :].unsqueeze(0)  # (1, channel, lat, lon)
-                output = self.model(frame)  # (1, 5, lat', lon')
+                output = self.model(frame)  # (1, 5, lat', lon') #Inference to get the predicted class probabilities for each pixel in the input frame.
                 probs = torch.softmax(output, dim=1)[0].numpy()  # (5, lat', lon')
 
-                if probs.shape[1:] != (len(self._lats), len(self._lons)):
+                #Check if the output grid matches input grid
+                if probs.shape[1:] != (len(self._lats), len(self._lons)): 
                     msg = (
                         f"Model output shape {probs.shape[1:]} does not match "
                         f"the input grid {(len(self._lats), len(self._lons))}."
@@ -464,7 +465,7 @@ class MLTracker(TCMLTracker):
 
                 for i, lat in enumerate(self._lats):
                     for j, lon in enumerate(self._lons):
-                        self._scores.append(
+                        self._scores.append( #scores list collects the time, lat, lon and the predicted class probabilities for each pixel in the input frame.
                             {
                                 "time": self._times[t],
                                 "lat": float(lat),
@@ -472,10 +473,11 @@ class MLTracker(TCMLTracker):
                                 "probs": probs[:, i, j].tolist(),
                             }
                         )
-
-                # Reduce this timestep's pixels to discrete storm locations.
-                class_idx = probs.argmax(axis=0)
-                class_prob = probs.max(axis=0)
+                # Pick the winning class and confidence for each pixel
+                class_idx = probs.argmax(axis=0) #WHICH class won: 0-4
+                class_prob = probs.max(axis=0) #HOW high it was: 0.0-1.0
+                
+                #check if the winning class is a storm
                 is_storm = (class_idx != 0) & (class_prob >= self.parameters.threshold)
 
                 candidates = self._cluster_candidates(is_storm, class_idx, class_prob)
@@ -498,7 +500,10 @@ class MLTracker(TCMLTracker):
         class_prob: np.ndarray,
     ) -> list[dict]:
         """Group adjacent same-class detected pixels into single point candidates.
-
+        It happens through flood-fill, where each unclaimed storm pixel is used as a seed
+        to find all its adjacent pixels of the same class, and then 
+        the centroid of that blob is calculated using the class confidence as weights.
+        
         Parameters
         ----------
         is_storm : numpy.ndarray
@@ -515,17 +520,20 @@ class MLTracker(TCMLTracker):
             and ``score`` - the probability-weighted centroid, class, and
             peak probability of each connected group of same-class pixels.
         """
-        unvisited = set(zip(*np.nonzero(is_storm), strict=False))
-        candidates = []
+        unvisited = set(zip(*np.nonzero(is_storm), strict=False)) #storm classified pixels that are still unclaimed by any blob.
+        candidates = [] #list to carry details of candidate storms (centroid lat-lon) for each timestep
 
-        while unvisited:
-            start = unvisited.pop()
+        # Run the loop until no pixels are left unchecked.
+        while unvisited: 
+            #start with an arbitrary unclaimed storm pixel
+            start = unvisited.pop() # pop() removes and returns the element from the right end 
             component_class = class_idx[start]
-            queue = deque([start])
+            queue = deque([start]) #collection of pixels whose neigbours are yet to be checked
             pixels = [start]
-
+            
+            # Run the loop until no neigbouring pixel is left unchecked for a blob
             while queue:
-                y, x = queue.popleft()
+                y, x = queue.popleft() # popleft() removes and returns an element from the left end of the deque
                 for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1)):
                     neighbour = (y + dy, x + dx)
                     if (
@@ -538,13 +546,13 @@ class MLTracker(TCMLTracker):
 
             ys, xs = zip(*pixels, strict=False)
             ys_arr, xs_arr = np.array(ys), np.array(xs)
-            weights = class_prob[ys_arr, xs_arr]
+            weights = class_prob[ys_arr, xs_arr] #Use class confidence as weights for the centroid calculation
             candidates.append(
                 {
-                    "lat": float(np.average(self._lats[ys_arr], weights=weights)),
-                    "lon": float(np.average(self._lons[xs_arr], weights=weights)),
-                    "class_index": float(component_class),
-                    "score": float(weights.max()),
+                    "lat": float(np.average(self._lats[ys_arr], weights=weights)), #averaged pixel specific-latitudes to get centroid latitude of the storm
+                    "lon": float(np.average(self._lons[xs_arr], weights=weights)), #averaged pixel specific-longitudes to get centroid longitude of the storm
+                    "class_index": float(component_class), #the class index of the storm (1-4)
+                    "score": float(weights.max()), #the maximum confidence value within the bloc (between 0 and 1)
                 }
             )
 
@@ -563,16 +571,16 @@ class MLTracker(TCMLTracker):
         list[dict]
             The retained candidates, strongest first.
         """
-        if self.parameters.merge_distance_deg <= 0:
+        if self.parameters.merge_distance_deg <= 0: 
             return candidates
 
-        kept: list[dict] = []
-        for candidate in sorted(candidates, key=lambda c: c["score"], reverse=True):
+        kept: list[dict] = [] #list that will hold the strongest candidates after eliminating the weaker ones that are too close to each other.
+        for candidate in sorted(candidates, key=lambda c: c["score"], reverse=True): #
             if all(
-                np.hypot(
-                    candidate["lat"] - other["lat"], candidate["lon"] - other["lon"]
+                np.hypot(#calculate distance between centroids of different candidates.
+                    candidate["lat"] - other["lat"], candidate["lon"] - other["lon"] 
                 )
-                >= self.parameters.merge_distance_deg
+                >= self.parameters.merge_distance_deg #compare the centroid distance with the merge distance threshold to decide if the candidate is too close to any of the already kept candidates.
                 for other in kept
             ):
                 kept.append(candidate)
