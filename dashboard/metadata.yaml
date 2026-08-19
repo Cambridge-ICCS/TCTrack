@@ -4,7 +4,7 @@ title: TCTrack Dashboard
 description: Explore and compare tropical cyclone trajectories from TCTrack.
 
 extra_css_urls:
-  - url: /assets/light.css  # dark.css
+  - url: /static/light.css  # dark.css
 
 # Plugin settings
 
@@ -19,6 +19,9 @@ plugins:
     tile_layer: https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}
     tile_layer_options:
       attribution: Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community
+
+  datasette-maplibre:
+    basemap: https://demotiles.maplibre.org/style.json
 
 # Database and table metadata - optional
 # This is linked to the served database by the filename given here (tracks). Its

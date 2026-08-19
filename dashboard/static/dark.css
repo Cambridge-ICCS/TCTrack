@@ -520,3 +520,11 @@ dialog.mobile-column-actions-dialog {
 .leaflet-popup-content a:focus {
     color: var(--link-hover);
 }
+
+/* Table view for GeoJSON columns ------------------------------------------ */
+.col-geojson_track {
+    display: none;
+}
+.col-geojson_points {
+    display: none;
+}
