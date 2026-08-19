@@ -141,10 +141,6 @@ def read_netcdf(netcdf_filepath: str) -> dict:
         ]:
             data[prop] = v[:] if (v := ds.variables.get(prop)) is not None else None
 
-    # Post-processing
-    # Wrap longitude coordinates from 0-360 to -180-180
-    data["longitude"] = ((data["longitude"] + 180) % 360) - 180
-
     return data
 
 
@@ -217,8 +213,16 @@ def build_geojson_track(traj: dict) -> dict:
     coordinates = [[traj["longitude"][i], traj["latitude"][i]] for i in traj["indices"]]
 
     return {
-        "type": "LineString",
-        "coordinates": coordinates,
+        "type": "Feature",
+        "geometry": {
+            "type": "LineString",
+            "coordinates": coordinates,
+        },
+        "properties": {
+            "feature_type": "track",
+            "start_end": traj["start_end"],
+            "source_file": os.path.basename(traj["filepath"]),
+        },
     }
 
 

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "datasette-maplibre"
+description = "MapLibre GL JS map plugin for Datasette, triggered by geojson columns"
+version = "0.1.0"
+readme = "README.md"
+authors = [{ name="Simon Sadler" }]
+requires-python = ">=3.10"
+dependencies = ["datasette>=0.65"]
+
+[project.entry-points.datasette]
+maplibre = "datasette_maplibre"
+
+[tool.setuptools]
+packages = ["datasette_maplibre"]
+
+[tool.setuptools.package-dir]
+datasette_maplibre = "."
+
+[tool.setuptools.package-data]
+datasette_maplibre = ["static/*.js", "static/*.css"]

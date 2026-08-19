@@ -465,3 +465,11 @@ dialog.mobile-column-actions-dialog {
 .leaflet-container {
 	height: 100dvh !important;
 }
+
+/* Table view for GeoJSON columns ------------------------------------------ */
+.col-geojson_track {
+    display: none;
+}
+.col-geojson_points {
+    display: none;
+}
