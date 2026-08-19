@@ -2,25 +2,26 @@
 
 A web-based dashboard for viewing and comparing cyclone trajectories. Tracks and observations are viewed on a map along with other environmental data for context.
 
+The dashboard runs on the [Datasette platform](https://datasette.io/).
 
 ## Installation
 
-A database of track files must be built for loading into the dashboard. See the [build_db instructions](src\tctrack\build_db\README.md) for instructions.
+The custom Datasette plugin, `datasette-maplibre`, renders a [MapLibre GL JS](https://maplibre.org/projects/gl-js/) map when one or more columns prefixed *geojson* are detected, e.g. trajectories.geojson_track.
 
-The dashboard runs on the [Datasette platform](https://datasette.io/). Datasette is Python-based and [easily installed](https://docs.datasette.io/en/stable/installation.html).
+Datasette and the `datasette-maplibre` plugin are installed together via the [dashboard] extra. Run from the project root:
 
-Datasette plugins are also required for mapping capabilities. Plugin, [datasette-cluster-map](https://datasette.io/plugins/datasette-cluster-map) is shown for tables with columns named `latitude` and `longitude`. The [datasette-geojson-map](https://datasette.io/plugins/datasette-geojson-map) is shown when a column named `geometry` is present.
-The custom plugin, `datasette-maplibre`, renders a [MapLibre GL JS](https://maplibre.org/) map when one or more `geojson`-prefixed columns exist (e.g. `trajectories.geojson_track`).
+	pip install -e .[dashboard]
 
-Plugin installation:
+For plugin development only, install the plugin directly (the Datasette dependency will also be installed):
 
-	datasette install datasette-geojson-map datasette-cluster-map
 	pip install -e dashboard/plugins/datasette_maplibre
 
 
 ## Starting the Dashboard
 
-Dashboard configuration files for metadata and style are located in the `dashboard` directory.
+A database of track files must be built for loading into the dashboard. See the [build_db instructions](src\tctrack\build_db\README.md) for instructions.
+
+Dashboard configuration files for metadata and style are located in the `dashboard` directory. If run from the project root:
 
 	datasette serve <your_database.db> --metadata dashboard/metadata.yaml --static static:dashboard/static --setting max_returned_rows 6000
 

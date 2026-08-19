@@ -99,7 +99,7 @@ from observations ob
 -- Trajectory view
 create view trajectory_view as
 select trajectories.id as trajectory_id, start_end,
-	geojson_track as geometry,
+	geojson_track, geojson_points,
 	file_id, filename, filepath,
 	tctrack_version, tracker_name
 from trajectories
