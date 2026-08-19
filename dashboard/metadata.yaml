@@ -9,17 +9,6 @@ extra_css_urls:
 # Plugin settings
 
 plugins:
-  datasette-cluster-map:
-    tile_layer: https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}
-    tile_layer_options:
-      attribution: Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community
-      # detectRetina: True  # use hi-res tiles - can result in tiny text labels
-
-  datasette-geojson-map:
-    tile_layer: https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}
-    tile_layer_options:
-      attribution: Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community
-
   datasette-maplibre:
     basemap: https://demotiles.maplibre.org/style.json
 
@@ -64,7 +53,7 @@ databases:
           created: Import timestamp (UTC).
 
       trajectories:
-        description: One row per cyclone track. Use trajectory_view to render tracks on a map.
+        description: One row per cyclone track.
         facets: [file_id, start_end]
         columns:
           start_end: Start/end marker from the source file (S, E or SE).
@@ -82,10 +71,10 @@ databases:
           atmosphere_relative_vorticity: Relative vorticity of the atmosphere at the observation point.
 
       trajectory_view:
-        description: Trajectories from all files with the track GeoJSON exposed as a geometry column for map rendering.
+        description: Trajectories from all files.
 
       observation_view:
-        description: Every observation joined with its file name, exposing latitude and longitude so points render on a clustered map.
+        description: Every observation joined with its file name.
 
     # Useful queries
 
