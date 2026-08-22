@@ -5,11 +5,17 @@ const GEOJSON_COLUMN_NAMES = window.DATASETTE_MAPLIBRE_GEOJSON_COLUMNS || [];
 const BASEMAP_STYLE = window.DATASETTE_MAPLIBRE_STYLE || "https://demotiles.maplibre.org/style.json";
 
 /**
-	Fetch the current Datasette query as JSON for all rows.
+	Fetch the current Datasette query as JSON.
 
-	GeoJSON cannot be taken from the already-loaded Datasette HTML table
-	because long fields are truncated. The row list is also paginated.
-	This retrieves the complete, raw JSON for all rows.
+	GeoJSON data cannot be taken from the Datasette HTML table because fields
+	are truncated there. The row list is also paginated.
+	This function retrieves all rows of the current query as JSON.
+
+	A previous version used the query paramter _json=COL to load GeoJSON fields
+	as actual JSON. However, the Datasette JSON parsing (load and dump) for every
+	field and row was a performance penalty (2 seconds on a dataset of 5000 rows).
+	Instead, GeoJSON fields are loaded as strings to avoid JSON processing on the
+	server-side. JSON conversion is now performed during buildFeatureCollection.
 
 	The Datasette setting, `max_returned_rows` is a hard limit on the URL
 	_size parameter. It should be set to accommodate the total number
@@ -18,10 +24,10 @@ const BASEMAP_STYLE = window.DATASETTE_MAPLIBRE_STYLE || "https://demotiles.mapl
 async function fetchRows() {
 
 	// Get the current dataset as an array of pure JSON row objects.
-	// GeoJSON columns are added to the query to prevent conversion to string.
+	// Only the specified GeoJSON columns are retrieved (_col=).
 	const url = location.pathname + ".json" + location.search
 		+ (location.search ? "&" : "?") + "_size=max&_shape=array"
-		+ GEOJSON_COLUMN_NAMES.map((column) => "&_json=" + column).join("");
+		+ GEOJSON_COLUMN_NAMES.map((column) => "&_col=" + column).join("");
 
 	const res = await fetch(url);
 	if (!res.ok) throw new Error("Fetch failed: " + res.status);
@@ -33,24 +39,19 @@ async function fetchRows() {
 /**
 	Build a single FeatureCollection from GeoJSON fields across all rows.
 
+	Row fields are passed as string-encoded JSON for performance.
+	They are parsed into actual JSON during this build.
+
 	@returns A GeoJSON FeatureCollection for all data.
 */
 function buildFeatureCollection(rows, geojson_fieldnames) {
-	const features = [];
-
-	for (const row of rows) {
-		for (const field of geojson_fieldnames) {
-			const node = row[field];
-			if (node === null || typeof node !== "object") continue;
-
-			if (node.type === "FeatureCollection") {
-				const list = node.features;
-				if (Array.isArray(list)) features.push(...list);
-			} else if (node.type === "Feature") {
-				features.push(node);
-			}
-		}
-	}
+	const features = rows.flatMap((row) =>
+		geojson_fieldnames.flatMap((field) => {
+			const geojson = JSON.parse(row[field]);
+			return geojson.type == "Feature" ? geojson : geojson.features;
+		})
+	);
+	console.log(`Features: ${features.length}`);
 
 	return { type: "FeatureCollection", features };
 }
@@ -115,6 +116,10 @@ function init() {
 		return;
 	}
 
+	// Load data concurrently with map loading
+	const t0 = performance.now();
+	const dataPromise = loadGeoJSONData();
+
 	// Add map container and element
 	const parent = document.querySelector("section.content");
 	if (!parent) return;
@@ -132,12 +137,9 @@ function init() {
 	map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
 	map.addControl(new maplibregl.GlobeControl(), 'top-right');
 
-	// After map load...
 	map.on("load", async () => {
-		const t0 = performance.now();
-
-		// Load and set datasource
-		const geojson = await loadGeoJSONData();
+		// Wait for data load then set as the datasource
+		const geojson = await dataPromise;
 		const sourceId = "datasette-geojson";
 		map.addSource(sourceId, { type: "geojson", data: geojson });
 
