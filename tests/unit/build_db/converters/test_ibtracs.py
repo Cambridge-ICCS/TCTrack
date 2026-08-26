@@ -1,6 +1,6 @@
 """Tests for IBTrACSConverter."""
 
-# ruff: noqa: C408, ARG002, SLF001
+# ruff: noqa: C408, ARG002
 from unittest.mock import MagicMock, call, patch
 
 import numpy as np

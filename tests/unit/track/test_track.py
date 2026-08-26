@@ -117,9 +117,9 @@ class TestTrackTracker:
 
         tracker.set_input_files("input")
 
-        assert tracker._input_files == ["input"]  # noqa: SLF001 - private member access
-        assert tracker._nx == self.nx  # noqa: SLF001 - private member access
-        assert tracker._ny == self.ny  # noqa: SLF001 - private member access
+        assert tracker._input_files == ["input"]
+        assert tracker._nx == self.nx
+        assert tracker._ny == self.ny
 
     def test_set_input_files_missing(self, mocker):
         """Check set_input_files fails for missing files."""
@@ -145,7 +145,7 @@ class TestTrackTracker:
         assert not file_path.exists()
 
         inputs = ["param1", "param2"]
-        result = tracker._prepare_inputs(command_name, inputs)  # noqa: SLF001 - private member access
+        result = tracker._prepare_inputs(command_name, inputs)
 
         expected_result = "param1\nparam2\n"
         assert result == expected_result
@@ -162,7 +162,7 @@ class TestTrackTracker:
         tracker.parameters.export_inputs = True
 
         command_name = "missing_dir"
-        _ = tracker._prepare_inputs(command_name, ["param1"])  # noqa: SLF001 - private member access
+        _ = tracker._prepare_inputs(command_name, ["param1"])
 
         file_path = tmp_path / "a" / "b" / f"{command_name}.in"
         assert file_path.exists()
@@ -183,7 +183,7 @@ class TestTrackTracker:
             UserWarning,
             match="TRACK inputs are being read from file for 'read'",
         ):
-            result = tracker._prepare_inputs(command_name, ["ignored"])  # noqa: SLF001 - private member access
+            result = tracker._prepare_inputs(command_name, ["ignored"])
 
         assert result == input_commands
 
@@ -197,7 +197,7 @@ class TestTrackTracker:
             UserWarning,
             match="Exported TRACK inputs file for 'missing_file' does not exist",
         ):
-            result = tracker._prepare_inputs("missing_file", inputs)  # noqa: SLF001 - private member access
+            result = tracker._prepare_inputs("missing_file", inputs)
 
         assert result == "\n".join(inputs) + "\n"
 
@@ -235,8 +235,8 @@ class TestTrackTracker:
     def test_spectral_filtering(self, mocker):
         """Check spectral_filtering calls TRACK with the expected inputs."""
         tracker = self._setup_tracker(mocker)
-        tracker._nx = self.nx  # noqa: SLF001 - private member access
-        tracker._ny = self.ny  # noqa: SLF001 - private member access
+        tracker._nx = self.nx
+        tracker._ny = self.ny
 
         # Run the method
         tracker.spectral_filtering()
