@@ -3,7 +3,7 @@
 import glob
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
-from typing import Any, TypeAlias, TypedDict
+from typing import Any, TypeAlias, TypedDict, cast
 
 import cf
 
@@ -12,20 +12,97 @@ from tctrack.core import TCTracker
 PreprocessResult: TypeAlias = cf.Field | Sequence[cf.Field] | None
 
 
+class _PreprocessRegistryArgs(TypedDict, total=False):
+    use: str | Sequence[str]
+    store: str | Sequence[str | None]
+
+
 PreprocessFn: TypeAlias = Callable[..., PreprocessResult]
-PreprocessStep: TypeAlias = tuple[PreprocessFn, dict[str, Any]]
+PreprocessStep: TypeAlias = (
+    tuple[PreprocessFn, dict[str, Any]]
+    | tuple[PreprocessFn, dict[str, Any], _PreprocessRegistryArgs]
+)
 
 
 def _combine_trajectories(output_file_list: list[Path], output_file: Path) -> None:
     """Combine batched trajectory outputs into a single NetCDF file."""
 
 
+def _get_fields(
+    input_names: str | Sequence[str],
+    fields: dict[str, cf.Field],
+) -> list[cf.Field]:
+    """Return the input fields requested by preprocessing."""
+    if isinstance(input_names, str):
+        input_names = [input_names]
+
+    missing_names = [name for name in input_names if name not in fields]
+    if missing_names:
+        msg = (
+            "The following fields are not available in the preprocessing registry: "
+            + ", ".join(missing_names)
+        )
+        raise KeyError(msg)
+
+    return [fields[name] for name in input_names]
+
+
+def _store_fields(
+    result: cf.Field | Sequence[cf.Field],
+    store_names: str | Sequence[str | None],
+    fields: dict[str, cf.Field],
+    fn_name: str,
+) -> None:
+    """Store chosen preprocessing output fields in a registry."""
+    # Ensure outputs / field names are arrays
+    if isinstance(result, cf.Field):
+        result = [result]
+    if isinstance(store_names, str):
+        store_names = [store_names]
+
+    # Store all fields if the lengths are the same
+    if len(store_names) == len(result):
+        for name, field in zip(store_names, result, strict=True):
+            if name is None:
+                continue
+            fields[name] = field
+
+    # If not all output fields are to be stored then match by netcdf variable name
+    elif len(store_names) < len(result):
+        store_names = cast(
+            list[str], [name for name in store_names if name is not None]
+        )
+        result_names = [field.nc_get_variable() for field in result]
+        missing_names = [name for name in store_names if name not in result_names]
+        if missing_names:
+            msg = (
+                f"Fields with the following names are not returned by {fn_name}: "
+                + ", ".join(missing_names)
+            )
+            raise ValueError(msg)
+        for name in store_names:
+            fields[name] = result[result_names.index(name)]
+
+    else:
+        msg = f"Number of fields to store exceeds the number returned by {fn_name}."
+        raise ValueError(msg)
+
+
 def _run_preprocessing(
-    step: PreprocessStep, batch: tuple[int, Path]
+    step: PreprocessStep, batch: tuple[int, Path], fields: dict[str, cf.Field]
 ) -> PreprocessResult:
     """Run a batching step with supported keyword arguments."""
     fn = step[0]
     kwargs = step[1].copy()
+    if len(step) == 2:  # noqa: PLR2004 - magic number
+        input_names = None
+        output_names = None
+    elif len(step) == 3:  # noqa: PLR2004 - magic number
+        input_names = step[2].get("use")
+        output_names = step[2].get("store")
+    else:
+        msg = "Invalid preprocessing step format. It must be a tuple of length 2 or 3."
+        raise ValueError(msg)
 
     # Replace any %BATCH% and %ITER% tags in string arguments
     i_iter, batch_dir = batch
@@ -37,7 +114,15 @@ def _run_preprocessing(
             kwargs[k] = kwargs[k].replace("%ITER%", str(i_iter))
 
     # Run the preprocessing function
-    result = fn(**kwargs)
+    if input_names is None:
+        result = fn(**kwargs)
+    else:
+        input_fields = _get_fields(input_names, fields)
+        result = fn(input_fields, **kwargs)
+
+    # (Optionally) Store the output field(s)
+    if result is not None and output_names is not None:
+        _store_fields(result, output_names, fields, fn.__name__)
 
     return result
 
@@ -115,6 +200,11 @@ def batching(
           field / fields as input this should be the first argument.
         - The second entry is a dictionary containing the arguments to pass to the
           function. String arguments can refer to the batch directory with ``%BATCH%``.
+        - The optional third entry is a dictionary that can take ``store`` and/or
+          ``use`` keys which allows fields to be stored and passed from memory to
+          avoid unnecessary file IO. If ``store`` is used and the function returns more
+          than one field it must either match the full number of fields or match the
+          netcdf variable names.
     retrieve_data : Callable[[int, Path], None] | None
         (optional) A user-defined function that is called each iteration to retrieve the
         appropriate data and put it in. The first argument is the batch index, the
@@ -186,8 +276,13 @@ def batching(
             retrieve_data(i_iter, batch_dir)
 
         # Preprocess the data
+        fields: dict[str, cf.Field] = {}  # Fields to keep in memory across steps
         for preprocessing_step in preprocessing or ():
-            _run_preprocessing(preprocessing_step, batch=(i_iter, batch_dir))
+            _run_preprocessing(
+                preprocessing_step,
+                batch=(i_iter, batch_dir),
+                fields=fields,
+            )
 
         # Run the tracker and keep track of the output files
         input_file_paths = _parse_input_files(input_files, batch_dir)
