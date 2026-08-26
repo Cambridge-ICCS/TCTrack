@@ -610,7 +610,7 @@ def replace_fill_value(
     return _write_output(field, output_file)
 
 
-def set_netcdf_info(  # noqa: PLR0913  # Allow more arguments
+def set_netcdf_info(
     input_: FieldSource,
     *,
     nc_name: str | None = None,
