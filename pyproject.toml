@@ -104,8 +104,9 @@ convention = "numpy"
 
 [tool.ruff.lint.per-file-ignores]
 # Ignore S101 (use of assert) in tests
+# Ignore SLF001 (private member access) in tests
 # Ignore PLR2004 (magic values) in tests as we regularly compare to a numerical value
-"**/tests/*" = ["S101", "PLR2004"]
+"**/tests/*" = ["S101", "SLF001", "PLR2004"]
 
 [[tool.mypy.overrides]]
 module = ["cftime.*", "cf.*"]
