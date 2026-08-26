@@ -231,11 +231,11 @@ class TestTSTORMSTracker:
         )
         tracker = TSTORMSTracker(base_params)
 
-        assert tracker._u_in_file is None  # noqa: SLF001 - private member access
-        assert tracker._v_in_file is None  # noqa: SLF001 - private member access
-        assert tracker._vort_in_file is None  # noqa: SLF001 - private member access
-        assert tracker._tm_in_file is None  # noqa: SLF001 - private member access
-        assert tracker._slp_in_file is None  # noqa: SLF001 - private member access
+        assert tracker._u_in_file is None
+        assert tracker._v_in_file is None
+        assert tracker._vort_in_file is None
+        assert tracker._tm_in_file is None
+        assert tracker._slp_in_file is None
 
     def test_initialisation_inputs(self, tmp_path):
         """Test tracker initialisation with inputs in detect parameters."""
@@ -254,11 +254,11 @@ class TestTSTORMSTracker:
         )
         tracker = TSTORMSTracker(base_params, detect_params)
 
-        assert tracker._u_in_file == os.path.join(input_dir, "u.nc")  # noqa: SLF001 - private member access
-        assert tracker._v_in_file == os.path.join(input_dir, "v.nc")  # noqa: SLF001 - private member access
-        assert tracker._vort_in_file == os.path.join(input_dir, "vort.nc")  # noqa: SLF001 - private member access
-        assert tracker._tm_in_file == os.path.join(input_dir, "tm.nc")  # noqa: SLF001 - private member access
-        assert tracker._slp_in_file == os.path.join(input_dir, "slp.nc")  # noqa: SLF001 - private member access
+        assert tracker._u_in_file == os.path.join(input_dir, "u.nc")
+        assert tracker._v_in_file == os.path.join(input_dir, "v.nc")
+        assert tracker._vort_in_file == os.path.join(input_dir, "vort.nc")
+        assert tracker._tm_in_file == os.path.join(input_dir, "tm.nc")
+        assert tracker._slp_in_file == os.path.join(input_dir, "slp.nc")
 
     def test_set_input_files(self, tmp_path):
         """Test the variable input files are automatically set by set_input_files."""
@@ -279,18 +279,18 @@ class TestTSTORMSTracker:
         tracker.set_input_files(inputs)
 
         # Check the attributes have been set correctly
-        assert tracker._u_in_file == str(tmp_path / "u_ref.nc")  # noqa: SLF001 - private member access
-        assert tracker._v_in_file == str(tmp_path / "v_ref.nc")  # noqa: SLF001 - private member access
-        assert tracker._vort_in_file == str(tmp_path / "vort850.nc")  # noqa: SLF001 - private member access
-        assert tracker._tm_in_file == str(tmp_path / "tm.nc")  # noqa: SLF001 - private member access
-        assert tracker._slp_in_file == str(tmp_path / "slp.nc")  # noqa: SLF001 - private member access
+        assert tracker._u_in_file == str(tmp_path / "u_ref.nc")
+        assert tracker._v_in_file == str(tmp_path / "v_ref.nc")
+        assert tracker._vort_in_file == str(tmp_path / "vort850.nc")
+        assert tracker._tm_in_file == str(tmp_path / "tm.nc")
+        assert tracker._slp_in_file == str(tmp_path / "slp.nc")
 
     def test_write_driver_namelist(self, tstorms_tracker):
         """Test the generation of the driver namelist."""
         tracker = tstorms_tracker[0]
 
         # Call the method
-        namelist_path = tracker._write_driver_namelist()  # noqa: SLF001 - Private member access
+        namelist_path = tracker._write_driver_namelist()
 
         # Verify the file was created inside tstorms_driver/
         assert os.path.exists(namelist_path)
@@ -323,7 +323,7 @@ class TestTSTORMSTracker:
         tstorms_dir = tracker.tstorms_parameters.tstorms_dir
 
         # Call the method
-        namelist_path = tracker._write_trajectory_analysis_namelist()  # noqa: SLF001 - Private member access
+        namelist_path = tracker._write_trajectory_analysis_namelist()
 
         # Verify the file was created inside tstorms_driver/
         assert os.path.exists(namelist_path)
@@ -355,7 +355,7 @@ class TestTSTORMSTracker:
         tracker = tstorms_tracker[0]
 
         # Assert the metadata extracted correctly
-        tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+        tracker._set_time_metadata()
         assert tracker.time_metadata == {
             "calendar": "360_day",
             "units": "days since 1950-01-01",
@@ -375,7 +375,7 @@ class TestTSTORMSTracker:
             os.remove(u_ref_path)
 
         with pytest.raises(FileNotFoundError):
-            tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+            tracker._set_time_metadata()
 
     def test_set_time_metadata_no_unlimited_dim(self, tstorms_tracker):
         """Test behavior when no unlimited dimension is found in the NetCDF file."""
@@ -408,7 +408,7 @@ class TestTSTORMSTracker:
                 "calendar."
             ),
         ):
-            tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+            tracker._set_time_metadata()
 
     def test_set_time_metadata_multiple_unlimited_dim(self, tstorms_tracker):
         """Test for error when multiple unlimited dimensions found in NetCDF file."""
@@ -454,7 +454,7 @@ class TestTSTORMSTracker:
                 "Multiple found: ['time', 'latitude']."
             ),
         ):
-            tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+            tracker._set_time_metadata()
 
     def test_set_time_metadata_no_coord_var(self, tstorms_tracker):
         """Test behavior when missing unlimited dimension coordinate data."""
@@ -476,7 +476,7 @@ class TestTSTORMSTracker:
             KeyError,
             match=r"Coordinate variable for unlimited dimension 'dim' not found.",
         ):
-            tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+            tracker._set_time_metadata()
 
     @pytest.mark.parametrize(
         "dimension_properties, expected_error, expected_warning, expected_metadata",
@@ -533,7 +533,7 @@ class TestTSTORMSTracker:
         # Ensure that code runs with errors/warnings raised as expected
         if expected_error:
             with pytest.raises(expected_error):
-                tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+                tracker._set_time_metadata()
         elif expected_warning:
             with pytest.warns(
                 UserWarning,
@@ -542,10 +542,10 @@ class TestTSTORMSTracker:
                     "defaulting to 'julian'"
                 ),
             ):
-                tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+                tracker._set_time_metadata()
                 assert tracker.time_metadata == expected_metadata
         else:
-            tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+            tracker._set_time_metadata()
             assert tracker.time_metadata == expected_metadata
 
     def test_set_metadata(self, tstorms_tracker):
@@ -631,23 +631,22 @@ class TestTSTORMSTracker:
         }
 
         for var_name, metadata in expected_metadata.items():
-            assert var_name in tracker._variable_metadata  # noqa: SLF001 - Private member access
+            assert var_name in tracker._variable_metadata
             assert (
-                tracker._variable_metadata[var_name].properties["standard_name"]  # noqa: SLF001 - Private member access
+                tracker._variable_metadata[var_name].properties["standard_name"]
                 == metadata["standard_name"]
             )
             assert (
-                tracker._variable_metadata[var_name].properties["long_name"]  # noqa: SLF001 - Private member access
+                tracker._variable_metadata[var_name].properties["long_name"]
                 == metadata["long_name"]
             )
             assert (
-                tracker._variable_metadata[var_name].properties["units"]  # noqa: SLF001 - Private member access
+                tracker._variable_metadata[var_name].properties["units"]
                 == metadata["units"]
             )
-            assert (
-                tracker._variable_metadata[var_name].constructs  # noqa: SLF001 - Private member access
-                == [metadata["cell_method"]]
-            )
+            assert tracker._variable_metadata[var_name].constructs == [
+                metadata["cell_method"]
+            ]
 
     def test_set_metadata_missing_file(self, tstorms_tracker):
         """Test metadata behaviour when a required NetCDF file is missing."""

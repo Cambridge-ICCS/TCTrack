@@ -418,7 +418,7 @@ class TestTETracker:
     def test_te_tracker_tempfiles(self) -> None:
         """Test the definition of temporary files when not manually defined."""
         tracker = TETracker()
-        tempdir = tracker._tempdir.name  # noqa: SLF001 - private member access
+        tempdir = tracker._tempdir.name
         assert Path(tempdir).exists()
         assert tracker.detect_parameters.output_dir == tempdir
         assert tracker.stitch_parameters.in_file == tempdir + "/nodes.txt"
@@ -998,7 +998,7 @@ class TestTETrackerDetect:
         tracker = TETracker()
         tracker.set_input_files("input_file.nc")
         result = tracker.detect()
-        outdir = tracker._tempdir.name  # noqa: SLF001 - private member access
+        outdir = tracker._tempdir.name
 
         # Check the mkdir call made as expected
         mock_mkdir.assert_called_once_with(Path(outdir), parents=True, exist_ok=True)
@@ -1248,7 +1248,7 @@ class TestTETrackerStitch:
         # Create a TETracker instance with default stitch parameters
         tracker = TETracker()
         result = tracker.stitch()
-        outdir = tracker._tempdir.name  # noqa: SLF001 - private member access
+        outdir = tracker._tempdir.name
 
         # Check the mkdir call made as expected
         mock_mkdir.assert_called_once_with(Path(outdir), parents=True, exist_ok=True)
