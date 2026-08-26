@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Iterable
 
@@ -27,6 +28,26 @@ def make_field(name: str, log: list[str] | None = None) -> cf.Field:
     if log is not None:
         log.append(f"created {name}")
     return field
+
+
+def make_fields(names: list[str], log: list[str] | None = None) -> list[cf.Field]:
+    """Create multiple fields with specific netcdf variable names."""
+    fields = []
+    for name in names:
+        field = cf.example_field(0).copy()
+        field.nc_set_variable(name)
+        fields.append(field)
+    if log is not None:
+        log.append("created " + " ".join(names))
+    return fields
+
+
+def load_field(fields: cf.Field | list[cf.Field], log: list[str] | None = None) -> None:
+    """Emulate a preprocessing step that takes a field / fields."""
+    if not isinstance(fields, list):
+        fields = [fields]
+    if log is not None:
+        log.append("loaded " + " ".join([field.nc_get_variable() for field in fields]))
 
 
 ### Dummy tracker to use in the batching
@@ -124,6 +145,104 @@ class TestBatchingPreprocessing:
 
         assert log == [0, 1]
         assert isinstance(log[0], int)
+
+    def test_registry_single_field(self, config) -> None:
+        """Test a field can be loaded from memory with "store" and "use"."""
+        tracker = DummyTracker()
+        log: list[str] = []
+
+        batching(
+            tracker,
+            n_iter=1,
+            input_files="processed.nc",
+            preprocessing=[
+                (make_field, {"name": "p"}, {"store": "field1"}),
+                (load_field, {"log": log}, {"use": "field1"}),
+            ],
+            config=config,
+        )
+
+        assert log == ["loaded p"]
+
+    def test_registry_name_reused(self, config) -> None:
+        """Test storing with the same name replaces the previous field."""
+        tracker = DummyTracker()
+        log: list[str] = []
+
+        batching(
+            tracker,
+            n_iter=1,
+            input_files="processed.nc",
+            preprocessing=[
+                (make_field, {"name": "p1"}, {"store": "field1"}),
+                (make_field, {"name": "p2"}, {"store": "field1"}),
+                (load_field, {"log": log}, {"use": "field1"}),
+            ],
+            config=config,
+        )
+
+        assert log == ["loaded p2"]
+
+    def test_registry_missing(self, config) -> None:
+        """Test an error is raised when trying to load a field that is missing."""
+        tracker = DummyTracker()
+
+        with pytest.raises(KeyError, match=r"fields are not available.*: field1"):
+            batching(
+                tracker,
+                n_iter=1,
+                input_files="processed.nc",
+                preprocessing=[(load_field, {}, {"use": "field1"})],
+                config=config,
+            )
+
+    @pytest.mark.parametrize(
+        "store, use, load_log, error",
+        [
+            pytest.param(["a", "b", "c"], "b", "u", None, id="store all, use one"),
+            pytest.param(["a", "b", "c"], ["b", "a"], "u p", None, id="use multiple"),
+            pytest.param("u", "u", "u", None, id="single var name"),
+            pytest.param(["v", "u"], ["u", "v"], "u v", None, id="multiple var names"),
+            pytest.param(
+                ["a", "b", "c", "d"],
+                None,
+                None,
+                (ValueError, "Number of fields to store exceeds the number returned"),
+                id="too many to store",
+            ),
+            pytest.param(
+                ["a"],
+                None,
+                None,
+                (ValueError, "Fields with the following names are not returned .*: a"),
+                id="invalid var name",
+            ),
+        ],
+    )
+    def test_registry_multiple_fields(
+        self, config, store, use, load_log, error
+    ) -> None:
+        """Test the registry when using multiple fields."""
+        tracker = DummyTracker()
+        log: list[str] = []
+
+        # Check for failure if expected
+        with (
+            nullcontext() if error is None else pytest.raises(error[0], match=error[1])
+        ):
+            batching(
+                tracker,
+                n_iter=1,
+                input_files="processed.nc",
+                preprocessing=[
+                    (make_fields, {"names": ["p", "u", "v"]}, {"store": store}),
+                    (load_field, {"log": log}, {"use": use}),
+                ],
+                config=config,
+            )
+
+            # Check the fields were stored / loaded as expected
+            assert log == ["loaded " + load_log]
 
 
 class TestBatching:
