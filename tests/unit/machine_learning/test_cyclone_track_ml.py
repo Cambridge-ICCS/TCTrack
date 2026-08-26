@@ -13,9 +13,6 @@ The data used for tests is sample subset of ERA5 data in the directory
 /data/machine_learning, and is licensed under the Open Government Licence v3.0 (OGL).
 """
 
-# The tests inspect module-private helpers on purpose.
-# ruff: noqa: SLF001
-
 import json
 from dataclasses import asdict
 from datetime import timedelta

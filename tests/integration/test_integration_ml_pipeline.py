@@ -16,10 +16,6 @@ Run from the repo root with:
     pytest tests/integration
 """
 
-# The test inspects the tracker's internal state on purpose - that is what it
-# is verifying - so private-member access is expected throughout.
-# ruff: noqa: SLF001
-
 from pathlib import Path
 
 import cf

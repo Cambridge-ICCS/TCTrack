@@ -151,12 +151,12 @@ class TestTCTracker:
     def test_parameters_property(self):
         """Test that _parameters correctly accesses the parameter objects."""
         tracker = self.ExampleTracker(example_trajectories=None)
-        assert len(tracker._parameters) == 1  # noqa:SLF001 - private member access
-        assert tracker._parameters[0] == tracker.params  # noqa:SLF001 - private member access
+        assert len(tracker._parameters) == 1
+        assert tracker._parameters[0] == tracker.params
 
         # Check there is still consistency after modification
         tracker.params.param_a = -1
-        assert tracker._parameters[0] == tracker.params  # noqa:SLF001 - private member access
+        assert tracker._parameters[0] == tracker.params
 
     def test_variable_metadata_uninitialized(self):
         """Test accessing `variable_metadata` before initialization raises an error."""
@@ -218,7 +218,7 @@ class TestTCTracker:
             "start_time": datetime(1950, 1, 1, 0, calendar="360_day"),
             "endingat": datetime(1950, 1, 30, 0, calendar="360_day"),
         }
-        tracker._set_metadata(bad_time_data=bad_time_metadata)  # noqa:SLF001 - private member access
+        tracker._set_metadata(bad_time_data=bad_time_metadata)
         with pytest.raises(
             TypeError,
             match=(
@@ -257,8 +257,8 @@ class TestTCTracker:
 
         tracker = self.ExampleTracker()
         tracker.set_input_files(("a", "b"))
-        assert isinstance(tracker._input_files, list)  # noqa:SLF001 - private member access
-        assert tracker._input_files == ["a", "b"]  # noqa:SLF001 - private member access
+        assert isinstance(tracker._input_files, list)
+        assert tracker._input_files == ["a", "b"]
 
     def test_set_input_files_string(self, mocker):
         """Test that `set_input_files` converts a string argument into a list."""
@@ -267,8 +267,8 @@ class TestTCTracker:
 
         tracker = self.ExampleTracker()
         tracker.set_input_files("input.nc")
-        assert isinstance(tracker._input_files, list)  # noqa:SLF001 - private member access
-        assert tracker._input_files == ["input.nc"]  # noqa:SLF001 - private member access
+        assert isinstance(tracker._input_files, list)
+        assert tracker._input_files == ["input.nc"]
 
     @pytest.mark.parametrize("inputs", [True, ["string", 1]])
     def test_set_input_files_invalid(self, inputs):
@@ -290,8 +290,8 @@ class TestTCTracker:
 
         tracker = self.ExampleTracker()
         tracker.set_input_files(str(input_file))
-        assert isinstance(tracker._input_files, list)  # noqa:SLF001 - private member access
-        assert tracker._input_files == [str(input_file)]  # noqa:SLF001 - private member access
+        assert isinstance(tracker._input_files, list)
+        assert tracker._input_files == [str(input_file)]
 
     def make_netcdf_file(self, tmp_path: Path, delete_std_name: bool = False) -> Path:
         """Output a trajectories netcdf file with to_netcdf.
@@ -354,7 +354,7 @@ class TestTCTracker:
 
         # Optionally remove the standard_name from the ExampleTracker metadata
         if delete_std_name:
-            for var_metadata in tracker._variable_metadata.values():  # type: ignore  # noqa: SLF001 - private member access
+            for var_metadata in tracker._variable_metadata.values():  # type: ignore
                 var_metadata.properties.pop("standard_name", None)
 
         # Write to NetCDF
