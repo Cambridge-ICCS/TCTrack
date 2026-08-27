@@ -25,6 +25,8 @@ from tctrack.tempest_extremes import (
     TEThreshold,
     TETracker,
     parameter_set,
+    parameter_set_owz,
+    parameter_set_uz,
 )
 from tctrack.tempest_extremes.parameters import (
     _nc_names_defaults_owz,
@@ -218,6 +220,20 @@ class TestTEParameterSets:
             ),
         )
 
+    def test_parameter_set_uz_nc_names_unchanged(self) -> None:
+        """Check a dictionary passed to parameter_set_uz does not get modified."""
+        nc_names = {
+            "latitude": "latitude_new",
+            "msl": "msl_new",
+            "orog": "orog_new",
+            "si10": "si10_new",
+            "gh": "gh_new",
+        }
+        nc_names_before = nc_names.copy()
+        _ = parameter_set_uz(nc_names)
+
+        assert nc_names == nc_names_before
+
     def test_parameter_set_owz(self) -> None:
         """Check the OWZ parameter set defaults."""
         detect, stitch = parameter_set("OWZ")
@@ -283,6 +299,24 @@ class TestTEParameterSets:
             ),
         )
 
+    def test_parameter_set_owz_nc_names_unchanged(self) -> None:
+        """Check a dictionary passed to parameter_set_owz does not get modified."""
+        nc_names = {
+            "owz": "owz_new",
+            "r": "r_new",
+            "q": "q_new",
+            "vo": "vo_new",
+            "u": "u_new",
+            "v": "v_new",
+            "u10": "u10_new",
+            "v10": "v10_new",
+            "ws": "ws_new",
+        }
+        nc_names_before = nc_names.copy()
+        _ = parameter_set_owz(nc_names)
+
+        assert nc_names == nc_names_before
+
     def test_nc_names_uz_base_names(self) -> None:
         """Check the UZ base names correctly override defaults."""
         overrides = {
@@ -292,7 +326,8 @@ class TestTEParameterSets:
             "si10": "si10_new",
             "gh": "gh_new",
         }
-        nc_names = _nc_names_defaults_uz(overrides)
+        nc_names = overrides.copy()
+        _nc_names_defaults_uz(nc_names)
 
         for key, value in overrides.items():
             assert nc_names[key] == value
@@ -300,24 +335,24 @@ class TestTEParameterSets:
 
     def test_nc_names_uz_derived_names(self) -> None:
         """Check UZ derived variable names correctly override defaults."""
-        nc_names = _nc_names_defaults_owz({"ghdiff": "ghdiff_new"})
+        nc_names = {"ghdiff": "ghdiff_new"}
+        _nc_names_defaults_owz(nc_names)
         assert nc_names["ghdiff"] == "ghdiff_new"
 
     def test_nc_names_owz_base_names(self) -> None:
         """Check OWZ base names generate the expected level / derived names."""
-        nc_names = _nc_names_defaults_owz(
-            {
-                "owz": "owz_new",
-                "r": "r_new",
-                "q": "q_new",
-                "vo": "vo_new",
-                "u": "u_new",
-                "v": "v_new",
-                "u10": "u10_new",
-                "v10": "v10_new",
-                "ws": "ws_new",
-            }
-        )
+        nc_names = {
+            "owz": "owz_new",
+            "r": "r_new",
+            "q": "q_new",
+            "vo": "vo_new",
+            "u": "u_new",
+            "v": "v_new",
+            "u10": "u10_new",
+            "v10": "v10_new",
+            "ws": "ws_new",
+        }
+        _nc_names_defaults_owz(nc_names)
 
         assert nc_names["owz850"] == "owz_new(850hPa)"
         assert nc_names["owz500"] == "owz_new(500hPa)"
@@ -351,7 +386,8 @@ class TestTEParameterSets:
             "v850": "v_850",
             "v200": "v_200",
         }
-        nc_names = _nc_names_defaults_owz(overrides)
+        nc_names = overrides.copy()
+        _nc_names_defaults_owz(nc_names)
 
         for key, value in overrides.items():
             assert nc_names[key] == value
@@ -361,13 +397,12 @@ class TestTEParameterSets:
 
     def test_nc_names_owz_derived_names(self) -> None:
         """Check OWZ derived variable names correctly override defaults."""
-        nc_names = _nc_names_defaults_owz(
-            {"vws": "vws_new", "si10": "si10_new", "ws925": "ws925_new"}
-        )
+        overrides = {"vws": "vws_new", "si10": "si10_new", "ws925": "ws925_new"}
+        nc_names = overrides.copy()
+        _nc_names_defaults_owz(nc_names)
 
-        assert nc_names["vws"] == "vws_new"
-        assert nc_names["si10"] == "si10_new"
-        assert nc_names["ws925"] == "ws925_new"
+        for key, value in overrides.items():
+            assert nc_names[key] == value
 
 
 class TestTETracker:
