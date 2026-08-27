@@ -76,7 +76,7 @@ The basic usage is illustrated below:
 
 .. code-block:: python
 
-    import tctrack.tempest_extremes as te
+    from tctrack.tempest_extremes import parameter_set, TETracker
 
     input_files = [
         "msl_input.nc",  # Sea-level pressure (msl)
@@ -86,10 +86,10 @@ The basic usage is illustrated below:
     ]
 
     # Define the parameters
-    params = te.parameter_set("default")
+    params = parameter_set("default")
 
     # Define and run the tracking algorithm
-    tracker = TRACKTracker(params)
+    tracker = TETracker(params)
     tracker.run_tracker(input_files, "trajectories.nc")
 
 If the netcdf names of the input data are different to those shown a second argument can
