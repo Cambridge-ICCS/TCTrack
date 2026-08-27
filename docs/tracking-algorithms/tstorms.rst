@@ -94,7 +94,7 @@ The basic usage is illustrated below:
     )
 
     # Define and run the tracking algorithm
-    tracker = TRACKTracker(base_params, detect_params, stitch_params)
+    tracker = TSTORMSTracker(base_params, detect_params, stitch_params)
     tracker.run_tracker(input_files, "trajectories.nc")
 
 The sections below go into further detail about the stages of the tracking algorithm and
