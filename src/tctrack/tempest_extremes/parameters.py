@@ -426,7 +426,7 @@ class TEStitchParameters(TCTrackerParameters):
             raise ValueError(msg)
 
 
-def _nc_names_defaults_uz(nc_names: dict[str, str]) -> dict[str, str]:
+def _nc_names_defaults_uz(nc_names: dict[str, str]) -> None:
     """Set the default netcdf variable names for parameter_set_uz."""
     nc_names.setdefault("longitude", "longitude")
     nc_names.setdefault("latitude", "latitude")
@@ -435,7 +435,6 @@ def _nc_names_defaults_uz(nc_names: dict[str, str]) -> dict[str, str]:
     nc_names.setdefault("si10", "si10")
     gh_name = nc_names.get("gh", "gh")
     nc_names.setdefault("ghdiff", f"_DIFF({gh_name}(300hPa),{gh_name}(500hPa))")
-    return nc_names
 
 
 def parameter_set_uz(
@@ -485,7 +484,8 @@ def parameter_set_uz(
              - ``ghdiff``
              - Default: ``_DIFF(gh(300hPa),gh(500hPa))``.
     """
-    nc_names = _nc_names_defaults_uz(nc_names)
+    nc_names = nc_names.copy()
+    _nc_names_defaults_uz(nc_names)
 
     return (
         TEDetectParameters(
@@ -521,7 +521,7 @@ def parameter_set_uz(
     )
 
 
-def _nc_names_defaults_owz(nc_names: dict[str, str]) -> dict[str, str]:
+def _nc_names_defaults_owz(nc_names: dict[str, str]) -> None:
     """Set the default netcdf variable names for parameter_set_owz."""
     nc_names.setdefault("longitude", "longitude")
     nc_names.setdefault("latitude", "latitude")
@@ -554,7 +554,6 @@ def _nc_names_defaults_owz(nc_names: dict[str, str]) -> dict[str, str]:
     else:
         ws_default = f"_VECMAG({nc_names['u925']},{nc_names['v925']})"
     nc_names.setdefault("ws925", ws_default)
-    return nc_names
 
 
 def parameter_set_owz(
@@ -655,7 +654,8 @@ def parameter_set_owz(
              -
              -
     """
-    nc_names = _nc_names_defaults_owz(nc_names)
+    nc_names = nc_names.copy()
+    _nc_names_defaults_owz(nc_names)
 
     return (
         TEDetectParameters(
