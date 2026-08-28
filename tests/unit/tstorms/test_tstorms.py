@@ -18,12 +18,14 @@ import cf
 import numpy as np
 import pytest
 from cftime import datetime
+from netCDF4 import Dataset
 
 from tctrack.tstorms import (
     TSTORMSBaseParameters,
     TSTORMSDetectParameters,
     TSTORMSStitchParameters,
     TSTORMSTracker,
+    parameter_set,
 )
 
 
@@ -193,8 +195,95 @@ class TestTSTORMSTypes:
             TSTORMSStitchParameters(do_thickness=True)
 
 
+class TestTSTORMSParameterSet:
+    """Tests for the parameter_set function."""
+
+    @pytest.mark.parametrize("name", ["default", "Vitart2001"])
+    def test_parameter_set_vitart(self, name) -> None:
+        """Check the Vitart parameter set values."""
+        base, detect, stitch = parameter_set(
+            name, "/path/to/tstorms", "/path/to/output"
+        )
+
+        assert base.tstorms_dir == "/path/to/tstorms"
+        assert base.output_dir == "/path/to/output"
+        assert detect.tm_crit == 0.0
+        assert detect.lat_bound_n == 70.0
+        assert detect.lat_bound_s == -70.0
+        assert stitch.tm_crit == 0.0
+        assert stitch.lat_bound_n == 70.0
+        assert stitch.lat_bound_s == -70.0
+
+    def test_parameter_set_invalid_name(self) -> None:
+        """Check parameter_set fails for unknown names."""
+        with pytest.raises(ValueError, match="Unknown parameter set: unknown"):
+            parameter_set("unknown", "/path/to/tstorms", "/path/to/output")
+
+
 class TestTSTORMSTracker:
     """Tests for the TSTORMS Tracker class."""
+
+    def test_initialisation_no_inputs(self, tmp_path):
+        """Test tracker initialisation without inputs in detect parameters."""
+        base_params = TSTORMSBaseParameters(
+            tstorms_dir=str(tmp_path / "tstorms"),
+            output_dir=str(tmp_path / "tstorms/output"),
+        )
+        tracker = TSTORMSTracker(base_params)
+
+        assert tracker._u_in_file is None  # noqa: SLF001 - private member access
+        assert tracker._v_in_file is None  # noqa: SLF001 - private member access
+        assert tracker._vort_in_file is None  # noqa: SLF001 - private member access
+        assert tracker._tm_in_file is None  # noqa: SLF001 - private member access
+        assert tracker._slp_in_file is None  # noqa: SLF001 - private member access
+
+    def test_initialisation_inputs(self, tmp_path):
+        """Test tracker initialisation with inputs in detect parameters."""
+        input_dir = str(tmp_path / "tstorms/input")
+        base_params = TSTORMSBaseParameters(
+            tstorms_dir=str(tmp_path / "tstorms"),
+            output_dir=str(tmp_path / "tstorms/output"),
+            input_dir=input_dir,
+        )
+        detect_params = TSTORMSDetectParameters(
+            u_in_file="u.nc",
+            v_in_file="v.nc",
+            vort_in_file="vort.nc",
+            tm_in_file="tm.nc",
+            slp_in_file="slp.nc",
+        )
+        tracker = TSTORMSTracker(base_params, detect_params)
+
+        assert tracker._u_in_file == os.path.join(input_dir, "u.nc")  # noqa: SLF001 - private member access
+        assert tracker._v_in_file == os.path.join(input_dir, "v.nc")  # noqa: SLF001 - private member access
+        assert tracker._vort_in_file == os.path.join(input_dir, "vort.nc")  # noqa: SLF001 - private member access
+        assert tracker._tm_in_file == os.path.join(input_dir, "tm.nc")  # noqa: SLF001 - private member access
+        assert tracker._slp_in_file == os.path.join(input_dir, "slp.nc")  # noqa: SLF001 - private member access
+
+    def test_set_input_files(self, tmp_path):
+        """Test the variable input files are automatically set by set_input_files."""
+        base_params = TSTORMSBaseParameters(
+            tstorms_dir=str(tmp_path / "tstorms"),
+            output_dir=str(tmp_path / "tstorms/output"),
+        )
+        tracker = TSTORMSTracker(base_params)
+
+        # Create the netcdf files with the appropriate variable names
+        inputs = []
+        for var_name in ["u_ref", "v_ref", "vort850", "tm", "slp"]:
+            filename = str(tmp_path / f"{var_name}.nc")
+            with Dataset(filename, "w") as nc_file:
+                nc_file.createVariable(var_name, "f")
+            inputs.append(filename)
+
+        tracker.set_input_files(inputs)
+
+        # Check the attributes have been set correctly
+        assert tracker._u_in_file == str(tmp_path / "u_ref.nc")  # noqa: SLF001 - private member access
+        assert tracker._v_in_file == str(tmp_path / "v_ref.nc")  # noqa: SLF001 - private member access
+        assert tracker._vort_in_file == str(tmp_path / "vort850.nc")  # noqa: SLF001 - private member access
+        assert tracker._tm_in_file == str(tmp_path / "tm.nc")  # noqa: SLF001 - private member access
+        assert tracker._slp_in_file == str(tmp_path / "slp.nc")  # noqa: SLF001 - private member access
 
     def test_write_driver_namelist(self, tstorms_tracker):
         """Test the generation of the driver namelist."""
@@ -815,7 +904,7 @@ class TestTSTORMSTracker:
             f.write("Mock cyclones content")
 
         output_file = os.path.join(output_dir, "trajectories.nc")
-        tracker.run_tracker(output_file)
+        tracker.run_tracker([], output_file)
         assert os.path.exists(output_file)
 
     def test_run_tracker_failure(self, mocker, tstorms_tracker, mock_trav_file) -> None:
@@ -861,7 +950,7 @@ class TestTSTORMSTracker:
         with pytest.raises(
             RuntimeError, match="Detect failed with a non-zero exit code"
         ):
-            tracker.run_tracker("trajectories.nc")
+            tracker.run_tracker([], "trajectories.nc")
 
         # Check a RuntimeError is correctly raised for stitch (trajectory_analysis)
         mock_subprocess_run.side_effect = lambda args, **kwargs: subprocess_failure(
@@ -870,7 +959,7 @@ class TestTSTORMSTracker:
         with pytest.raises(
             RuntimeError, match="Stitch failed with a non-zero exit code"
         ):
-            tracker.run_tracker("trajectories.nc")
+            tracker.run_tracker([], "trajectories.nc")
 
 
 class TestTSTORMSTrackerDetect:

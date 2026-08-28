@@ -27,7 +27,18 @@ For an overview of the functionalities, installation, and usage see the
    :undoc-members:
    :show-inheritance:
 
+.. autofunction:: parameter_set
+
+.. autofunction:: parameter_set_uz
+
+.. autofunction:: parameter_set_owz
+
 .. autoclass:: TEContour
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. autoclass:: TEDetectThreshold
    :members:
    :undoc-members:
    :show-inheritance:
