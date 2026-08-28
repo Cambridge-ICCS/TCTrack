@@ -95,7 +95,8 @@ extend-select = ["D417"]
 
 # Ignore SIM108 (use ternary instead of if-else) as I think it can obscure intent.
 # Ignore RUF002 (ambiguous characters) as it does not allow apostrophes in strings.
-ignore = ["SIM108", "RUF002"]
+# Ignore PLR0913 (too many arguments) PLR0917 still restricts non-keyword-only args.
+ignore = ["SIM108", "RUF002", "PLR0913"]
 
 [tool.ruff.lint.pydocstyle]
 # Use NumPy convention for checking docstrings
@@ -103,8 +104,9 @@ convention = "numpy"
 
 [tool.ruff.lint.per-file-ignores]
 # Ignore S101 (use of assert) in tests
+# Ignore SLF001 (private member access) in tests
 # Ignore PLR2004 (magic values) in tests as we regularly compare to a numerical value
-"**/tests/*" = ["S101", "PLR2004"]
+"**/tests/*" = ["S101", "SLF001", "PLR2004"]
 
 [[tool.mypy.overrides]]
 module = ["cftime.*", "cf.*"]
