@@ -14,7 +14,7 @@ from tctrack.utils.batching import batching
 ### Dummy functions for testing the preprocessing
 
 
-def dummy_step(comment: str = "dummy step", log: list[str] | None = None) -> None:
+def dummy_step(comment="dummy step", log: list | None = None) -> None:
     """Perform a dummy preproprocessing step that just updates the log."""
     if log is not None:
         log.append(comment)
@@ -94,7 +94,7 @@ class TestBatchingPreprocessing:
         assert log == ["dummy step", "created p"]
 
     def test_tag_expansion(self, config) -> None:
-        """Test the %BATCH% tags in any arguments get expanded."""
+        """Test the %ITER% and %BATCH% tags in any arguments get expanded."""
         tracker = DummyTracker()
         log: list[str] = []
 
@@ -102,12 +102,28 @@ class TestBatchingPreprocessing:
             tracker,
             n_iter=2,
             input_files="input.nc",
-            preprocessing=[(dummy_step, {"comment": "%BATCH%", "log": log})],
+            preprocessing=[(dummy_step, {"comment": "%ITER%%BATCH%", "log": log})],
             config=config,
         )
 
-        batch_basename = str(Path(config["output_dir"]) / "batch_")
-        assert log == [batch_basename + "0", batch_basename + "1"]
+        batch_dirs = [str(Path(config["output_dir"]) / f"batch_{i}") for i in range(2)]
+        assert log == [f"{i}{batch_dirs[i]}" for i in range(2)]
+
+    def test_tag_expansion_iter_only(self, config) -> None:
+        """Test %ITER% tag on its own gets replaced with an integer."""
+        tracker = DummyTracker()
+        log: list = []
+
+        batching(
+            tracker,
+            n_iter=2,
+            input_files="input.nc",
+            preprocessing=[(dummy_step, {"comment": "%ITER%", "log": log})],
+            config=config,
+        )
+
+        assert log == [0, 1]
+        assert isinstance(log[0], int)
 
 
 class TestBatching:
