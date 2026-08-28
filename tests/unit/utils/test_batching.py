@@ -174,3 +174,34 @@ class TestBatching:
         assert tracker.outputs == [
             str(config["output_dir"] / f"tracks_{i}.nc") for i in range(n_iter)
         ]
+
+    def test_input_file_wildcards(self, config) -> None:
+        """Test batching expands input file wildcards in each batch directory."""
+        tracker = DummyTracker()
+
+        def retrieve_data(_: int, batch_dir: Path) -> None:
+            (batch_dir / "input_2.nc").touch()
+            (batch_dir / "input_1.nc").touch()
+
+        batching(
+            tracker,
+            n_iter=2,
+            input_files="input_*.nc",
+            retrieve_data=retrieve_data,
+            config=config,
+        )
+
+        assert tracker.inputs == [
+            [
+                str(config["output_dir"] / f"batch_{i}" / "input_1.nc"),
+                str(config["output_dir"] / f"batch_{i}" / "input_2.nc"),
+            ]
+            for i in range(2)
+        ]
+
+    def test_input_file_wildcards_missing(self, config) -> None:
+        """Test batching fails if there are no input files that match a wildcard."""
+        tracker = DummyTracker()
+
+        with pytest.raises(FileNotFoundError, match="No files matched"):
+            batching(tracker, n_iter=1, input_files="input_*.nc", config=config)
