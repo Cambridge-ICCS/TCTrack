@@ -1,5 +1,6 @@
 """Module providing functions for batching the tracking algorithms."""
 
+import glob
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import Any, TypeAlias, TypedDict
@@ -33,6 +34,33 @@ def _run_preprocessing(step: PreprocessStep, batch_dir: Path) -> PreprocessResul
     result = fn(**kwargs)
 
     return result
+
+
+def _parse_input_files(input_files: Iterable[str], batch_dir: Path) -> list[str]:
+    """Parse the input files to prepend the batch directory and expand wildcards."""
+    input_file_paths: list[str] = []
+
+    for input_file in input_files:
+        input_file_path = input_file
+
+        # Prepend the batch directory for relative file paths
+        if not Path(input_file).is_absolute():
+            input_file_path = str(batch_dir / input_file)
+
+        # If it wildcards, expand these
+        if glob.has_magic(input_file_path):
+            matches = sorted(glob.glob(input_file_path))
+            if matches:
+                input_file_paths.extend(matches)
+            else:
+                msg = f"No files matched input pattern '{input_file_path}'."
+                raise FileNotFoundError(msg)
+
+        # Otherwise just append the path
+        else:
+            input_file_paths.append(input_file_path)
+
+    return input_file_paths
 
 
 class BatchingConfig(TypedDict, total=False):
@@ -69,8 +97,9 @@ def batching(
     n_iter : int
         The number of batching iterations to perform.
     input_files : str | Iterable[str]
-        The input file names to pass to the tracker. These will be taken from the batch
-        directories.
+        The input file names to pass to the tracker. These will be taken relative to the
+        batch directory unless absolute file paths are provided. The `*` wildcard can be
+        used to match multiple files.
     preprocessing : Sequence[PreprocessStep] | None
         (optional) The list of preprocessing steps. These are each specified by a tuple.
 
@@ -154,10 +183,8 @@ def batching(
         for preprocessing_step in preprocessing or ():
             _run_preprocessing(preprocessing_step, batch_dir=batch_dir)
 
-        # Get the list of input files for the batch
-        input_file_paths = [str(batch_dir / file) for file in input_files]
-
         # Run the tracker and keep track of the output files
+        input_file_paths = _parse_input_files(input_files, batch_dir)
         output_file = output_dir / f"tracks_{i_iter}.nc"
         tracker.run_tracker(input_file_paths, str(output_file))
         output_files.append(output_file)
