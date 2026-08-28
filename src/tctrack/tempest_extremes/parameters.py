@@ -151,6 +151,9 @@ class TEThreshold(TypedDict):
     Each condition is of the form "var,op,value,count" and multiple conditions are
     separated by ";".
 
+    If using latitude or longitude these should be specified as ``"lat"`` or ``"lon"``
+    regardless of their names in the input files.
+
     See Also
     --------
     TETracker.stitch : The StitchNodes call from the TETracker object.
@@ -260,10 +263,10 @@ class TEDetectParameters(TCTrackerParameters):
     Alternatively, can be a regex for the datetime using format `"YYYY-MM-DD HH:MM:SS"`.
     """
 
-    lat_name: str = "lat"
+    lat_name: str = "latitude"
     """String for the latitude dimension in the NetCDF files."""
 
-    lon_name: str = "lon"
+    lon_name: str = "longitude"
     """String for the longitude dimension in the NetCDF files."""
 
     min_lat: float = 0.0
