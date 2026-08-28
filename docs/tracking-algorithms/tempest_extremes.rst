@@ -146,6 +146,8 @@ with :meth:`~TETracker.stitch`:
         time_filter="6hr",
         merge_dist=6.0,
         closed_contours=closed_contours,
+        lat_name="lat",
+        lon_name="lon",
         out_header=True,
         output_commands=output_commands,
         output_dir="te_outputs",
@@ -231,12 +233,12 @@ instance.
 Input data
 ----------
 
-The input data must be stored in NetCDF files with dimensions named ``lon``, ``lat``,
-and ``time`` (or otherwise specified using the :attr:`~TEDetectParameters.lon_name`
-and :attr:`~TEDetectParameters.lat_name` parameters). There can be multiple input
-files and multiple variables per file. However, each variable must only appear in one
-file, i.e. variables split over time into multiple files must first be combined (see
-:ref:`combine_time`).
+The input data must be stored in NetCDF files with dimensions named ``longitude``,
+``latitude``, and ``time`` (or otherwise specified using the
+:attr:`~TEDetectParameters.lon_name` and :attr:`~TEDetectParameters.lat_name`
+parameters). There can be multiple input files and multiple variables per file. However,
+each variable must only appear in one file, i.e. variables split over time into multiple
+files must first be combined (see :ref:`combine_time`).
 
 For the minimum needed to produce tracks, provide a time-varying scalar field to search
 for candidates in and set either :attr:`~TEDetectParameters.search_by_min` or
