@@ -20,15 +20,21 @@ def _combine_trajectories(output_file_list: list[Path], output_file: Path) -> No
     """Combine batched trajectory outputs into a single NetCDF file."""
 
 
-def _run_preprocessing(step: PreprocessStep, batch_dir: Path) -> PreprocessResult:
+def _run_preprocessing(
+    step: PreprocessStep, batch: tuple[int, Path]
+) -> PreprocessResult:
     """Run a batching step with supported keyword arguments."""
     fn = step[0]
     kwargs = step[1].copy()
 
-    # Replace any %BATCH% tags in string arguments
+    # Replace any %BATCH% and %ITER% tags in string arguments
+    i_iter, batch_dir = batch
     for k, v in kwargs.items():
-        if isinstance(v, str):
+        if v == "%ITER%":
+            kwargs[k] = i_iter  # If just "%ITER%" use an integer instead
+        elif isinstance(v, str):
             kwargs[k] = v.replace("%BATCH%", str(batch_dir))
+            kwargs[k] = kwargs[k].replace("%ITER%", str(i_iter))
 
     # Run the preprocessing function
     result = fn(**kwargs)
@@ -181,7 +187,7 @@ def batching(
 
         # Preprocess the data
         for preprocessing_step in preprocessing or ():
-            _run_preprocessing(preprocessing_step, batch_dir=batch_dir)
+            _run_preprocessing(preprocessing_step, batch=(i_iter, batch_dir))
 
         # Run the tracker and keep track of the output files
         input_file_paths = _parse_input_files(input_files, batch_dir)
