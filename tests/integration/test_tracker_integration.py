@@ -71,6 +71,8 @@ class TestTETrackerIntegration:
             closed_contours=[
                 te.TEContour(var="psl", delta=200.0, dist=5.5, minmaxdist=0.0),
             ],
+            lon_name="lon",
+            lat_name="lat",
             out_header=True,
             output_commands=[
                 te.TEOutputCommand(var="psl", operator="min", dist=0.0),

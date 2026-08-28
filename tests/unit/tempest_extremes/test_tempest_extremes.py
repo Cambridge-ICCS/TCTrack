@@ -50,8 +50,8 @@ class TestTETypes:
         assert params.no_closed_contours is None
         assert params.thresholds is None
         assert params.merge_dist == 0.0
-        assert params.lat_name == "lat"
-        assert params.lon_name == "lon"
+        assert params.lat_name == "latitude"
+        assert params.lon_name == "longitude"
         assert params.min_lat == 0.0
         assert params.max_lat == 0.0
         assert params.min_lon == 0.0
@@ -1014,9 +1014,9 @@ class TestTETrackerDetect:
                 "--mergedist",
                 "0.0",
                 "--latname",
-                "lat",
+                "latitude",
                 "--lonname",
-                "lon",
+                "longitude",
                 "--minlat",
                 "0.0",
                 "--maxlat",
@@ -1165,9 +1165,9 @@ class TestTETrackerDetect:
                 "--timefilter",
                 "3hr",
                 "--latname",
-                "lat",
+                "latitude",
                 "--lonname",
-                "lon",
+                "longitude",
                 "--minlat",
                 "0.0",
                 "--maxlat",
