@@ -19,6 +19,8 @@ nc_names = {
     "msl": "psl",
     "si10": "sfcWind",
     "ghdiff": "_DIFF(zg7h(250hPa),zg7h(500hPa))",
+    "latitude": "lat",
+    "longitude": "lon",
 }
 detect_params, stitch_params = te.parameter_set("default", nc_names)
 
