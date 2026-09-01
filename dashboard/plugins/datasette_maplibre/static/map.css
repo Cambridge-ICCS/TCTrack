@@ -1,0 +1,14 @@
+#datasette-maplibre {
+	height: 96dvh;
+    margin-inline: calc(-1rem); /* remove parent margin */
+}
+
+#datasette-maplibre .maplibregl-popup-content dl.properties {
+	margin: 0.5rem;
+	font-size: 1rem;
+}
+
+#datasette-maplibre .maplibregl-popup-content dl.properties dt {
+	margin-top: 0.5em;
+	font-weight: bold;
+}
