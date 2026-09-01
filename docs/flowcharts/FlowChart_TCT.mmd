@@ -1,0 +1,57 @@
+flowchart LR
+    InputNC[("Input NetCDF
+    Climate model data")]
+
+    subgraph User["User"]
+        Configure["Configure parameters
+        e.g. variables, thresholds,
+        file paths"]
+    end
+
+    subgraph TCTrack["TCTrack (Python package)"]
+        subgraph TrackingAlgo["Tracking Algorithm (choose one)"]
+            TempestExtremes["TempestExtremes"]
+            TSTORMS["TSTORMS"]
+            TRACK["TRACK"]
+            MLTracker["ML Tracker"]
+        end
+
+        subgraph SharedInterface["Shared Tracker Interface (TCTracker base class)"]
+            ParseOutput["Parse output
+            → Trajectory objects"]
+            ReadMetadata["Read metadata
+            from input files"]
+            WriteOutput["Write CF-compliant
+            NetCDF output"]
+        end
+    end
+
+    subgraph OS["Operating System"]
+        ExternalBinary["External binary
+        C++ / Fortran"]
+        IntermediateFiles[("Intermediate
+        text files")]
+    end
+
+    OutputNC[("Output tracks.nc
+    CF-compliant
+    trajectory file")]
+
+    InputNC --> Configure
+    InputNC --> ReadMetadata
+    Configure --> TrackingAlgo
+    TrackingAlgo -- "subprocess call
+    + CLI arguments" --> ExternalBinary
+    ExternalBinary -- writes --> IntermediateFiles
+    IntermediateFiles --> ParseOutput
+    ParseOutput --> WriteOutput
+    ReadMetadata --> WriteOutput
+    WriteOutput --> OutputNC
+
+    style ExternalBinary fill:#f8cecc,stroke:#b85450
+    style OS fill:#e6d9f5,stroke:#9673a6
+    style User fill:#dae8fc,stroke:#6c8ebf
+    style TCTrack fill:#fff2cc,stroke:#d6b656
+    style SharedInterface fill:#d5e8d4,stroke:#82b366
+    style InputNC fill:#d5e8d4,stroke:#82b366
+    style OutputNC fill:#dae8fc,stroke:#6c8ebf
