@@ -59,6 +59,10 @@ doc = [
     "sphinx_rtd_theme",
     "sphinx_autodoc_typehints",
 ]
+dashboard = [
+    "datasette>=0.65",
+    "datasette-maplibre @ file:dashboard/plugins/datasette_maplibre",
+]
 dev = [
     "tctrack[test,lint,doc]",
     "pre-commit",
