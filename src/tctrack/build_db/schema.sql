@@ -104,3 +104,12 @@ select trajectories.id as trajectory_id, start_end,
 	tctrack_version, tracker_name
 from trajectories
 	join files on files.id = file_id;
+
+
+-- File layers map view
+create view map_file_layers_view as
+select file_id, trajectories.id as trajectory_id, start_end,
+	filename as layer_file,
+	geojson_track, geojson_points
+from trajectories
+	join files on files.id = file_id;

@@ -28,7 +28,7 @@ python -m build_db --output OUTPUT files...
 
 ### Arguments
 
-| Flag                 | Required | Description |
+| Flag                 | Required | Description                                                                                              |
 |----------------------|----------|----------------------------------------------------------------------------------------------------------|
 | `--output`, `-o`     | yes      | SQLite database path and name. Created if it doesn't exist, appended to if it does.                      |
 | `--collection`, `-c` | no       | Collection name. Creates or reuses an existing collection. Will use a default collection if unspecified. |
@@ -61,6 +61,32 @@ collections              Named groups of track files.
 ```
 
 See [`schema.sql`](schema.sql) for the full schema definition.
+
+
+## GeoJSON
+
+The trajectories table contains GeoJSON representations of the track and observation points. Each track and point has properties that can be displayed or filtered when displayed on a map. Available properties are:
+
+### geojson_track
+
+| Property Name | Description                                                                                     |
+| ------------- | ----------------------------------------------------------------------------------------------- |
+| file          | Filename of source file                                                                         |
+| track_id      | Original index of the track                                                                     |
+| start_end     | Flag to indicate if the track starts or ends at the temporal boundaries of the model parameters |
+
+### geojson_points
+
+| Property Name                 | Description                                           |
+| ----------------------------- | ----------------------------------------------------- |
+| file                          | Filename of source file                               |
+| track_id                      | Original index of the track                           |
+| sequence                      | Sequence number of the observation point on the track |
+| date                          | Date and time of the observation                      |
+| air_pressure_at_sea_level     | Air pressure at sea level                             |
+| surface_altitude              | Surface altitude                                      |
+| wind_speed                    | Wind speed                                            |
+| atmosphere_relative_vorticity | Atmosphere relative vorticity                         |
 
 
 ## Notes
