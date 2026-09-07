@@ -176,6 +176,7 @@ def extract_trajectory(netcdf_data: dict, traj_idx: int) -> dict:
     start_end = ("S" if start else "") + ("E" if end else "") or None
 
     return {
+        "traj_idx": traj_idx,
         "filepath": netcdf_data["filepath"],
         "start_end": start_end,
         "indices": indices,
@@ -201,7 +202,7 @@ def build_geojson_track(traj: dict) -> dict:
     """
     Build a GeoJSON LineString Feature for the full trajectory path.
 
-    Coordinates are rounded to ~100m precision to save storage space.
+    Coordinates are rounded to ~100m precision to reduce overall object size.
 
     Parameters
     ----------
@@ -224,8 +225,9 @@ def build_geojson_track(traj: dict) -> dict:
             "coordinates": coordinates,
         },
         "properties": {
+            "file": os.path.basename(traj["filepath"]),
+            "track_id": traj["traj_idx"],
             "start_end": traj["start_end"],
-            "source_file": os.path.basename(traj["filepath"]),
         },
     }
 
@@ -234,7 +236,7 @@ def build_geojson_points(traj: dict) -> dict:
     """
     Build GeoJSON FeatureCollection for all observation points along the trajectory.
 
-    Coordinates are rounded to ~100m precision to save storage space.
+    Coordinates are rounded to ~100m precision to reduce overall object size.
 
     Parameters
     ----------
@@ -247,9 +249,11 @@ def build_geojson_points(traj: dict) -> dict:
     """
     features = []
 
-    for idx, i in enumerate(traj["indices"]):
+    for sequence, i in enumerate(traj["indices"]):
         properties = {
-            "index": idx,
+            "file": os.path.basename(traj["filepath"]),
+            "track_id": traj["traj_idx"],
+            "sequence": sequence,
             "date": traj["times"][i].isoformat(timespec="minutes"),
         }
 
@@ -361,20 +365,21 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
     geojson_points = json.dumps(build_geojson_points(traj), separators=(",", ":"))
 
     cur = db.execute(
-        """insert into trajectories (file_id, start_end, geojson_track, geojson_points)
+        """insert into trajectories
+           (file_id, start_end, geojson_track, geojson_points)
            values (?, ?, ?, ?)""",
-        (file_id, traj["start_end"], geojson_track, geojson_points),
+        (file_id, traj["start_end"], geojson_track, geojson_points)
     )
     if cur.lastrowid is None:
         msg = "Insert into trajectories table failed"
         raise RuntimeError(msg)
 
-    traj_id = cur.lastrowid
+    trajectory_id = cur.lastrowid
 
     rows = [
         (
-            traj_id,
-            idx,
+            trajectory_id,
+            sequence,
             traj["times"][i].isoformat(" "),
             traj["latitude"][i],
             traj["longitude"][i],
@@ -383,7 +388,7 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
             v[i] if (v := traj["wind_speed"]) is not None else None,
             v[i] if (v := traj["atmosphere_relative_vorticity"]) is not None else None,
         )
-        for idx, i in enumerate(traj["indices"])
+        for sequence, i in enumerate(traj["indices"])
     ]
 
     if rows:
@@ -399,7 +404,7 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
             msg = "Inserts into observations table failed"
             raise RuntimeError(msg)
 
-    return traj_id
+    return trajectory_id
 
 
 def import_file(

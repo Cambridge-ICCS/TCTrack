@@ -374,6 +374,7 @@ form.sql textarea {
     border-radius: 8px;
     padding: 0.75rem 1rem;
     margin-bottom: 1rem;
+    width: fit-content;
 }
 .facet-info a:link {
     text-decoration: none;
@@ -458,6 +459,11 @@ dialog.mobile-column-actions-dialog {
     scrollbar-color: var(--grey-400) var(--grey-200);
 }
 
+/* MapLibre Map ------------------------------------------------------------ */
+.maplibregl-popup-content {
+	width: fit-content;
+}
+
 /* Leaflet Map ------------------------------------------------------------- */
 /* Leaflet's CSS is injected dynamically at runtime (after this stylesheet),
    so !important is needed on properties used to ensure they're overridden.  */
@@ -466,7 +472,7 @@ dialog.mobile-column-actions-dialog {
 	height: 100dvh !important;
 }
 
-/* Table view for GeoJSON columns ------------------------------------------ */
+/* Hide GeoJSON columns in table views ------------------------------------- */
 .col-geojson_track {
     display: none;
 }

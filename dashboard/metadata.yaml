@@ -10,7 +10,15 @@ extra_css_urls:
 
 plugins:
   datasette-maplibre:
-    basemap: https://demotiles.maplibre.org/style.json
+    basemap: https://tiles.openfreemap.org/styles/positron
+    layer_palette:
+      - "#ee7733"
+      - "#0077bb"
+      - "#33bbee"
+      - "#ee3377"
+      - "#cc3311"
+      - "#009988"
+      - "#bbbbbb"
 
 # Database and table metadata - optional
 # This is linked to the served database by the filename given here (tracks). Its
