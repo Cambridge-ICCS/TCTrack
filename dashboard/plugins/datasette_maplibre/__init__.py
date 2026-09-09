@@ -6,7 +6,8 @@ from datasette import hookimpl
 
 PLUGIN = "datasette-maplibre"
 
-MAPLIBRE_CSS = "https://unpkg.com/maplibre-gl@^6.7.0/dist/maplibre-gl.css"
+MAPLIBRE_CSS = "https://unpkg.com/maplibre-gl@^6.8.0/dist/maplibre-gl.css"
+LAYER_CONTROL_CSS = "https://unpkg.com/maplibre-gl-layer-control@^0.17.4/dist/maplibre-gl-layer-control.css"
 DEFAULT_BASEMAP = "https://demotiles.maplibre.org/style.json"
 
 
@@ -27,6 +28,7 @@ def extra_css_urls(template, database, table, columns, view_name, request, datas
 
     return [
         MAPLIBRE_CSS,
+        LAYER_CONTROL_CSS,
         datasette.urls.static_plugins(PLUGIN, "map.css"),
     ]
 
