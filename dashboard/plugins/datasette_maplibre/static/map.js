@@ -1,4 +1,5 @@
-import * as maplibregl from "https://unpkg.com/maplibre-gl@^6.7.0/dist/maplibre-gl.mjs";
+import * as maplibregl from "https://unpkg.com/maplibre-gl@^6.8.0/dist/maplibre-gl.mjs";
+import { LayerControl } from "https://unpkg.com/maplibre-gl-layer-control@^0.17.4/dist/index.mjs";
 
 // Pick up config passed from Python __init__ layer
 const BASEMAP_STYLE = window.DATASETTE_MAPLIBRE_STYLE || "https://demotiles.maplibre.org/style.json";
@@ -169,6 +170,7 @@ function init() {
 		// Add a new pair of layers for each distinct layer value
 		let layer_filter;
 		let colour_idx = 0;
+		let layer_names = [];
 
 		for (const layer of geojson.layers) {
 
@@ -215,7 +217,10 @@ function init() {
 				],
 			});
 
-			colour_idx = (colour_idx + 1) % LAYER_PALETTE.length; // wrap colour index at end of palette (not ideal)
+			layer_names.push(linesLayerId, pointsLayerId);
+
+			// Advance layer colour index - wraps at the end of palette (not ideal)
+			colour_idx = (colour_idx + 1) % LAYER_PALETTE.length;
 
 			// Set on-click popups for both layer geometry types
 			for (const layer of [linesLayerId, pointsLayerId]) {
@@ -233,6 +238,13 @@ function init() {
 		// Zoom to data bounds
 		const bounds = calcGeoJSONBounds(geojson);
 		map.fitBounds(bounds, { padding: 40, maxZoom: 15 });
+
+		// Add layer control
+		const layerControl = new LayerControl({
+			layers: layer_names,
+			panelWidth: 400,
+		});
+		map.addControl(layerControl, 'top-right');
 
 		// Expose the map API for debugging
 		window.datasette_maplibre_map = map;
