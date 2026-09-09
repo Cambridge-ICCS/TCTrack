@@ -152,6 +152,7 @@ function init() {
 	});
 	map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
 	map.addControl(new maplibregl.GlobeControl(), 'top-right');
+	map.addControl(new LayerControl({ panelWidth: 500 }), 'top-right');
 
 	map.on("load", async () => {
 		// Wait for data load then set as the datasource
@@ -170,7 +171,6 @@ function init() {
 		// Add a new pair of layers for each distinct layer value
 		let layer_filter;
 		let colour_idx = 0;
-		let layer_names = [];
 
 		for (const layer of geojson.layers) {
 
@@ -217,8 +217,6 @@ function init() {
 				],
 			});
 
-			layer_names.push(linesLayerId, pointsLayerId);
-
 			// Advance layer colour index - wraps at the end of palette (not ideal)
 			colour_idx = (colour_idx + 1) % LAYER_PALETTE.length;
 
@@ -238,13 +236,6 @@ function init() {
 		// Zoom to data bounds
 		const bounds = calcGeoJSONBounds(geojson);
 		map.fitBounds(bounds, { padding: 40, maxZoom: 15 });
-
-		// Add layer control
-		const layerControl = new LayerControl({
-			layers: layer_names,
-			panelWidth: 400,
-		});
-		map.addControl(layerControl, 'top-right');
 
 		// Expose the map API for debugging
 		window.datasette_maplibre_map = map;
