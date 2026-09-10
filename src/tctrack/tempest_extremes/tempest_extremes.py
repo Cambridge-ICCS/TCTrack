@@ -9,13 +9,13 @@ References
 
 import csv
 import tempfile
-from dataclasses import dataclass
 from pathlib import Path
-from typing import TypedDict
+from typing import Iterable
 
 import cf
 
 from tctrack.core import TCTracker, TCTrackerMetadata, TCTrackerParameters, Trajectory
+from tctrack.tempest_extremes import TEDetectParameters, TEStitchParameters
 
 
 def lod_to_te(inputs: list[dict]) -> str:
@@ -43,377 +43,6 @@ def lod_to_te(inputs: list[dict]) -> str:
     return ";".join(",".join(str(value) for value in d.values()) for d in inputs)
 
 
-class TEContour(TypedDict):
-    """
-    Data required for checking a contour of a single variable during detection.
-
-    Points will be eliminated in a detection search if they fail this criterion.
-    The closed contour is determined by breadth first search: if any paths exist from
-    the candidate point (or nearby minima/maxima if minmaxdist is specified) that
-    reach the specified distance before achieving the specified delta then we say no
-    closed contour is present.
-    Each contour takes the form of a ``dict`` with keys ``"var"``, ``"delta"``,
-    ``"dist"``, and ``"minmaxdist"``.
-
-    See Also
-    --------
-    TETracker.detect : The DetectNodes call from the TETracker object
-    TEDetectParameters : The detection parameter class
-
-    References
-    ----------
-    `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#DetectNodes>`__
-    and the `DetectNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/DetectNodes.cpp>`_
-
-    Examples
-    --------
-    To add a contour requirement on ``"psl"`` with a change of ``200.0`` within
-    ``5.5`` degrees of the candidate we create a TEContour as follows:
-
-    >>> TEContour(var="psl", delta=200.0, dist=5.5, minmaxdist=0.0)
-    {'var': 'psl', 'delta': 200.0, 'dist': 5.5, 'minmaxdist': 0.0}
-    """
-
-    var: str
-    """Name of the variable to contour in NetCDF files."""
-
-    delta: float
-    """
-    Amount by which the field must change from the pivot value.
-    If positive (negative) the field must increase (decrease) by this value along
-    the contour.
-    """
-
-    dist: float
-    """
-    Lesser-circle radius (degrees) from the pivot within which the
-    criteria must be satisfied.
-    """
-
-    minmaxdist: float
-    """
-    Lesser-circle radius away from the candidate to search for the minima/maxima.
-    If delta is positive (negative), the pivot is a local minimum (maximum).
-    """
-
-
-class TEOutputCommand(TypedDict):
-    """
-    Data required to specify an additional column in the detection output.
-
-    Each output command takes the form of a ``dict`` with keys ``"var"``, ``"op"``, and
-    ``"dist"``.
-
-    See Also
-    --------
-    TETracker.detect : The DetectNodes call from the TETracker object
-    TEDetectParameters : The detection parameter class
-
-    References
-    ----------
-    `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#DetectNodes>`__
-    and the `DetectNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/DetectNodes.cpp>`_
-
-    Examples
-    --------
-    To add an output column with the minimum ``"psl"`` at the candidate point:
-
-    >>> TEOutputCommand(var="psl", operator="min", dist=0.0)
-    {'var': 'psl', 'operator': 'min', 'dist': 0.0}
-    """
-
-    var: str
-    """Name of the variable to write in output files."""
-
-    operator: str
-    """
-    Operator that is applied over all points within the specified distance of the
-    candidate (options include ``"max"``, ``"min"``, ``"avg"``, ``"maxdist"``, and
-    ``"mindist"``).
-    """
-
-    dist: float
-    """
-    Lesser-circle radius (degrees) from the candidate within which the
-    operator is applied.
-    """
-
-
-class TEThreshold(TypedDict):
-    """Data required for a threshold filter for a track trajectory when stitching.
-
-    Any storm track trajectories that do not satisfy the threshold value for a given
-    number of points will be filtered out.
-    Each condition is of the form "var,op,value,count" and multiple conditions are
-    separated by ";".
-
-    See Also
-    --------
-    TETracker.stitch : The StitchNodes call from the TETracker object.
-    TEStitchParameters : The stitching parameter class.
-
-    References
-    ----------
-    `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#StitchNodes>`__
-    and the `StitchNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/StitchNodes.cpp>`_
-
-    Examples
-    --------
-    To add a filter requiring latitude ``"lat"`` to be less than 40 degrees for
-    10 or more points in each track trajectory:
-
-    >>> TEThreshold(var="lat", op="<=", value=40, count=10)
-    {"var": "lat", "op": "<=", "value": 40, "count": 10},
-    """
-
-    var: str
-    """Name of the variable being tested. Called "col" in TempestExtremes."""
-
-    op: str
-    """Operator used for the comparison (options include >,>=,<,<=,=,!=,|>=,|<=)."""
-
-    value: float
-    """Value on the right-hand-side of the comparison."""
-
-    count: int | str
-    """
-    Either the minimum number of points where the threshold must be satisfied or the
-    instruction ``"all"``, ``"first"``, or ``"last"``. ``"all"`` for all points along
-    the path, ``"first"`` for just the first point, and ``"last"`` for only the last
-    point.
-    """
-
-
-@dataclass(repr=False)
-class TEDetectParameters(TCTrackerParameters):
-    """
-    Dataclass containing values used by the detection operation of TE.
-
-    See Also
-    --------
-    TEContour : The class used to define contour criteria
-    TEOutputCommand : The class used to define additional outputs
-
-    References
-    ----------
-    `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#DetectNodes>`__
-    and the `DetectNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/DetectNodes.cpp>`_
-    """
-
-    in_data: list[str]
-    """List of strings of NetCDF input files."""
-
-    out_header: bool = False
-    """Include header at the top of the output file?"""
-
-    output_dir: str = ""  # Not using None to keep type-checking simple
-    """
-    File path of the directory to output intermediate files. If left empty, it will use
-    a temporary directory that will last only for the lifetime of the :class:`TETracker`
-    instance.
-    """
-
-    output_file: str = "nodes.txt"
-    """Name of output nodefile to write to in the :attr:`output_dir` directory."""
-
-    search_by_min: str | None = None
-    """
-    Input variable in NetCDF files for selecting candidate points (defined as local
-    minima). If ``None``, then uses ``"PSL"`` in Tempest Extremes.
-    """
-
-    search_by_max: str | None = None
-    """
-    Input variable in NetCDF files for selecting candidate points (defined as local
-    maxima).
-    """
-
-    closed_contours: list[TEContour] | None = None
-    """
-    Criteria for candidates to be eliminated if they do not have a closed contour
-    as a list of separate :class:`TEContour` criteria.
-    """
-
-    merge_dist: float = 0.0
-    """
-    DetectNodes merges candidate points with a distance (in degrees) shorter than the
-    specified value. Among two candidates within the merge distance, only the candidate
-    with the lowest value of the search_by_min field or highest value of the
-    search_by_max field are retained.
-    """
-
-    time_filter: str | None = None
-    """
-    Filter for the input data frequency. Options are: `"3hr"`, `"6hr"`, `"daily"`.
-    Alternatively, can be a regex for the datetime using format `"YYYY-MM-DD HH:MM:SS"`.
-    """
-
-    lat_name: str = "lat"
-    """String for the latitude dimension in the NetCDF files."""
-
-    lon_name: str = "lon"
-    """String for the longitude dimension in the NetCDF files."""
-
-    min_lat: float = 0.0
-    """Minimum latitude for candidate points."""
-
-    max_lat: float = 0.0
-    """
-    Maximum latitude for candidate points.
-    If max_lat and min_lat are equal then these arguments are ignored.
-    """
-
-    min_lon: float = 0.0
-    """Minimum longitude for candidate points."""
-
-    max_lon: float = 0.0
-    """
-    Maximum longitude for candidate points.
-    If ``max_lon`` and ``min_lon`` are equal then these arguments are ignored.
-    """
-
-    regional: bool = False
-    """Should lat-lon grid be periodic in longitude."""
-
-    output_commands: list[TEOutputCommand] | None = None
-    """
-    Criteria for any additional columns to be added to the output. Criteria are provided
-    as a list of separate :class:`TEOutputCommand` criteria.
-    """
-
-
-@dataclass(repr=False)
-class TEStitchParameters(TCTrackerParameters):
-    """Dataclass containing values used by the stitch operation of TE.
-
-    References
-    ----------
-    `TempestExtremes Documentation <https://climate.ucdavis.edu/tempestextremes.php#StitchNodes>`__
-    and the `StitchNodes Source <https://github.com/ClimateGlobalChange/tempestextremes/blob/master/src/nodes/StitchNodes.cpp>`_
-    """
-
-    output_dir: str = ""  # Not using None to keep type-checking simple
-    """
-    File path of the directory to output intermediate files. If left empty, it will use
-    the :attr:`TEDetectParameters.output_dir` value if one is provided. Otherwise, it
-    will use a temporary directory that will last only for the lifetime of the
-    :class:`TETracker` instance.
-    """
-
-    output_file: str = "trajectories.txt"
-    """
-    The output filename to write the trajectories to in the :attr:`output_dir`
-    directory.
-    """
-
-    in_file: str | None = None
-    """
-    Filepath of the DetectNodes output file. If this and ``in_list`` are ``None``, it
-    will be determined from :attr:`TEDetectParameters.output_dir` and
-    :attr:`TEDetectParameters.output_file`. Called "in" in TempestExtremes.
-    """
-
-    in_list: str | None = None
-    """
-    File containing a list of input files to be processed together. This is unadvised to
-    use at present as it is likely to be changed.
-    """
-
-    in_fmt: list[str] | None = None
-    """
-    List of the variables in the order they appear in the input file.
-    If ``None``, it will be ``["lon", "lat", ...]``, ending in variables defined in
-    :attr:`TEDetectParameters.output_commands`.
-    """
-
-    allow_repeated_times: bool = False
-    """
-    If ``False``, an error is thrown if there are multiple sections in the input
-    nodefile with the same time.
-    """
-
-    caltype: str = "standard"
-    """
-    The type of calendar to use. Options are ``"standard"`` (365 days with leap years),
-    ``"noleap"``, ``"360_day"``.
-    """
-
-    time_begin: str | None = None
-    """Starting date/time for stitching trajectories. Earlier times will be ignored."""
-
-    time_end: str | None = None
-    """Ending date/time for stitching trajectories. Later times will be ignored."""
-
-    max_sep: float = 5
-    """
-    The maximum distance allowed between candidates (degrees). Called "range" in
-    TempestExtremes.
-    """
-
-    max_gap: int | str = 0
-    """
-    The number of missing points allowed between candidates, as an integer. Or as a
-    string for the maximum time (inclusive) between points, e.g. ``"24hr"``.
-    """
-
-    min_time: int | str = 1
-    """
-    The minimum required length of a path. Either as an integer for the number of
-    candidates, or a string for total duration, e.g. ``"24h"``.
-    """
-
-    min_endpoint_dist: float = 0
-    """The minimum required distance between the first and last candidates (degrees)."""
-
-    min_path_dist: float = 0
-    """The minimum required acumulated distance along the path (degrees)."""
-
-    threshold_filters: list[TEThreshold] | None = None
-    """
-    Filters for paths based on the number of nodes that satisfy a threshold. Uses a list
-    of :class:`TEThreshold` objects.  Called "thresholdcmd" in TempestExtremes.
-    """
-
-    prioritize: str | None = None
-    """
-    The variable to use to determine the precedence (lowest to highest) of nodes for
-    matching to the next position.
-    """
-
-    add_velocity: bool = False
-    """
-    Whether to include the velocity components (m/s) of the movement of the TC to the
-    output file.
-    """
-
-    out_file_format: str = "gfdl"
-    """
-    Format of the output file. ``"gfdl"``, ``"csv"``, or ``"csvnohead"``.
-    See :meth:`TETracker.stitch` for details.
-    """
-
-    out_seconds: bool = False
-    """
-    For GFDL output file types, determines whether to report the sub-daily time in
-    seconds (``True``) or hours (``False``).
-    """
-
-    def __post_init__(self):
-        """Validate parameters."""
-        if self.out_file_format not in ("gfdl", "csv", "csvnohead"):
-            msg = (
-                f"Invalid out_file_format ({self.out_file_format}). "
-                "Allowed values are 'gfdl', 'csv', or 'csvnohead'"
-            )
-            raise ValueError(msg)
-        if self.caltype not in ("standard", "noleap", "360_day"):
-            msg = (
-                f"Invalid caltype ({self.caltype}). "
-                "Allowed values are 'standard', 'noleap', or '360_day'"
-            )
-            raise ValueError(msg)
-
-
 class TETracker(TCTracker):
     """Class containing bindings to the Tempest Extremes code.
 
@@ -430,7 +59,7 @@ class TETracker(TCTracker):
 
     def __init__(
         self,
-        detect_parameters: TEDetectParameters,
+        detect_parameters: TEDetectParameters | None = None,
         stitch_parameters: TEStitchParameters | None = None,
     ):
         """
@@ -444,7 +73,10 @@ class TETracker(TCTracker):
             Class containing the parameters for the stitching step
             Defaults to the default values in TEStitchParameters Class
         """
-        self.detect_parameters: TEDetectParameters = detect_parameters
+        if detect_parameters is not None:
+            self.detect_parameters: TEDetectParameters = detect_parameters
+        else:
+            self.detect_parameters = TEDetectParameters()
 
         if stitch_parameters is not None:
             self.stitch_parameters: TEStitchParameters = stitch_parameters
@@ -486,106 +118,47 @@ class TETracker(TCTracker):
             list of strings that can be combined to form a DetectNodes command
             based on the parameters set in self.detect_parameters
         """
+        dn_params = self.detect_parameters
         dn_argslist = ["DetectNodes"]
 
-        if self.detect_parameters.in_data is not None:
-            dn_argslist.extend(
-                [
-                    "--in_data",
-                    ";".join(self.detect_parameters.in_data),
-                ]
-            )
-        out_file = str(
-            Path(self.detect_parameters.output_dir) / self.detect_parameters.output_file
-        )
+        dn_argslist.extend(["--in_data", ";".join(self._input_files)])
+        out_file = str(Path(dn_params.output_dir) / dn_params.output_file)
         dn_argslist.extend(["--out", out_file])
-        if self.detect_parameters.out_header:
+        if dn_params.out_header:
             dn_argslist.extend(["--out_header"])
-        if self.detect_parameters.search_by_min is not None:
+        if dn_params.search_by_min is not None:
+            dn_argslist.extend(["--searchbymin", dn_params.search_by_min])
+        if dn_params.search_by_max is not None:
+            dn_argslist.extend(["--searchbymax", dn_params.search_by_max])
+        if dn_params.closed_contours is not None:
             dn_argslist.extend(
-                [
-                    "--searchbymin",
-                    self.detect_parameters.search_by_min,
-                ]
+                ["--closedcontourcmd", lod_to_te(dn_params.closed_contours)]
             )
-        if self.detect_parameters.search_by_max is not None:
+        if dn_params.no_closed_contours is not None:
             dn_argslist.extend(
-                [
-                    "--searchbymax",
-                    self.detect_parameters.search_by_max,
-                ]
+                ["--noclosedcontourcmd", lod_to_te(dn_params.no_closed_contours)]
             )
-        if self.detect_parameters.closed_contours is not None:
-            dn_argslist.extend(
-                [
-                    "--closedcontourcmd",
-                    lod_to_te(self.detect_parameters.closed_contours),
-                ]
-            )
-        dn_argslist.extend(
-            [
-                "--mergedist",
-                str(self.detect_parameters.merge_dist),
-            ]
-        )
-        if self.detect_parameters.time_filter is not None:
-            dn_argslist.extend(
-                [
-                    "--timefilter",
-                    self.detect_parameters.time_filter,
-                ]
-            )
-        if self.detect_parameters.lat_name is not None:
-            dn_argslist.extend(
-                [
-                    "--latname",
-                    self.detect_parameters.lat_name,
-                ]
-            )
-        if self.detect_parameters.lon_name is not None:
-            dn_argslist.extend(
-                [
-                    "--lonname",
-                    self.detect_parameters.lon_name,
-                ]
-            )
-        if self.detect_parameters.min_lat is not None:
-            dn_argslist.extend(
-                [
-                    "--minlat",
-                    str(self.detect_parameters.min_lat),
-                ]
-            )
-        if self.detect_parameters.max_lat is not None:
-            dn_argslist.extend(
-                [
-                    "--maxlat",
-                    str(self.detect_parameters.max_lat),
-                ]
-            )
-        if self.detect_parameters.min_lon is not None:
-            dn_argslist.extend(
-                [
-                    "--minlon",
-                    str(self.detect_parameters.min_lon),
-                ]
-            )
-        if self.detect_parameters.max_lon is not None:
-            dn_argslist.extend(
-                [
-                    "--maxlon",
-                    str(self.detect_parameters.max_lon),
-                ]
-            )
-        if self.detect_parameters.regional:
+        if dn_params.thresholds is not None:
+            dn_argslist.extend(["--thresholdcmd", lod_to_te(dn_params.thresholds)])
+        dn_argslist.extend(["--mergedist", str(dn_params.merge_dist)])
+        if dn_params.time_filter is not None:
+            dn_argslist.extend(["--timefilter", dn_params.time_filter])
+        if dn_params.lat_name is not None:
+            dn_argslist.extend(["--latname", dn_params.lat_name])
+        if dn_params.lon_name is not None:
+            dn_argslist.extend(["--lonname", dn_params.lon_name])
+        if dn_params.min_lat is not None:
+            dn_argslist.extend(["--minlat", str(dn_params.min_lat)])
+        if dn_params.max_lat is not None:
+            dn_argslist.extend(["--maxlat", str(dn_params.max_lat)])
+        if dn_params.min_lon is not None:
+            dn_argslist.extend(["--minlon", str(dn_params.min_lon)])
+        if dn_params.max_lon is not None:
+            dn_argslist.extend(["--maxlon", str(dn_params.max_lon)])
+        if dn_params.regional:
             dn_argslist.extend(["--regional"])
-        if self.detect_parameters.output_commands is not None:
-            dn_argslist.extend(
-                [
-                    "--outputcmd",
-                    lod_to_te(self.detect_parameters.output_commands),
-                ]
-            )
+        if dn_params.output_commands is not None:
+            dn_argslist.extend(["--outputcmd", lod_to_te(dn_params.output_commands)])
 
         return dn_argslist
 
@@ -641,6 +214,7 @@ class TETracker(TCTracker):
 
         >>> my_params = TEDetectParameters(...)
         >>> my_tracker = TETracker(detect_parameters=my_params)
+        >>> my_tracker.set_input_files("input.nc")
         >>> result = my_tracker.detect()
         """
         Path(self.detect_parameters.output_dir).mkdir(parents=True, exist_ok=True)
@@ -934,8 +508,8 @@ class TETracker(TCTracker):
         """Set the time and variable metadata attributes by reading from input files.
 
         Reads metadata for each variable listed in
-        :attr:`detect_parameters.output_commands` from the input NetCDF files
-        defined in :attr:`detect_parameters.in_data` (matching the NetCDF variable
+        :attr:`detect_parameters.output_commands` from the input NetCDF files that are
+        set by :meth:`set_input_files` (matching the NetCDF variable
         name). These will be stored in the :attr:`variable_metadata` attribute as a
         dictionary of :class:`TCTrackerMetadata` objects. This will be called from the
         :meth:`set_metadata` method.
@@ -950,10 +524,10 @@ class TETracker(TCTracker):
         To read in the metadata for ``psl`` from ``inputs.nc``:
 
         >>> detect_params = TEDetectParameters(
-        >>>     in_data=["inputs.nc"],
         >>>     output_commands=[TEOutputCommand(var="psl", operator="min", dist=0)],
         >>> )
         >>> tracker = TETracker(detect_params, stitch_params)
+        >>> tracker.set_input_files("inputs.nc")
         >>> tracker.set_metadata()
         >>> tracker.variable_metadata
         {
@@ -967,8 +541,6 @@ class TETracker(TCTracker):
             ),
         }
         """
-        input_files = self.detect_parameters.in_data
-
         # set time metadata
         variable_name = (
             self.detect_parameters.search_by_min
@@ -976,7 +548,7 @@ class TETracker(TCTracker):
             or "PSL"
         )
         fields = cf.read(
-            input_files,
+            self._input_files,
             select=f"ncvar%{variable_name}",  # type: ignore[operator]
             netcdf_backend="netCDF4",
         )
@@ -1005,7 +577,7 @@ class TETracker(TCTracker):
 
         # Set the variable metadata for the output variables
         var_outputs = self.detect_parameters.output_commands
-        if var_outputs is None or input_files is None:
+        if var_outputs is None:
             return
 
         for var_output in var_outputs:
@@ -1013,7 +585,7 @@ class TETracker(TCTracker):
 
             # Get the variable field from the netcdf file
             fields = cf.read(
-                input_files,
+                self._input_files,
                 select=f"ncvar%{var_name}",  # type: ignore[operator]
                 netcdf_backend="netCDF4",
             )
@@ -1047,7 +619,7 @@ class TETracker(TCTracker):
                     cell_method = cf.CellMethod("area", method, qualifiers=qualifier)
                 self._variable_metadata[var_name].constructs = [cell_method]
 
-    def run_tracker(self, output_file: str):
+    def run_tracker(self, input_files: str | Iterable[str], output_file: str):
         """Run TempestExtremes tracker to obtain tropical cyclone track trajectories.
 
         This first runs :meth:`detect` to get TC candidates at each time. Then
@@ -1056,6 +628,8 @@ class TETracker(TCTracker):
 
         Arguments
         ---------
+        input_files : str | Iterable[str]
+            A (list of) file path(s) containing NetCDF input data to use in the tracker.
         output_file : str
             Filename to which the tropical cyclone trajectories are saved.
 
@@ -1075,8 +649,9 @@ class TETracker(TCTracker):
         >>> detect_params = TEDetectParameters(...)
         >>> stitch_params = TEStitchParameters(...)
         >>> my_tracker = TETracker(detect_params, stitch_params)
-        >>> my_tracker.run_tracker()
+        >>> my_tracker.run_tracker("input.nc", "output.nc")
         """
+        self.set_input_files(input_files)
         self.detect()
         self.stitch()
         self.to_netcdf(output_file)
