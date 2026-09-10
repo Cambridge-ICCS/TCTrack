@@ -26,6 +26,37 @@ PreprocessStep: TypeAlias = (
 
 def _combine_trajectories(output_file_list: list[Path], output_file: Path) -> None:
     """Combine batched trajectory outputs into a single NetCDF file."""
+    if not output_file_list:
+        msg = "At least one output file is required to combine trajectories."
+        raise ValueError(msg)
+
+    fields_by_batch = [cf.read(str(file)) for file in output_file_list]  # type: ignore[operator]
+
+    # Re-index the trajectory
+    trajectory_offset = 0
+    for batch_fields in fields_by_batch:
+        n_trajectories = batch_fields[0].dimension_coordinate("trajectory").size
+        trajectory_idx = range(trajectory_offset, trajectory_offset + n_trajectories)
+        trajectory_offset = trajectory_idx[-1] + 1
+
+        for field in batch_fields:
+            field.dimension_coordinate("trajectory").set_data(trajectory_idx)
+
+    fields = [field for fields in fields_by_batch for field in fields]
+
+    # Pad the observation lengths to match
+    max_observations = max(
+        field.dimension_coordinate("observation").size for field in fields
+    )
+    for field in fields:
+        field.pad_missing("observation", to_size=max_observations, inplace=True)
+        field.dimension_coordinate("observation").set_data(range(max_observations))
+
+    # Combine the fields
+    combined_fields = cf.aggregate(fields, axes=["trajectory"], ncvar_identities=True)
+
+    # Write the combined output file
+    cf.write(combined_fields, str(output_file))  # type: ignore[operator]
 
 
 def _get_fields(
