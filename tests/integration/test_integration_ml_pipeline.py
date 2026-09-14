@@ -25,11 +25,16 @@ Run from the repo root with:
 
 import subprocess
 import tempfile
+from dataclasses import fields
 
 import cf
 import numpy as np
 
-from tctrack.machine_learning.cyclone_track_ml import MLParameters, MLTracker
+from tctrack.machine_learning.cyclone_track_ml import (
+    MLParameters,
+    MLStitchParameters,
+    MLTracker,
+)
 
 RDS_DIR = "/home/sg2147/rds/rds-inspire-tc-TqEGHMWTn8A/sg2147"
 PRESSURE_FILE = f"{RDS_DIR}/era5_pressure_2025_1.nc"
@@ -66,13 +71,23 @@ def section(title: str) -> None:
 
 def make_tracker(input_file: str, stats_file: str, **overrides) -> MLTracker:
     """Build a tracker against the prepared inputs, overriding any parameter."""
+    stitch_field_names = {field.name for field in fields(MLStitchParameters)}
+    stitch_overrides = {
+        name: value for name, value in overrides.items() if name in stitch_field_names
+    }
+    param_overrides = {
+        name: value
+        for name, value in overrides.items()
+        if name not in stitch_field_names
+    }
     return MLTracker(
         MLParameters(
             input_file=input_file,
             model_path=MODEL_PATH,
             normalisation_stats_path=stats_file,
-            **overrides,
-        )
+            **param_overrides,
+        ),
+        MLStitchParameters(**stitch_overrides),
     )
 
 
@@ -162,7 +177,7 @@ def test_pipeline(input_file: str, stats_file: str) -> None:
         "would write nothing"
     )
     for trajectory in trajectories:
-        assert trajectory.observations >= tracker.parameters.stitch_min_length
+        assert trajectory.observations >= tracker.stitch_parameters.stitch_min_length
         for key in ("time", "lat", "lon"):
             assert key in trajectory.data, f"trajectory missing '{key}'"
     print(f"  stitch():     {len(trajectories)} trajectories, all well-formed   OK")
