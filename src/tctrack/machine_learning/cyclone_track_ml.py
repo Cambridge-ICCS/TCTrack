@@ -20,6 +20,7 @@ from cftime import date2num
 
 from tctrack.core import (
     TCTrackerMetadata,
+    TCTrackerParameters,
     Trajectory,
 )
 from tctrack.core.ml_tracker import TCMLParameters, TCMLTracker
@@ -107,6 +108,16 @@ class MLParameters(TCMLParameters):
     Set to ``0`` to disable merging.
     """
 
+
+@dataclass(repr=False)
+class MLStitchParameters(TCTrackerParameters):
+    """Dataclass containing values used by :meth:`MLTracker.stitch`.
+
+    See Also
+    --------
+    MLTracker : The tracker class that uses these parameters.
+    """
+
     stitch_max_distance_deg: float = 3.0
     """Maximum distance (degrees lat/lon) between a track's last point and a
     candidate in the next timestep for them to be linked as the same storm.
@@ -138,6 +149,8 @@ class MLTracker(TCMLTracker):
     ----------
     parameters : MLParameters
         Class containing the parameters for the tracking algorithm.
+    stitch_parameters : MLStitchParameters
+        Class containing the parameters for the stitching step.
     model : torch.jit.ScriptModule
         The loaded TorchScript model in evaluation mode.
 
@@ -153,13 +166,20 @@ class MLTracker(TCMLTracker):
         """Filename of the model weights in the HuggingFace repository."""
         return "cyclone-detect-ml-scripted.pt"
 
-    def __init__(self, parameters: MLParameters):
+    def __init__(
+        self,
+        parameters: MLParameters,
+        stitch_parameters: MLStitchParameters | None = None,
+    ):
         """Construct the MLTracker and load the model.
 
         Parameters
         ----------
         parameters : MLParameters
             Class containing the parameters for the tracking algorithm.
+        stitch_parameters : MLStitchParameters | None
+            Class containing the parameters for the stitching step.
+            Defaults to the default values in :class:`MLStitchParameters`.
 
         Raises
         ------
@@ -169,6 +189,9 @@ class MLTracker(TCMLTracker):
             If the HuggingFace repository cannot be found or accessed.
         """
         self.parameters: MLParameters = parameters
+        self.stitch_parameters: MLStitchParameters = (
+            stitch_parameters if stitch_parameters is not None else MLStitchParameters()
+        )
         self._trajectories: list[Trajectory] = []
         self._scores: list[dict] = []
         # TC locations found by detect(), consumed by stitch().
@@ -180,9 +203,9 @@ class MLTracker(TCMLTracker):
         self._load_model(parameters)
 
     @property
-    def _parameters(self) -> list[MLParameters]:
+    def _parameters(self) -> list[TCTrackerParameters]:
         """A list of the parameter objects accessible from the base class."""
-        return [self.parameters]
+        return [self.parameters, self.stitch_parameters]
 
     def read_trajectories(self) -> list[Trajectory]:
         """Parse tracker outputs into a list of :class:`tctrack.core.Trajectory`.
@@ -609,10 +632,10 @@ class MLTracker(TCMLTracker):
         -------
         int | None
             Index of the nearest candidate within
-            :attr:`parameters.stitch_max_distance_deg`, or ``None`` if none
-            qualify.
+            :attr:`stitch_parameters.stitch_max_distance_deg`, or ``None`` if
+            none qualify.
         """
-        best_index, best_distance = None, self.parameters.stitch_max_distance_deg #best distance is closest distance found so far
+        best_index, best_distance = None, self.stitch_parameters.stitch_max_distance_deg #best distance is closest distance found so far
         for i in unmatched:
             candidate = candidates[i]
             distance = np.hypot(
@@ -639,7 +662,7 @@ class MLTracker(TCMLTracker):
         -------
         list[Trajectory]
             One :class:`~tctrack.core.Trajectory` per track with at least
-            :attr:`parameters.stitch_min_length` observations.
+            :attr:`stitch_parameters.stitch_min_length` observations.
         """
         # Group detect()'s flat list of locations by the timestep they belong
         # to, so each timestep's candidates can be looked up by index below.
@@ -671,7 +694,7 @@ class MLTracker(TCMLTracker):
 
             still_active = []
             for track in active_tracks:
-                if track["missed"] > self.parameters.stitch_max_gap:
+                if track["missed"] > self.stitch_parameters.stitch_max_gap:
                     finished.append(track["traj"])
                 else:
                     still_active.append(track)
@@ -692,7 +715,7 @@ class MLTracker(TCMLTracker):
         self._trajectories = [
             trajectory
             for trajectory in finished
-            if trajectory.observations >= self.parameters.stitch_min_length
+            if trajectory.observations >= self.stitch_parameters.stitch_min_length
         ]
         return self._trajectories
 
