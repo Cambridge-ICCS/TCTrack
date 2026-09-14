@@ -579,7 +579,8 @@ class MLTracker(TCMLTracker):
             centroid, class, and peak probability of each connected group of
             same-class pixels.
         """
-        unvisited = set(zip(*np.nonzero(is_storm), strict=False)) #storm classified pixels that are still unclaimed by any blob.
+        # Indices of storm-classified pixels that are still unclaimed by any blob.
+        unvisited = {(y, x) for y, x in np.argwhere(is_storm)}
         candidates: list[Candidate] = [] #list to carry details of candidate storms (centroid lat-lon) for each timestep
 
         # Run the loop until no pixels are left unchecked.
