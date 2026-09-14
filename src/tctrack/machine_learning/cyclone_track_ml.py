@@ -557,10 +557,15 @@ class MLTracker(TCMLTracker):
         class_idx: np.ndarray,
         class_prob: np.ndarray,
     ) -> list[Candidate]:
-        """Group adjacent same-class detected pixels into single point candidates.
-        It happens through flood-fill, where each unclaimed storm pixel is used as a seed
-        to find all its adjacent pixels of the same class, and then
-        the centroid of that blob is calculated using the class confidence as weights.
+        """Group adjacent detected pixels into single point candidates.
+
+        Uses flood-fill: each unclaimed storm pixel is used as a seed to find
+        all its adjacent storm pixels, regardless of predicted class - a
+        single storm can straddle a class boundary (e.g. genesis merging into
+        an active cyclone), which would otherwise split it into several
+        candidates. The class reported for the resulting cluster is instead
+        read off its most confident pixel, and the centroid of the blob is
+        calculated using the class confidence as weights.
 
         Parameters
         ----------
@@ -576,30 +581,26 @@ class MLTracker(TCMLTracker):
         list[Candidate]
             One :class:`Candidate` per cluster with ``lat``, ``lon``,
             ``class_index``, and ``score`` set to the probability-weighted
-            centroid, class, and peak probability of each connected group of
-            same-class pixels.
+            centroid, the winning class at the cluster's most confident
+            pixel, and that pixel's confidence.
         """
         # Indices of storm-classified pixels that are still unclaimed by any blob.
         unvisited = {(y, x) for y, x in np.argwhere(is_storm)}
         candidates: list[Candidate] = [] #list to carry details of candidate storms (centroid lat-lon) for each timestep
 
         # Run the loop until no pixels are left unchecked.
-        while unvisited: 
-            #start with an arbitrary unclaimed storm pixel
-            start = unvisited.pop() # pop() removes and returns the element from the right end 
-            component_class = class_idx[start]
+        while unvisited:
+            # Start with an arbitrary unclaimed storm pixel.
+            start = unvisited.pop()
             queue = deque([start]) #collection of pixels whose neigbours are yet to be checked
             pixels = [start]
-            
-            # Run the loop until no neigbouring pixel is left unchecked for a blob
+
+            # Run the loop until no neighbouring pixel is left unchecked for a blob.
             while queue:
-                y, x = queue.popleft() # popleft() removes and returns an element from the left end of the deque
+                y, x = queue.popleft()
                 for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1)):
                     neighbour = (y + dy, x + dx)
-                    if (
-                        neighbour in unvisited
-                        and class_idx[neighbour] == component_class
-                    ):
+                    if neighbour in unvisited:
                         unvisited.discard(neighbour)
                         queue.append(neighbour)
                         pixels.append(neighbour)
@@ -607,12 +608,15 @@ class MLTracker(TCMLTracker):
             ys, xs = zip(*pixels, strict=False)
             ys_arr, xs_arr = np.array(ys), np.array(xs)
             weights = class_prob[ys_arr, xs_arr] #Use class confidence as weights for the centroid calculation
+            # Index, within this blob, of its most confident pixel.
+            peak = int(np.argmax(weights))
             candidates.append(
                 {
                     "lat": float(np.average(self._lats[ys_arr], weights=weights)), #averaged pixel specific-latitudes to get centroid latitude of the storm
                     "lon": float(np.average(self._lons[xs_arr], weights=weights)), #averaged pixel specific-longitudes to get centroid longitude of the storm
-                    "class_index": float(component_class), #the class index of the storm (1-4)
-                    "score": float(weights.max()), #the maximum confidence value within the bloc (between 0 and 1)
+                    # Winning class and confidence at the blob's peak pixel.
+                    "class_index": float(class_idx[ys_arr[peak], xs_arr[peak]]),
+                    "score": float(weights[peak]),
                 }
             )
 
