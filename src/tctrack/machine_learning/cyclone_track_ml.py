@@ -189,6 +189,10 @@ class MLTracker(TCMLTracker):
             If the HuggingFace repository cannot be found or accessed.
         """
         self.parameters: MLParameters = parameters
+        # Cleared from parameters immediately so it can't end up in output
+        # metadata (see TCTracker.set_metadata, which serializes _parameters).
+        self._hf_token: str | None = self.parameters.hf_token
+        self.parameters.hf_token = None
         self.stitch_parameters: MLStitchParameters = (
             stitch_parameters if stitch_parameters is not None else MLStitchParameters()
         )
@@ -200,7 +204,7 @@ class MLTracker(TCMLTracker):
         self._lats: np.ndarray = np.array([])
         self._lons: np.ndarray = np.array([])
         self._times: np.ndarray = np.array([])
-        self._load_model(parameters)
+        self._load_model(parameters, self._hf_token)
 
     @property
     def _parameters(self) -> list[TCTrackerParameters]:

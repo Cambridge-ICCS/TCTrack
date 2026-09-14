@@ -66,7 +66,9 @@ class TCMLTracker(TCTracker):
     def _hf_filename(self) -> str:
         """Filename of the model weights in the HuggingFace repository."""
 
-    def _load_model(self, parameters: TCMLParameters) -> None:
+    def _load_model(
+        self, parameters: TCMLParameters, hf_token: str | None = None
+    ) -> None:
         """Load the TorchScript model and set it to evaluation mode.
 
         Loads model from TCMLParameters.model_path or downloads from HuggingFace Hub
@@ -75,6 +77,13 @@ class TCMLTracker(TCTracker):
         ----------
         parameters : TCMLParameters
             The parameter object containing model location and device type.
+        hf_token : str | None
+            HuggingFace access token for the model repository. Passed
+            separately rather than read from ``parameters.hf_token`` so that
+            callers can clear the token from their parameters object (to keep
+            it out of any output metadata) before calling this method. If
+            ``None``, the value of the ``HF_TOKEN`` environment variable is
+            used instead.
 
         Raises
         ------
@@ -89,7 +98,7 @@ class TCMLTracker(TCTracker):
                 raise OSError(msg)
             model_file = parameters.model_path
         else:
-            token = parameters.hf_token or os.environ.get("HF_TOKEN")
+            token = hf_token or os.environ.get("HF_TOKEN")
             model_file = hf_hub_download(
                 repo_id=parameters.hf_repo_id,
                 filename=self._hf_filename,
