@@ -66,6 +66,24 @@ def _point_variables(candidate: Candidate) -> dict:
     return {key: value for key, value in candidate.items() if key != "time"}
 
 
+def _angular_distance_deg(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Approximate great-circle distance between two points, in degrees.
+
+    Plain ``hypot(dlat, dlon)`` on raw coordinate differences is wrong in two
+    ways: it overstates distances that cross the antimeridian (e.g. 179E to
+    179W is 2 degrees apart, not 358), and it ignores that a degree of
+    longitude covers less physical distance away from the equator. This
+    wraps the longitude difference to ``(-180, 180]`` and scales it by the
+    cosine of the mean latitude to correct for both. Still an approximation
+    - the Haversine formula would be exact - but adequate at the latitudes
+    tropical cyclones occur at.
+    """
+    dlat = lat1 - lat2
+    dlon = (lon1 - lon2 + 180) % 360 - 180
+    mean_lat = np.radians((lat1 + lat2) / 2)
+    return float(np.hypot(dlat, dlon * np.cos(mean_lat)))
+
+
 @dataclass(repr=False)
 class MLParameters(TCMLParameters):
     """Dataclass containing values for parameters used by MLTracker.
@@ -641,8 +659,8 @@ class MLTracker(TCMLTracker):
         kept: list[Candidate] = [] #list that will hold the strongest candidates after eliminating the weaker ones that are too close to each other.
         for candidate in sorted(candidates, key=lambda c: c["score"], reverse=True): #
             if all(
-                np.hypot(#calculate distance between centroids of different candidates.
-                    candidate["lat"] - other["lat"], candidate["lon"] - other["lon"] 
+                _angular_distance_deg(
+                    candidate["lat"], candidate["lon"], other["lat"], other["lon"]
                 )
                 >= self.parameters.merge_distance_deg #compare the centroid distance with the merge distance threshold to decide if the candidate is too close to any of the already kept candidates.
                 for other in kept
@@ -679,9 +697,11 @@ class MLTracker(TCMLTracker):
         best_index, best_distance = None, self.stitch_parameters.stitch_max_distance_deg #best distance is closest distance found so far
         for i in unmatched:
             candidate = candidates[i]
-            distance = np.hypot(
-                candidate["lat"] - track["last"]["lat"],
-                candidate["lon"] - track["last"]["lon"],
+            distance = _angular_distance_deg(
+                candidate["lat"],
+                candidate["lon"],
+                track["last"]["lat"],
+                track["last"]["lon"],
             )
             if distance < best_distance: #condition to check if the distance is less than the best distance found so far
                 best_index, best_distance = i, distance
