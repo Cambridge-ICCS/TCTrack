@@ -657,7 +657,7 @@ class MLTracker(TCMLTracker):
             return candidates
 
         kept: list[Candidate] = [] #list that will hold the strongest candidates after eliminating the weaker ones that are too close to each other.
-        for candidate in sorted(candidates, key=lambda c: c["score"], reverse=True): #
+        for candidate in sorted(candidates, key=lambda c: c["score"], reverse=True): # Prioritise candidates with higher confidence
             if all(
                 _angular_distance_deg(
                     candidate["lat"], candidate["lon"], other["lat"], other["lon"]
