@@ -12,6 +12,7 @@ from collections import deque
 from collections.abc import Sequence
 from dataclasses import dataclass
 from importlib import resources
+from typing import Any, TypedDict, cast
 
 import cf
 import h5py
@@ -35,7 +36,27 @@ _DEFAULT_NORMALISATION_STATS = resources.files("tctrack.machine_learning").joinp
 """
 
 
-def _point_variables(candidate: dict) -> dict:
+class Candidate(TypedDict, total=False):
+    """A single tropical cyclone detection at one timestep.
+
+    Built up in stages: :meth:`MLTracker._cluster_candidates` sets ``lat``,
+    ``lon``, ``class_index`` and ``score``; :meth:`MLTracker.detect` then
+    adds ``time`` and, via :meth:`MLTracker._colocated_variables`, one entry
+    per input channel (see :attr:`MLTracker._channel_names`) sampled at the
+    candidate's location. Those channel names depend on
+    :attr:`MLParameters.pressure_variables`/:attr:`MLParameters.pressure_levels`,
+    so they cannot be declared as fixed keys here and are accessed
+    generically where needed (see :meth:`MLTracker.detections_to_netcdf`).
+    """
+
+    time: Any
+    lat: float
+    lon: float
+    class_index: float
+    score: float
+
+
+def _point_variables(candidate: Candidate) -> dict:
     """Strip a candidate down to the numeric variables of a trajectory point.
 
     Candidates carry the timestep they were found at, but
@@ -209,7 +230,7 @@ class MLTracker(TCMLTracker):
         self._trajectories: list[Trajectory] = []
         self._scores: list[dict] = []
         # TC locations found by detect(), consumed by stitch().
-        self._candidates: list[dict] = []
+        self._candidates: list[Candidate] = []
         # Grid/time coordinates of the input file, populated by preprocess().
         self._lats: np.ndarray = np.array([])
         self._lons: np.ndarray = np.array([])
@@ -417,7 +438,7 @@ class MLTracker(TCMLTracker):
     def _colocated_variables(
         self,
         frame: np.ndarray,
-        candidate: dict,
+        candidate: Candidate,
         mean: np.ndarray,
         value_range: np.ndarray,
     ) -> dict:
@@ -433,7 +454,7 @@ class MLTracker(TCMLTracker):
         ----------
         frame : numpy.ndarray
             This timestep's normalised input, shape ``(channel, lat, lon)``.
-        candidate : dict
+        candidate : Candidate
             A candidate with ``lat``/``lon`` keys.
         mean : numpy.ndarray
             Per-channel means used to normalise, shape ``(channel,)``.
@@ -517,9 +538,15 @@ class MLTracker(TCMLTracker):
                 frame_data = data[:, t, :, :].numpy()  # (channel, lat, lon)
                 for candidate in candidates:
                     candidate["time"] = self._times[t]
+                    # cast: the colocated variables are keyed by channel name
+                    # (config-dependent), so they can't be declared on
+                    # Candidate and are added here as untyped extra keys.
                     candidate.update(
-                        self._colocated_variables(
-                            frame_data, candidate, mean, value_range
+                        cast(
+                            Candidate,
+                            self._colocated_variables(
+                                frame_data, candidate, mean, value_range
+                            ),
                         )
                     )
                 self._candidates.extend(candidates)
@@ -529,12 +556,12 @@ class MLTracker(TCMLTracker):
         is_storm: np.ndarray,
         class_idx: np.ndarray,
         class_prob: np.ndarray,
-    ) -> list[dict]:
+    ) -> list[Candidate]:
         """Group adjacent same-class detected pixels into single point candidates.
         It happens through flood-fill, where each unclaimed storm pixel is used as a seed
-        to find all its adjacent pixels of the same class, and then 
+        to find all its adjacent pixels of the same class, and then
         the centroid of that blob is calculated using the class confidence as weights.
-        
+
         Parameters
         ----------
         is_storm : numpy.ndarray
@@ -546,13 +573,14 @@ class MLTracker(TCMLTracker):
 
         Returns
         -------
-        list[dict]
-            One dict per cluster with keys ``lat``, ``lon``, ``class_index``,
-            and ``score`` - the probability-weighted centroid, class, and
-            peak probability of each connected group of same-class pixels.
+        list[Candidate]
+            One :class:`Candidate` per cluster with ``lat``, ``lon``,
+            ``class_index``, and ``score`` set to the probability-weighted
+            centroid, class, and peak probability of each connected group of
+            same-class pixels.
         """
         unvisited = set(zip(*np.nonzero(is_storm), strict=False)) #storm classified pixels that are still unclaimed by any blob.
-        candidates = [] #list to carry details of candidate storms (centroid lat-lon) for each timestep
+        candidates: list[Candidate] = [] #list to carry details of candidate storms (centroid lat-lon) for each timestep
 
         # Run the loop until no pixels are left unchecked.
         while unvisited: 
@@ -589,23 +617,23 @@ class MLTracker(TCMLTracker):
 
         return candidates
 
-    def _merge_nearby_candidates(self, candidates: list[dict]) -> list[dict]:
+    def _merge_nearby_candidates(self, candidates: list[Candidate]) -> list[Candidate]:
         """Merge candidates that are too close together into the strongest one.
 
         Parameters
         ----------
-        candidates : list[dict]
+        candidates : list[Candidate]
             This timestep's candidates, as built by :meth:`_cluster_candidates`.
 
         Returns
         -------
-        list[dict]
+        list[Candidate]
             The retained candidates, strongest first.
         """
-        if self.parameters.merge_distance_deg <= 0: 
+        if self.parameters.merge_distance_deg <= 0:
             return candidates
 
-        kept: list[dict] = [] #list that will hold the strongest candidates after eliminating the weaker ones that are too close to each other.
+        kept: list[Candidate] = [] #list that will hold the strongest candidates after eliminating the weaker ones that are too close to each other.
         for candidate in sorted(candidates, key=lambda c: c["score"], reverse=True): #
             if all(
                 np.hypot(#calculate distance between centroids of different candidates.
@@ -620,7 +648,7 @@ class MLTracker(TCMLTracker):
     def _nearest_candidate(
         self,
         track: dict,
-        candidates: list[dict],
+        candidates: list[Candidate],
         unmatched: set[int],
     ) -> int | None:
         """Find the closest unmatched candidate to a track's last point.
@@ -628,9 +656,9 @@ class MLTracker(TCMLTracker):
         Parameters
         ----------
         track : dict
-            Active track state, with a ``last`` dict holding its most recent
-            ``lat``/``lon``.
-        candidates : list[dict]
+            Active track state, with a ``last`` :class:`Candidate` holding
+            its most recent ``lat``/``lon``.
+        candidates : list[Candidate]
             This timestep's candidate detections, as built by
             :meth:`_cluster_candidates`.
         unmatched : set[int]
@@ -808,7 +836,11 @@ class MLTracker(TCMLTracker):
         )
 
         fields = []
-        for variable in self._candidates[0]:
+        # Candidate only declares its fixed keys; the per-channel variable
+        # names below are config-dependent extra keys, so they are accessed
+        # generically through a plain dict view rather than by literal key.
+        candidates = cast(list[dict], self._candidates)
+        for variable in candidates[0]:
             if variable in {"time", "lat", "lon"}:
                 continue
 
@@ -827,7 +859,7 @@ class MLTracker(TCMLTracker):
             field.set_construct(lat_coord, axes=(axis,))
             field.set_construct(lon_coord, axes=(axis,))
             field.set_data(
-                cf.Data([candidate[variable] for candidate in self._candidates]),
+                cf.Data([candidate[variable] for candidate in candidates]),
                 axes=(axis,),
             )
 
