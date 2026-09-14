@@ -11,6 +11,7 @@ import warnings
 from collections import deque
 from collections.abc import Sequence
 from dataclasses import dataclass
+from importlib import resources
 
 import cf
 import h5py
@@ -24,6 +25,14 @@ from tctrack.core import (
     Trajectory,
 )
 from tctrack.core.ml_tracker import TCMLParameters, TCMLTracker
+
+_DEFAULT_NORMALISATION_STATS = resources.files("tctrack.machine_learning").joinpath(
+    "data", "normalisation_parameters.nc"
+)
+"""Per-channel normalisation statistics bundled with the package, used by
+:meth:`MLTracker._load_normalisation_stats` when
+:attr:`MLParameters.normalisation_stats_path` is not set.
+"""
 
 
 def _point_variables(candidate: dict) -> dict:
@@ -92,8 +101,9 @@ class MLParameters(TCMLParameters):
     These must be the statistics computed over the model's *training* set;
     they cannot be recomputed from a single inference file. Matches the
     ``data/normalisation_parameters.nc`` file saved by ``compiler.py`` in the
-    reference training pipeline. If ``None``, :meth:`MLTracker.preprocess`
-    raises rather than silently passing unnormalised data to the model.
+    reference training pipeline. If ``None``, the statistics bundled with
+    this package - computed over the default model's training set - are
+    used instead.
     """
 
     merge_distance_deg: float = 2.0
@@ -309,13 +319,15 @@ class MLTracker(TCMLTracker):
     def _load_normalisation_stats(self) -> tuple[np.ndarray, np.ndarray]:
         """Load per-channel normalisation statistics.
 
-        Reads the ``mean``/``range`` variables from the ``.nc`` file produced
-        by ``compiler.py`` in the reference training pipeline
-        (``data/normalisation_parameters.nc``). Uses ``h5py`` rather than
-        ``cf.read`` - this file's variables carry inherited GRIB/cfgrib
-        attributes (e.g. an auxiliary ``number`` coordinate) that make
-        ``cfdm`` build them through a data-creation path requiring a lazy
-        ``scipy`` import; in this environment that import fails once
+        Reads the ``mean``/``range`` variables from :attr:`parameters`'s
+        ``.nc`` file, or - if :attr:`parameters.normalisation_stats_path` is
+        not set - from the statistics bundled with this package
+        (:data:`_DEFAULT_NORMALISATION_STATS`), both produced by
+        ``compiler.py`` in the reference training pipeline. Uses ``h5py``
+        rather than ``cf.read`` - this file's variables carry inherited
+        GRIB/cfgrib attributes (e.g. an auxiliary ``number`` coordinate) that
+        make ``cfdm`` build them through a data-creation path requiring a
+        lazy ``scipy`` import; in this environment that import fails once
         ``torch`` has already been loaded (a ``libstdc++`` version conflict
         between the two), which ``h5py`` - already a TCTrack dependency -
         avoids entirely by reading the plain arrays directly.
@@ -325,22 +337,15 @@ class MLTracker(TCMLTracker):
         tuple[numpy.ndarray, numpy.ndarray]
             ``(mean, range)`` arrays, each of shape ``(channel,)``, ordered to
             match the channel stack built by :meth:`preprocess`.
-
-        Raises
-        ------
-        ValueError
-            If :attr:`parameters.normalisation_stats_path` is not set.
         """
-        if self.parameters.normalisation_stats_path is None:
-            msg = (
-                "parameters.normalisation_stats_path must be set to normalise "
-                "model input - see MLTracker.preprocess."
-            )
-            raise ValueError(msg)
-        with h5py.File(self.parameters.normalisation_stats_path, "r") as stats:
-            mean = stats["mean"][:]
-            value_range = stats["range"][:]
-        return mean, value_range
+        if self.parameters.normalisation_stats_path is not None:
+            with h5py.File(self.parameters.normalisation_stats_path, "r") as stats:
+                return stats["mean"][:], stats["range"][:]
+        with (
+            resources.as_file(_DEFAULT_NORMALISATION_STATS) as default_path,
+            h5py.File(default_path, "r") as stats,
+        ):
+            return stats["mean"][:], stats["range"][:]
 
     def preprocess(self) -> torch.Tensor:
         """Build the model input tensor from the configured ERA5 variables.
@@ -360,8 +365,7 @@ class MLTracker(TCMLTracker):
         Raises
         ------
         ValueError
-            If a configured variable cannot be found in the input file, or if
-            :attr:`parameters.normalisation_stats_path` is not set.
+            If a configured variable cannot be found in the input file.
         """
         fields = cf.read(self.parameters.input_file)
 

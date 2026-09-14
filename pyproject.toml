@@ -4,6 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
 
+[tool.setuptools.package-data]
+"tctrack.machine_learning" = ["data/*.nc"]
+
 [project]
 name = "tctrack"
 dynamic = ["version"]
