@@ -620,7 +620,7 @@ class TRACKTracker(TCTracker):
         trajectory_file = f"{params.base_dir}/outdat/ff_trs.{params.file_extension}.nc"
 
         try:
-            fields = cf.read(trajectory_file)  # type: ignore[operator]
+            fields = cf.read(trajectory_file, backend="netCDF4")  # type: ignore[operator]
         except FileNotFoundError as e:
             msg = (
                 f"TRACK output trajectory file does not exist ({trajectory_file}).\n"

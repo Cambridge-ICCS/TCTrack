@@ -16,13 +16,12 @@ authors = [
 readme = "README.md"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Natural Language :: English",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3 :: Only",
-    'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
     'Programming Language :: Python :: 3.13',
@@ -35,8 +34,8 @@ classifiers = [
 ]
 dependencies = [
     "h5py>=3.16.0",
-    "cf-python>=3.19.0; python_version > '3.10'",
-    "cf-python<3.19.0; python_version <= '3.10'",
+    "cf-python>=3.19.0; platform_system != 'Windows'",
+    "cf-python>=3.19.0,<=3.20.1; platform_system == 'Windows'",
     "cftime",
 ]
 

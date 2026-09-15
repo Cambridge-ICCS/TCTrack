@@ -20,7 +20,7 @@ Installation
 Environment
 ~~~~~~~~~~~
 
-TCTrack is a Python package and requires Python version 3.10 or later.
+TCTrack is a Python package and requires Python version 3.11 or later.
 
 Before installing TCTrack ensure that any external :ref:`dependencies
 <getting-started/index:dependencies>` are installed. This can be done manually as
