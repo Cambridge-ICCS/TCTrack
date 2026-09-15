@@ -34,7 +34,8 @@ classifiers = [
 ]
 dependencies = [
     "h5py>=3.16.0",
-    "cf-python>=3.19.0",
+    "cf-python>=3.19.0; platform_system != 'Windows'",
+    "cf-python>=3.19.0,<=3.20.1; platform_system == 'Windows'",
     "cftime",
 ]
 
