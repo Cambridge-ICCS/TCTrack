@@ -108,8 +108,10 @@ from trajectories
 
 -- File layers map view
 create view map_file_layers_view as
-select file_id, trajectories.id as trajectory_id, start_end,
-	filename as layer_file,
-	geojson_track, geojson_points
-from trajectories
+select files.filename as layer_filename, trajectory_id,
+	ob.sequence, ob.date, ob.latitude, ob.longitude,
+	ob.air_pressure_at_sea_level, ob.surface_altitude, ob.wind_speed, ob.atmosphere_relative_vorticity,
+	cast(ob.sequence = 0 as integer) as genesis
+from observations ob
+	join trajectories on trajectories.id = trajectory_id
 	join files on files.id = file_id;
