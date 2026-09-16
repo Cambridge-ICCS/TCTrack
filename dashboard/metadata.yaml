@@ -22,6 +22,7 @@ plugins:
       - "#cc3311"
       - "#009988"
       - "#bbbbbb"
+    max_layers: 7
 
 # Database and table metadata - optional
 # This is linked to the served database by the filename given here (tracks). Its
