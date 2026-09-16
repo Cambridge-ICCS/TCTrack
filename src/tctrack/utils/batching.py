@@ -31,9 +31,10 @@ def _run_preprocessing(
     # Replace any %BATCH% and %ITER% tags in string arguments
     i_iter, batch_dir = batch
     for k, v in kwargs.items():
-        if v == "%ITER%":
-            kwargs[k] = i_iter  # If just "%ITER%" use an integer instead
-        elif isinstance(v, str):
+        if isinstance(v, str):
+            if v == "%ITER%":
+                kwargs[k] = i_iter  # If just "%ITER%" use an integer instead
+                continue
             kwargs[k] = v.replace("%BATCH%", str(batch_dir))
             kwargs[k] = kwargs[k].replace("%ITER%", str(i_iter))
 
