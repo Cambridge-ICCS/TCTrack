@@ -12,13 +12,13 @@ from collections import deque
 from collections.abc import Sequence
 from dataclasses import dataclass
 from importlib import resources
-from typing import Any, TypedDict, cast
+from typing import Any, TypedDict
 
 import cf
 import h5py
 import numpy as np
 import torch
-from cftime import date2num
+from cftime import date2num, datetime
 
 from tctrack.core import (
     TCTrackerMetadata,
@@ -36,17 +36,13 @@ _DEFAULT_NORMALISATION_STATS = resources.files("tctrack.machine_learning").joinp
 """
 
 
-class Candidate(TypedDict, total=False):
+class Candidate(TypedDict):
     """A single tropical cyclone detection at one timestep.
 
-    Built up in stages: :meth:`MLTracker._cluster_candidates` sets ``lat``,
-    ``lon``, ``class_index`` and ``score``; :meth:`MLTracker.detect` then
-    adds ``time`` and, via :meth:`MLTracker._colocated_variables`, one entry
-    per input channel (see :attr:`MLTracker._channel_names`) sampled at the
-    candidate's location. Those channel names depend on
-    :attr:`MLParameters.pressure_variables`/:attr:`MLParameters.pressure_levels`,
-    so they cannot be declared as fixed keys here and are accessed
-    generically where needed (see :meth:`MLTracker.detections_to_netcdf`).
+    Built up in stages: :meth:`MLTracker._cluster_candidates` sets ``time``,
+    ``lat``, ``lon``, ``class_index``, ``score``, and an empty ``data``
+    dictionary. :meth:`MLTracker.detect` populates ``data`` with each input channel
+    sampled at the candidate's location.
     """
 
     time: Any
@@ -54,6 +50,7 @@ class Candidate(TypedDict, total=False):
     lon: float
     class_index: float
     score: float
+    data: dict[str, float]
 
 
 def _point_variables(candidate: Candidate) -> dict:
@@ -63,7 +60,9 @@ def _point_variables(candidate: Candidate) -> dict:
     :meth:`~tctrack.core.Trajectory.add_point` takes the time separately and
     requires every remaining value to be numeric, so it is dropped here.
     """
-    return {key: value for key, value in candidate.items() if key != "time"}
+    return {
+        k: v for k, v in candidate.items() if k not in ["time", "data"]
+    } | candidate["data"]
 
 
 def _angular_distance_deg(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -252,7 +251,7 @@ class MLTracker(TCMLTracker):
         # Grid/time coordinates of the input file, populated by preprocess().
         self._lats: np.ndarray = np.array([])
         self._lons: np.ndarray = np.array([])
-        self._times: np.ndarray = np.array([])
+        self._times: np.ndarray[datetime] = np.array([])
         self._load_model(parameters, self._hf_token)
 
     @property
@@ -406,7 +405,7 @@ class MLTracker(TCMLTracker):
         ValueError
             If a configured variable cannot be found in the input file.
         """
-        fields = cf.read(self.parameters.input_file)
+        fields = cf.read(self.parameters.input_file)  # type: ignore
 
         pressure_channels = []
         for variable in self.parameters.pressure_variables:
@@ -459,7 +458,7 @@ class MLTracker(TCMLTracker):
         candidate: Candidate,
         mean: np.ndarray,
         value_range: np.ndarray,
-    ) -> dict:
+    ) -> dict[str, float]:
         """Sample the input variables at a candidate's location.
 
         Values are taken at the grid point nearest the candidate's reported
@@ -487,7 +486,10 @@ class MLTracker(TCMLTracker):
         i = int(np.argmin(np.abs(self._lats - candidate["lat"])))
         j = int(np.argmin(np.abs(self._lons - candidate["lon"])))
         physical = frame[:, i, j] * value_range + mean
-        return dict(zip(self._channel_names, physical.tolist(), strict=True))
+        return {
+            name: float(value)
+            for name, value in zip(self._channel_names, physical, strict=True)
+        }
 
     def detect(self) -> None:
         """Run the U-Net over the grid and locate the tropical cyclones in it.
@@ -550,22 +552,18 @@ class MLTracker(TCMLTracker):
                 #check if the winning class is a storm
                 is_storm = (class_idx != 0) & (class_prob >= self.parameters.threshold)
 
-                candidates = self._cluster_candidates(is_storm, class_idx, class_prob)
+                candidates = self._cluster_candidates(
+                    is_storm,
+                    class_idx,
+                    class_prob,
+                    self._times[t]
+                )
                 candidates = self._merge_nearby_candidates(candidates)
 
                 frame_data = data[:, t, :, :].numpy()  # (channel, lat, lon)
                 for candidate in candidates:
-                    candidate["time"] = self._times[t]
-                    # cast: the colocated variables are keyed by channel name
-                    # (config-dependent), so they can't be declared on
-                    # Candidate and are added here as untyped extra keys.
-                    candidate.update(
-                        cast(
-                            Candidate,
-                            self._colocated_variables(
-                                frame_data, candidate, mean, value_range
-                            ),
-                        )
+                    candidate["data"] = self._colocated_variables(
+                        frame_data, candidate, mean, value_range
                     )
                 self._candidates.extend(candidates)
 
@@ -574,6 +572,7 @@ class MLTracker(TCMLTracker):
         is_storm: np.ndarray,
         class_idx: np.ndarray,
         class_prob: np.ndarray,
+        time: datetime,
     ) -> list[Candidate]:
         """Group adjacent detected pixels into single point candidates.
 
@@ -593,11 +592,13 @@ class MLTracker(TCMLTracker):
             Winning class index per pixel, shape ``(lat, lon)``.
         class_prob : numpy.ndarray
             Winning class probability per pixel, shape ``(lat, lon)``.
+        time : cftime.datetime
+            Time stamp for the current frame.
 
         Returns
         -------
         list[Candidate]
-            One :class:`Candidate` per cluster with ``lat``, ``lon``,
+            One :class:`Candidate` per cluster with ``time``, ``lat``, ``lon``,
             ``class_index``, and ``score`` set to the probability-weighted
             centroid, the winning class at the cluster's most confident
             pixel, and that pixel's confidence.
@@ -630,11 +631,13 @@ class MLTracker(TCMLTracker):
             peak = int(np.argmax(weights))
             candidates.append(
                 {
+                    "time": time,
                     "lat": float(np.average(self._lats[ys_arr], weights=weights)), #averaged pixel specific-latitudes to get centroid latitude of the storm
                     "lon": float(np.average(self._lons[xs_arr], weights=weights)), #averaged pixel specific-longitudes to get centroid longitude of the storm
                     # Winning class and confidence at the blob's peak pixel.
                     "class_index": float(class_idx[ys_arr[peak], xs_arr[peak]]),
                     "score": float(weights[peak]),
+                    "data": {},
                 }
             )
 
@@ -860,15 +863,19 @@ class MLTracker(TCMLTracker):
             },
         )
 
-        fields = []
-        # Candidate only declares its fixed keys; the per-channel variable
-        # names below are config-dependent extra keys, so they are accessed
-        # generically through a plain dict view rather than by literal key.
-        candidates = cast(list[dict], self._candidates)
-        for variable in candidates[0]:
-            if variable in {"time", "lat", "lon"}:
-                continue
+        variables = [
+            (
+                "class_index",
+                [candidate["class_index"] for candidate in self._candidates],
+            ),
+            ("score", [candidate["score"] for candidate in self._candidates]),
+        ]
+        for var_name in self._candidates[0]["data"]:
+            values = [candidate["data"][var_name] for candidate in self._candidates]
+            variables.append((var_name, values))
 
+        fields = []
+        for variable, values in variables:
             metadata = self.variable_metadata.get(variable, TCTrackerMetadata({}))
             metadata.properties["featureType"] = "point"
             field = cf.Field(properties=metadata.properties)
@@ -883,10 +890,7 @@ class MLTracker(TCMLTracker):
             field.set_construct(time_coord, axes=(axis,))
             field.set_construct(lat_coord, axes=(axis,))
             field.set_construct(lon_coord, axes=(axis,))
-            field.set_data(
-                cf.Data([candidate[variable] for candidate in candidates]),
-                axes=(axis,),
-            )
+            field.set_data(cf.Data(values), axes=(axis,))
 
             if self.global_metadata:
                 field.nc_set_global_attributes(self.global_metadata)
