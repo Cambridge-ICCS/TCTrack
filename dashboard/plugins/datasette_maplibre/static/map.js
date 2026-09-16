@@ -3,7 +3,8 @@ import { LayerControl } from "https://unpkg.com/maplibre-gl-layer-control@0.17.4
 
 // Pick up config passed from Python __init__ layer
 const BASEMAP_STYLE = window.DATASETTE_MAPLIBRE_STYLE || "https://demotiles.maplibre.org/style.json";
-const LAYER_COLUMN_NAME = window.DATASETTE_MAPLIBRE_LAYER_COLUMN || null;
+const GROUP_BY = window.DATASETTE_MAPLIBRE_GROUP_BY || null;
+const LAYER_COLUMN = window.DATASETTE_MAPLIBRE_LAYER_COLUMN || null;
 const LAYER_PALETTE = window.DATASETTE_MAPLIBRE_LAYER_PALETTE || null;
 
 /**
@@ -37,6 +38,8 @@ async function fetchRows() {
 	Expects columns: latitude, longitude
 
 	@returns A GeoJSON FeatureCollection for all data.
+	         Includes a root-level key, groups, as the number of groups created from the dataset
+	         if a group-by is defined and matched.
 */
 function buildGeoJSON({ columns, rows }) {
 	// Locate latitude and longitude column indices
@@ -46,16 +49,16 @@ function buildGeoJSON({ columns, rows }) {
 		throw new Error("No latitude/longitude in dataset");
 
 	// Pair property column names with their row indexes
-	const pairs = [];
+	const prop_pairs = [];
 	columns.forEach((name, i) => {
-		if (i != lat_idx && i != lon_idx) pairs.push([name, i]);
+		if (i != lat_idx && i != lon_idx) prop_pairs.push([name, i]);
 	});
 
 	// Build lat/lon Point features with all other fields as properties
 	const features = rows.map((row) => {
 		const properties = {};
-		for (let i = 0; i < pairs.length; i++)
-			properties[pairs[i][0]] = row[pairs[i][1]];
+		for (let i = 0; i < prop_pairs.length; i++)
+			properties[prop_pairs[i][0]] = row[prop_pairs[i][1]];
 
 		return {
 			type: "Feature",
@@ -64,9 +67,59 @@ function buildGeoJSON({ columns, rows }) {
 		};
 	});
 
-	console.log(`Features: ${features.length}`);
+	// Group-by processing
+	const groups = new Map();
+	const group_idx = GROUP_BY?.column ? columns.indexOf(GROUP_BY.column) : -1;
 
-	return { type: "FeatureCollection", features };
+	if (group_idx != -1) {
+		// Pair the group property columns with their indexes
+		// Group-by and layer columns are always included as properties
+		const group_prop_pairs = prop_pairs.filter(([name]) =>
+			name == GROUP_BY.column ||
+			name == LAYER_COLUMN ||
+			GROUP_BY.properties?.includes(name)
+		);
+
+		// Build group map
+		// Iterate rows to find groups and accumulate coordinates
+		// Points are chained together in row order so group rows must be contiguous
+		for (const row of rows) {
+			const key = row[group_idx];
+
+			// Get group for this row or create a new one
+			let group = groups.get(key);
+			if (!group) {
+				// Get properties for this new group
+				// Properties are considered to be the same for all points in a group so the first row values are taken
+				const properties = {};
+				for (let p = 0; p < group_prop_pairs.length; p++)
+					properties[group_prop_pairs[p][0]] = row[group_prop_pairs[p][1]];
+
+				// Create new group
+				group = { coordinates: [], properties };
+				groups.set(key, group);
+			}
+
+			group.coordinates.push([row[lon_idx], row[lat_idx]]);
+		}
+
+		// Create a LineString for each group entry
+		groups.forEach((group) => {
+			// A LineString needs at least two positions
+			if (group.coordinates.length < 2) return;
+
+			features.push({
+				type: "Feature",
+				geometry: { type: "LineString", coordinates: group.coordinates },
+				properties: group.properties,
+			});
+		});
+	}
+
+	console.log(`Features: ${features.length}`);
+	console.log(`Groups: ${groups.size}`);
+
+	return { type: "FeatureCollection", features, groups: groups.size };
 }
 
 /**
@@ -88,7 +141,7 @@ async function loadGeoJSON() {
 	const collection = buildGeoJSON(data);
 
 	// Collect distinct values from the layers column if set
-	const layer_idx = data.columns.indexOf(LAYER_COLUMN_NAME);
+	const layer_idx = data.columns.indexOf(LAYER_COLUMN);
 	if (layer_idx != -1) {
 		collection.layers = [...new Set(data.rows.map((row) => row[layer_idx]))];
 	} else {
@@ -151,7 +204,7 @@ function init() {
 	}
 
 	// Load data concurrently with map loading
-	const dataPromise = loadGeoJSON();
+	const data_promise = loadGeoJSON();
 
 	// Create map element
 	const container = document.createElement("div");
@@ -170,29 +223,48 @@ function init() {
 
 	map.on("load", async () => {
 		// Wait for data load then set as data source
-		const geojson = await dataPromise.catch((e) => {
+		const geojson = await data_promise.catch((e) => {
 			console.error("[datasette-maplibre] Unable to load data.", e);
 			return null;
 		});
 		if (!geojson) return;
 
-		const sourceId = "datasette-geojson";
-		map.addSource(sourceId, { type: "geojson", data: geojson });
+		const source_id = "datasette-geojson";
+		map.addSource(source_id, { type: "geojson", data: geojson });
 
-		// Add a new pair of layers for each distinct layer value
+		// Add new layers for each distinct layer value
+		let layer_id;
 		let layer_filter;
+		let layers_added = [];
 		let colour_idx = 0;
-
 		for (const layer of geojson.layers) {
 
 			// Set filter expression to restrict data to this layer only
 			if (geojson.layers.length > 1)
-				layer_filter = ["==", ["get", LAYER_COLUMN_NAME], layer];
+				layer_filter = ["==", ["get", LAYER_COLUMN], layer];
+
+			// Line layer - lines added first so that points can be rendered on top
+			layer_id = layer + "_lines";
+			map.addLayer({
+				id: layer_id,
+				source: "datasette-geojson",
+				type: "line",
+				paint: {
+					"line-color": LAYER_PALETTE[colour_idx],
+					"line-width": 3,
+				},
+				filter: [
+					"all",
+					["==", ["geometry-type"], "LineString"],
+					...(layer_filter ? [layer_filter] : [])
+				],
+			});
+			layers_added.push(layer_id);
 
 			// Points layer
-			const pointsLayerId = layer + "_points";
+			layer_id = layer + "_points";
 			map.addLayer({
-				id: pointsLayerId,
+				id: layer_id,
 				source: "datasette-geojson",
 				type: "circle",
 				paint: {
@@ -207,12 +279,15 @@ function init() {
 					...(layer_filter ? [layer_filter] : [])
 				],
 			});
+			layers_added.push(layer_id);
 
 			// Advance layer colour index - wraps at the end of palette (not ideal)
 			colour_idx = (colour_idx + 1) % LAYER_PALETTE.length;
+		}
 
-			// Set on-click popups for this layer
-			map.on("click", pointsLayerId, (ev) => {
+		// Set on-click popups for all added layers
+		for (const layer of layers_added) {
+			map.on("click", layer, (ev) => {
 				const feature = ev.features[0];
 				const html = propertiesHtml(feature.properties);
 				new maplibregl.Popup()

@@ -11,6 +11,9 @@ extra_css_urls:
 plugins:
   datasette-maplibre:
     basemap: https://tiles.openfreemap.org/styles/positron
+    group_by:
+      column: trajectory_id
+      properties: [filename]
     layer_palette:
       - "#ee7733"
       - "#0077bb"

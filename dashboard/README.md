@@ -52,11 +52,11 @@ Data is automatically split across map layers when a column name beginning `laye
 
 The map can be configured in the `datasette-maplibre` section of the `metadata.yaml` file. The following settings are available:
 
-`basemap`
-URL of the MapLibre-compatible basemap to project onto the map. See the [basemap gallery](https://madewithmaplibre.com/basemaps/gallery) for alternatives.
-
-`layer_palette`
-Any number of hex colours to use for layers (in sequence). The default accessible set is taken from [Qualitative Colour Schemes](https://sronpersonalpages.nl/~pault/).
+- `basemap` URL of the MapLibre-compatible basemap to project onto the map. See the [basemap gallery](https://madewithmaplibre.com/basemaps/gallery) for alternatives.
+- `group_by` A collection of settings for defining groups in the source data. This is primarily used to create map lines from the observation points of each track. Data is added to the group in the order given by the query so it should be in sequence, e.g. order by trajectory_id, sequence.
+	- `column` The column name to group by. Use `trajectory_id` to define a group for each track.
+	- `properties` An array of column names that will be used as properties for each group if they exist in the dataset. These are linked to the group and displayed when selected. The columns are presumed to contain unique values across each group.
+- `layer_palette` Any number of hex colours to use for layers (in sequence). The default accessible set is taken from [Qualitative Colour Schemes](https://sronpersonalpages.nl/~pault/).
 
 
 ### Ideas for the Future

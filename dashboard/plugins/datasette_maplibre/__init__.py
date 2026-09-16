@@ -58,12 +58,14 @@ def extra_body_script(
 
     config = datasette.plugin_config(PLUGIN, database=database, table=table) or {}
     basemap_style = config.get("basemap", DEFAULT_BASEMAP)
+    group_by = config.get("group_by")
     layer_palette = config.get("layer_palette",
         ("#ee7733", "#0077bb", "#33bbee", "#ee3377", "#cc3311", "#009988", "#bbbbbb"))
 
     # Pass configuration to map.js via the JavaScript window object
     return (
         f"window.DATASETTE_MAPLIBRE_STYLE = {json.dumps(basemap_style)};\n"
+        f"window.DATASETTE_MAPLIBRE_GROUP_BY = {json.dumps(group_by)};\n"
         f"window.DATASETTE_MAPLIBRE_LAYER_COLUMN = {json.dumps(layer_column)};\n"
         f"window.DATASETTE_MAPLIBRE_LAYER_PALETTE = {json.dumps(layer_palette)};\n"
     )

@@ -93,7 +93,9 @@ select file_id, files.filename, trajectory_id,
 	cast(ob.sequence = 0 as integer) as genesis
 from observations ob
 	join trajectories on trajectories.id = trajectory_id
-	join files on files.id = file_id;
+	join files on files.id = file_id
+order by
+	trajectory_id, sequence;
 
 
 -- Trajectory view
