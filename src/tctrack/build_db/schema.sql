@@ -93,4 +93,40 @@ select file_id, files.filename, trajectory_id,
 	cast(ob.sequence = 0 as integer) as genesis
 from observations ob
 	join trajectories on trajectories.id = trajectory_id
+	join files on files.id = file_id
+order by
+	trajectory_id, sequence;
+
+
+-- Trajectory view
+create view trajectory_view as
+select trajectories.id as trajectory_id, start_end,
+	geojson_track, geojson_points,
+	file_id, filename, filepath,
+	tctrack_version, tracker_name
+from trajectories
 	join files on files.id = file_id;
+
+
+-- File layers map view
+create view map_file_layers_view as
+select files.filename as layer_filename, trajectory_id,
+	ob.sequence, ob.date, ob.latitude, ob.longitude,
+	ob.air_pressure_at_sea_level, ob.surface_altitude, ob.wind_speed, ob.atmosphere_relative_vorticity,
+	cast(ob.sequence = 0 as integer) as genesis
+from observations ob
+	join trajectories on trajectories.id = trajectory_id
+	join files on files.id = file_id;
+
+
+-- Year layers map view
+create view map_year_layers_view as
+select files.filename, substr(ob.date, 1, 4) as layer_year, trajectory_id,
+	ob.sequence, ob.date, ob.latitude, ob.longitude,
+	ob.air_pressure_at_sea_level, ob.surface_altitude, ob.wind_speed, ob.atmosphere_relative_vorticity,
+	cast(ob.sequence = 0 as integer) as genesis
+from observations ob
+	join trajectories on trajectories.id = trajectory_id
+	join files on files.id = file_id
+order by
+	trajectory_id, sequence;
