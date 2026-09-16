@@ -145,10 +145,17 @@ class TestBatching:
         """Test batching deletes the batch directories when delete_batch_dirs=True."""
         tracker = DummyTracker()
         n_iter = 2
+        make_file = lambda _, batch_dir: Path.touch(batch_dir / "file.txt")
 
         del config["delete_batch_dirs"]  # Default is True
 
-        batching(tracker, n_iter=n_iter, input_files="input.nc", config=config)
+        batching(
+            tracker,
+            n_iter=n_iter,
+            input_files="input.nc",
+            retrieve_data=make_file,
+            config=config,
+        )
 
         # Check the directories have been deleted
         batch_dirs = [config["output_dir"] / f"batch_{i}" for i in range(n_iter)]
