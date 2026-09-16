@@ -6,6 +6,7 @@ const BASEMAP_STYLE = window.DATASETTE_MAPLIBRE_STYLE || "https://demotiles.mapl
 const GROUP_BY = window.DATASETTE_MAPLIBRE_GROUP_BY || null;
 const LAYER_COLUMN = window.DATASETTE_MAPLIBRE_LAYER_COLUMN || null;
 const LAYER_PALETTE = window.DATASETTE_MAPLIBRE_LAYER_PALETTE || null;
+const MAX_LAYERS = window.DATASETTE_MAPLIBRE_MAX_LAYERS || 20;
 
 /**
 	Fetch the current Datasette query as JSON.
@@ -144,12 +145,17 @@ async function loadGeoJSON() {
 	const layer_idx = data.columns.indexOf(LAYER_COLUMN);
 	if (layer_idx != -1) {
 		collection.layers = [...new Set(data.rows.map((row) => row[layer_idx]))];
+		if (collection.layers.length > MAX_LAYERS) {
+			collection.layers = collection.layers.slice(0, MAX_LAYERS);
+			console.log(`Layers truncated at max: ${MAX_LAYERS}`);
+		}
 	} else {
 		// Set a single base layer when no dynamic layers are specified
 		collection.layers = ["geojson"];
 	}
 
 	console.log(`Data load: ${Math.round(performance.now() - t0)}ms`);
+	console.log(`Layers: ${collection.layers}`);
 
 	return collection;
 }
@@ -302,7 +308,6 @@ function init() {
 		map.fitBounds(bounds, { padding: 40, maxZoom: 15 });
 
 		console.log(`Map load: ${Math.round(performance.now() - t0)}ms`);
-		console.log("Layers: ", geojson.layers);
 
 		// Expose the map API for debugging
 		window.datasette_maplibre_map = map;
