@@ -1,6 +1,7 @@
 """Module providing functions for batching the tracking algorithms."""
 
 import glob
+import shutil
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import Any, TypeAlias, TypedDict
@@ -197,7 +198,7 @@ def batching(
 
         # Optionally delete the batch directory
         if delete_batch_dirs:
-            batch_dir.rmdir()
+            shutil.rmtree(batch_dir)
 
     if combine_outputs:
         _combine_trajectories(output_files, output_dir / "tracks.nc")
