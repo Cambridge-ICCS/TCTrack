@@ -6,10 +6,6 @@ The resulting database forms the foundation for a dashboard. However, it is also
 
 Imported files can be grouped together into collections, e.g. geographic areas or a particular research hypothesis. Collections are defined using the `--collection` option. Collections are optional.
 
-Longitude coordinates are wrapped from 0-360 to -180-180 for compatibility with the GeoJSON standard (RFC 7946).
-
-Storm tracks and properties are converted into GeoJSON format in the `trajectories` table. These representations can be viewed directly in GIS tools.
-
 
 ## Usage
 
@@ -56,37 +52,11 @@ build-db --output tracks.db --collection hadgem3 more_tracks.nc
 ```
 collections              Named groups of track files.
 └─ files                 Individual NetCDF files with metadata.
-   └─ trajectories       Cyclone tracks stored as GeoJSON (track and points).
+   └─ trajectories       Cyclone tracks.
       └─ observations    Individual observation rows.
 ```
 
 See [`schema.sql`](schema.sql) for the full schema definition.
-
-
-## GeoJSON
-
-The trajectories table contains GeoJSON representations of the track and observation points. Each track and point has properties that can be displayed or filtered when displayed on a map. Available properties are:
-
-### geojson_track
-
-| Property Name | Description                                                                                     |
-| ------------- | ----------------------------------------------------------------------------------------------- |
-| file          | Filename of source file                                                                         |
-| track_id      | Original index of the track                                                                     |
-| start_end     | Flag to indicate if the track starts or ends at the temporal boundaries of the model parameters |
-
-### geojson_points
-
-| Property Name                 | Description                                           |
-| ----------------------------- | ----------------------------------------------------- |
-| file                          | Filename of source file                               |
-| track_id                      | Original index of the track                           |
-| sequence                      | Sequence number of the observation point on the track |
-| date                          | Date and time of the observation                      |
-| air_pressure_at_sea_level     | Air pressure at sea level                             |
-| surface_altitude              | Surface altitude                                      |
-| wind_speed                    | Wind speed                                            |
-| atmosphere_relative_vorticity | Atmosphere relative vorticity                         |
 
 
 ## Notes

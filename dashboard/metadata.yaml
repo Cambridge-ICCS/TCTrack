@@ -69,8 +69,6 @@ databases:
         facets: [file_id, start_end]
         columns:
           start_end: Start/end marker from the source file (S, E or SE).
-          geojson_track: Track path as GeoJSON containing a single LineString feature.
-          geojson_points: Observation points as a list of GeoJSON Point features carrying the observation properties.
 
       observations:
         description: One row per trajectory observation point.

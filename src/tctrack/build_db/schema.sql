@@ -4,7 +4,7 @@
 -- Hierarchy:
 --  collections              Named collections of trajectories.
 --  └─ files                 Individual files from TCTrack.
---     └─ trajectories       Single cyclone tracks with GeoJSON geometry.
+--     └─ trajectories       Single cyclone tracks.
 --        └─ observations    Attributes from each trajectory observation.
 
 pragma foreign_keys = on;
@@ -45,18 +45,12 @@ create table files (
 create index files_collection_idx on files(collection_id);
 
 -- Trajectories
--- A single cyclone trajectory stored as GeoJSON.
---
--- geojson_track  LineString for the full vector path.
--- geojson_points FeatureCollection with a Point for each observation.
+-- A single cyclone trajectory.
 create table trajectories (
     id              integer primary key,
     file_id         integer not null references files(id) on delete cascade,
 
-    start_end       text    check (start_end in ('S', 'E', 'SE')),
-
-    geojson_track   text    not null,
-    geojson_points  text    not null
+    start_end       text    check (start_end in ('S', 'E', 'SE'))
 );
 
 create index trajectories_file_idx on trajectories(file_id);
@@ -101,7 +95,6 @@ order by
 -- Trajectory view
 create view trajectory_view as
 select trajectories.id as trajectory_id, start_end,
-	geojson_track, geojson_points,
 	file_id, filename, filepath,
 	tctrack_version, tracker_name
 from trajectories

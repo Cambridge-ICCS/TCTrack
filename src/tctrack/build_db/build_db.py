@@ -198,92 +198,6 @@ def extract_trajectory(netcdf_data: dict, traj_idx: int) -> dict:
     }
 
 
-def build_geojson_track(traj: dict) -> dict:
-    """
-    Build a GeoJSON LineString Feature for the full trajectory path.
-
-    Coordinates are rounded to ~100m precision to reduce overall object size.
-
-    Parameters
-    ----------
-    traj
-        Dictionary from `extract_trajectory`.
-
-    Returns
-    -------
-    GeoJSON Feature dictionary with a LineString for the trajectory.
-    """
-    coordinates = [
-        [round(traj["longitude"][i], 3), round(traj["latitude"][i], 3)]
-        for i in traj["indices"]
-    ]
-
-    return {
-        "type": "Feature",
-        "geometry": {
-            "type": "LineString",
-            "coordinates": coordinates,
-        },
-        "properties": {
-            "file": os.path.basename(traj["filepath"]),
-            "track_id": traj["traj_idx"],
-            "start_end": traj["start_end"],
-        },
-    }
-
-
-def build_geojson_points(traj: dict) -> dict:
-    """
-    Build GeoJSON FeatureCollection for all observation points along the trajectory.
-
-    Coordinates are rounded to ~100m precision to reduce overall object size.
-
-    Parameters
-    ----------
-    traj
-        Dictionary from `extract_trajectory`.
-
-    Returns
-    -------
-    GeoJSON FeatureCollection dictionary with a Point for each observation.
-    """
-    features = []
-
-    for sequence, i in enumerate(traj["indices"]):
-        properties = {
-            "file": os.path.basename(traj["filepath"]),
-            "track_id": traj["traj_idx"],
-            "sequence": sequence,
-            "date": traj["times"][i].isoformat(timespec="minutes"),
-        }
-
-        # Add optional properties when present (aliases unused at present)
-        for key, alias in (
-            ("air_pressure_at_sea_level", "air_pressure_at_sea_level"),
-            ("surface_altitude", "surface_altitude"),
-            ("wind_speed", "wind_speed"),
-            ("atmosphere_relative_vorticity", "atmosphere_relative_vorticity"),
-        ):
-            if (v := traj[key]) is not None:
-                properties[alias] = v[i]
-
-        features.append(
-            {
-                "type": "Feature",
-                "geometry": {
-                    "type": "Point",
-                    "coordinates": [
-                        round(traj["longitude"][i], 3),
-                        round(traj["latitude"][i], 3),
-                    ],
-                },
-                "properties": properties,
-            }
-        )
-
-    return {"type": "FeatureCollection", "features": features}
-
-
 def insert_file(
     db: sqlite3.Connection,
     collection_id: int,
@@ -361,14 +275,11 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
     -------
     Row id of trajectory in the database.
     """
-    geojson_track = json.dumps(build_geojson_track(traj), separators=(",", ":"))
-    geojson_points = json.dumps(build_geojson_points(traj), separators=(",", ":"))
-
     cur = db.execute(
         """insert into trajectories
-           (file_id, start_end, geojson_track, geojson_points)
-           values (?, ?, ?, ?)""",
-        (file_id, traj["start_end"], geojson_track, geojson_points)
+           (file_id, start_end)
+           values (?, ?)""",
+        (file_id, traj["start_end"])
     )
     if cur.lastrowid is None:
         msg = "Insert into trajectories table failed"
