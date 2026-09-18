@@ -104,11 +104,12 @@ class TestBatchingPreprocessing:
         batching(
             tracker,
             n_iter=1,
-            input_files="input.nc",
+            input_files=[],
             preprocessing=[
                 (dummy_step, {"log": log}),
                 (make_field, {"name": "p", "log": log}),
             ],
+            tracker_inputs=[],
             config=config,
         )
 
@@ -122,8 +123,9 @@ class TestBatchingPreprocessing:
         batching(
             tracker,
             n_iter=2,
-            input_files="input.nc",
+            input_files=[],
             preprocessing=[(dummy_step, {"comment": "%ITER%%BATCH%", "log": log})],
+            tracker_inputs=[],
             config=config,
         )
 
@@ -138,8 +140,9 @@ class TestBatchingPreprocessing:
         batching(
             tracker,
             n_iter=2,
-            input_files="input.nc",
+            input_files=[],
             preprocessing=[(dummy_step, {"comment": "%ITER%", "log": log})],
+            tracker_inputs=[],
             config=config,
         )
 
@@ -154,11 +157,12 @@ class TestBatchingPreprocessing:
         batching(
             tracker,
             n_iter=1,
-            input_files="processed.nc",
+            input_files=[],
             preprocessing=[
                 (make_field, {"name": "p"}, {"store": "field1"}),
                 (load_field, {"log": log}, {"use": "field1"}),
             ],
+            tracker_inputs=[],
             config=config,
         )
 
@@ -172,12 +176,13 @@ class TestBatchingPreprocessing:
         batching(
             tracker,
             n_iter=1,
-            input_files="processed.nc",
+            input_files=[],
             preprocessing=[
                 (make_field, {"name": "p1"}, {"store": "field1"}),
                 (make_field, {"name": "p2"}, {"store": "field1"}),
                 (load_field, {"log": log}, {"use": "field1"}),
             ],
+            tracker_inputs=[],
             config=config,
         )
 
@@ -191,7 +196,7 @@ class TestBatchingPreprocessing:
             batching(
                 tracker,
                 n_iter=1,
-                input_files="processed.nc",
+                input_files=[],
                 preprocessing=[(load_field, {}, {"use": "field1"})],
                 config=config,
             )
@@ -207,14 +212,14 @@ class TestBatchingPreprocessing:
                 ["a", "b", "c", "d"],
                 None,
                 None,
-                (ValueError, "Number of fields to store exceeds the number returned"),
+                (ValueError, "Number of fields to store exceeds the number provided"),
                 id="too many to store",
             ),
             pytest.param(
                 ["a"],
                 None,
                 None,
-                (ValueError, "Fields with the following names are not returned .*: a"),
+                (ValueError, "Fields with the following names are not provided .*: a"),
                 id="invalid var name",
             ),
         ],
@@ -233,11 +238,12 @@ class TestBatchingPreprocessing:
             batching(
                 tracker,
                 n_iter=1,
-                input_files="processed.nc",
+                input_files=[],
                 preprocessing=[
                     (make_fields, {"names": ["p", "u", "v"]}, {"store": store}),
                     (load_field, {"log": log}, {"use": use}),
                 ],
+                tracker_inputs=[],
                 config=config,
             )
 
@@ -253,7 +259,7 @@ class TestBatching:
         tracker = DummyTracker()
         n_iter = 2
 
-        batching(tracker, n_iter=n_iter, input_files="input.nc", config=config)
+        batching(tracker, n_iter, [], tracker_inputs=[], config=config)
 
         # Check the directories have been created
         batch_dirs = [config["output_dir"] / f"batch_{i}" for i in range(n_iter)]
@@ -264,15 +270,15 @@ class TestBatching:
         """Test batching deletes the batch directories when delete_batch_dirs=True."""
         tracker = DummyTracker()
         n_iter = 2
-        make_file = lambda _, batch_dir: Path.touch(batch_dir / "file.txt")
 
         del config["delete_batch_dirs"]  # Default is True
 
         batching(
             tracker,
             n_iter=n_iter,
-            input_files="input.nc",
-            retrieve_data=make_file,
+            input_files=[],
+            retrieve_data=lambda _, batch_dir: Path.touch(batch_dir / "file.txt"),
+            tracker_inputs=[],
             config=config,
         )
 
@@ -293,31 +299,122 @@ class TestBatching:
         batching(
             tracker,
             n_iter=n_iter,
-            input_files="input.nc",
+            input_files=[],
             retrieve_data=retrieve_data,
+            tracker_inputs=[],
             config=config,
         )
 
         assert log == [f"retrieve_data {i}" for i in range(n_iter)]
 
-    def test_input_output_files(self, config) -> None:
+    def test_input_file_copied_to_batch(self, config) -> None:
+        """Test an input file is copied to the batch directory."""
+        tracker = DummyTracker()
+        input_file = config["output_dir"] / "input.nc"
+        cf.write(make_field("input"), str(input_file))
+
+        batching(tracker, n_iter=1, input_files=str(input_file), config=config)
+
+        batch_file = config["output_dir"] / "batch_0" / input_file.name
+        assert batch_file.is_file()
+        assert tracker.inputs == [[str(batch_file)]]
+
+    def test_input_file_batch_name(self, config) -> None:
+        """Test an input file can be given a filename in the batch directory."""
+        tracker = DummyTracker()
+        input_file = str(config["output_dir"] / "input.nc")
+        cf.write(make_field("input"), input_file)
+
+        batching(
+            tracker,
+            n_iter=1,
+            input_files=[(input_file, {"batch_file": "renamed.nc"})],
+            config=config,
+        )
+
+        batch_file = config["output_dir"] / "batch_0" / "renamed.nc"
+        assert batch_file.is_file()
+        assert tracker.inputs == [[str(batch_file)]]
+
+    def test_input_file_batch_name_none(self, config) -> None:
+        """Test an input file can be excluded from the batch directory."""
+        tracker = DummyTracker()
+        input_file = str(config["output_dir"] / "input.nc")
+        cf.write(make_field("input"), input_file)
+
+        batching(
+            tracker,
+            n_iter=1,
+            input_files=[(input_file, {"batch_file": None})],
+            tracker_inputs=[],
+            config=config,
+        )
+
+        batch_dir = config["output_dir"] / "batch_0"
+        assert not any(batch_dir.iterdir())
+        assert tracker.inputs == [[]]
+
+    def test_input_fields_are_stored_for_preprocessing(self, config) -> None:
+        """Test input fields can be stored in the preprocessing registry."""
+        tracker = DummyTracker()
+        input_file = str(config["output_dir"] / "input.nc")
+        cf.write(make_field("input"), input_file)
+        log: list[str] = []
+
+        batching(
+            tracker,
+            n_iter=1,
+            input_files=[(input_file, {"store": "input", "batch_file": None})],
+            preprocessing=[(load_field, {"log": log}, {"use": "input"})],
+            tracker_inputs=[],
+            config=config,
+        )
+
+        assert log == ["loaded input"]
+
+    def test_input_file_wildcards(self, config) -> None:
+        """Test wildcard inputs are correctly written to the batch directory."""
+        tracker = DummyTracker()
+        cf.write(make_field("input_1"), str(config["output_dir"] / "input_1.nc"))
+        cf.write(make_field("input_2"), str(config["output_dir"] / "input_2.nc"))
+
+        batching(
+            tracker,
+            n_iter=1,
+            input_files=str(config["output_dir"] / "input_*.nc"),
+            config=config,
+        )
+
+        batch_file = config["output_dir"] / "batch_0" / "input_*.nc"
+        assert batch_file.is_file()
+        assert tracker.inputs == [[str(batch_file)]]
+
+    def test_input_file_wildcards_missing(self, config) -> None:
+        """Test batching fails if there are no input files that match a wildcard."""
+        tracker = DummyTracker()
+
+        with pytest.raises(FileNotFoundError, match="No files matched"):
+            batching(tracker, n_iter=1, input_files="input_*.nc", config=config)
+
+    def test_tracker_input_output_files(self, config) -> None:
         """Test batching correctly sets the per-batch input and output files."""
         tracker = DummyTracker()
         n_iter = 2
-        input_files = ["file1", "file2"]
+        tracker_inputs = ["file1", "file2"]
 
-        batching(tracker, n_iter=n_iter, input_files=input_files, config=config)
+        batching(tracker, n_iter, [], tracker_inputs=tracker_inputs, config=config)
 
         # Check the input and output files were set correctly
         batch_dirs = [config["output_dir"] / f"batch_{i}" for i in range(n_iter)]
         assert tracker.inputs == [
-            [str(batch_dir / file) for file in input_files] for batch_dir in batch_dirs
+            [str(batch_dir / file) for file in tracker_inputs]
+            for batch_dir in batch_dirs
         ]
         assert tracker.outputs == [
             str(config["output_dir"] / f"tracks_{i}.nc") for i in range(n_iter)
         ]
 
-    def test_input_file_wildcards(self, config) -> None:
+    def test_tracker_input_wildcards(self, config) -> None:
         """Test batching expands input file wildcards in each batch directory."""
         tracker = DummyTracker()
 
@@ -328,8 +425,9 @@ class TestBatching:
         batching(
             tracker,
             n_iter=2,
-            input_files="input_*.nc",
+            input_files=[],
             retrieve_data=retrieve_data,
+            tracker_inputs="input_*.nc",
             config=config,
         )
 
@@ -340,10 +438,3 @@ class TestBatching:
             ]
             for i in range(2)
         ]
-
-    def test_input_file_wildcards_missing(self, config) -> None:
-        """Test batching fails if there are no input files that match a wildcard."""
-        tracker = DummyTracker()
-
-        with pytest.raises(FileNotFoundError, match="No files matched"):
-            batching(tracker, n_iter=1, input_files="input_*.nc", config=config)

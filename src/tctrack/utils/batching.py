@@ -10,7 +10,12 @@ import cf
 
 from tctrack.core import TCTracker
 
-PreprocessResult: TypeAlias = cf.Field | Sequence[cf.Field] | None
+
+class InputArgs(TypedDict, total=False):
+    """Additional arguments for an input file."""
+
+    batch_file: str | Path | None
+    store: str | Sequence[str | None]
 
 
 class _PreprocessRegistryArgs(TypedDict, total=False):
@@ -18,6 +23,7 @@ class _PreprocessRegistryArgs(TypedDict, total=False):
     store: str | Sequence[str | None]
 
 
+PreprocessResult: TypeAlias = cf.Field | Sequence[cf.Field] | None
 PreprocessFn: TypeAlias = Callable[..., PreprocessResult]
 PreprocessStep: TypeAlias = (
     tuple[PreprocessFn, dict[str, Any]]
@@ -77,7 +83,7 @@ def _store_fields(
         missing_names = [name for name in store_names if name not in result_names]
         if missing_names:
             msg = (
-                f"Fields with the following names are not returned by {fn_name}: "
+                f"Fields with the following names are not provided by {fn_name}: "
                 + ", ".join(missing_names)
             )
             raise ValueError(msg)
@@ -85,7 +91,7 @@ def _store_fields(
             fields[name] = result[result_names.index(name)]
 
     else:
-        msg = f"Number of fields to store exceeds the number returned by {fn_name}."
+        msg = f"Number of fields to store exceeds the number provided by {fn_name}."
         raise ValueError(msg)
 
 
@@ -129,8 +135,9 @@ def _run_preprocessing(
     return result
 
 
-def _parse_input_files(input_files: Iterable[str], batch_dir: Path) -> list[str]:
-    """Parse the input files to prepend the batch directory and expand wildcards."""
+def _parse_files(input_files: str | Iterable[str], directory: Path) -> list[str]:
+    """Parse the input files to prepend the directory and expand wildcards."""
+    input_files = [input_files] if isinstance(input_files, str) else input_files
     input_file_paths: list[str] = []
 
     for input_file in input_files:
@@ -138,7 +145,7 @@ def _parse_input_files(input_files: Iterable[str], batch_dir: Path) -> list[str]
 
         # Prepend the batch directory for relative file paths
         if not Path(input_file).is_absolute():
-            input_file_path = str(batch_dir / input_file)
+            input_file_path = str(directory / input_file)
 
         # If it wildcards, expand these
         if glob.has_magic(input_file_path):
@@ -156,6 +163,32 @@ def _parse_input_files(input_files: Iterable[str], batch_dir: Path) -> list[str]
     return input_file_paths
 
 
+def _prepare_inputs(
+    input_files: str | Iterable[str | tuple[str, InputArgs]],
+    batch_dir: Path,
+) -> dict[str, cf.Field]:
+    """Write input files to the batch directory / store fields in the registry."""
+    if isinstance(input_files, str):
+        input_files = [input_files]
+
+    fields_registry: dict[str, cf.Field] = {}
+    for input_ in input_files:
+        filename, args = (input_, {}) if isinstance(input_, str) else input_
+        input_paths = _parse_files(filename, Path())
+        input_fields = list(cf.read(input_paths))  # type: ignore[operator]
+
+        # Store fields in the registry for preprocessing
+        if store_names := args.get("store"):
+            _store_fields(input_fields, store_names, fields_registry, filename)
+
+        # Save the fields to a file in the batch directory
+        batch_file = args.get("batch_file", Path(filename).name)
+        if batch_file is not None:
+            cf.write(input_fields, str(batch_dir / batch_file))  # type: ignore[operator]
+
+    return fields_registry
+
+
 class BatchingConfig(TypedDict, total=False):
     """Additional arguments for :func:`batching` provided via the config argument."""
 
@@ -171,10 +204,11 @@ class BatchingConfig(TypedDict, total=False):
 def batching(
     tracker: TCTracker,
     n_iter: int,
-    input_files: str | Iterable[str],
+    input_files: str | Iterable[str | tuple[str, InputArgs]],
     *,
     preprocessing: Sequence[PreprocessStep] | None = None,
     retrieve_data: Callable[[int, Path], None] | None = None,
+    tracker_inputs: Iterable[str] = ["*"],
     config: BatchingConfig | None = None,
 ) -> None:
     """Perform tracking in batches with optional steps for retrieval and preprocessing.
@@ -189,10 +223,18 @@ def batching(
         The tracker object used to perform the tropical cyclone tracking.
     n_iter : int
         The number of batching iterations to perform.
-    input_files : str | Iterable[str]
-        The input file names to pass to the tracker. These will be taken relative to the
-        batch directory unless absolute file paths are provided. The `*` wildcard can be
-        used to match multiple files.
+    input_files : str | Iterable[str | tuple[str, InputArgs]]
+        Input netcdf files to use for each batch. These will be copied into the batch
+        directory. The `*` wildcard can be used to match multiple files, in which case
+        they will be combined into one file. A tuple can also be passed for each input
+        file where the second value is a dictionary providing additional arguments.
+        These can be:
+
+        - ``batch_file``: The filename for the file in the batch directory. Use ``None``
+          to not do so. By default it will use the same file name.
+        - ``store``: Keys for storing the fields in-memory for use in the preprocessing.
+          If there are multiple fields this must either match the full number of fields
+          or match the netcdf variable names.
     preprocessing : Sequence[PreprocessStep] | None
         (optional) The list of preprocessing steps. These are each specified by a tuple.
 
@@ -204,13 +246,16 @@ def batching(
           function. String arguments can refer to the batch directory with ``%BATCH%``.
         - The optional third entry is a dictionary that can take ``store`` and/or
           ``use`` keys which allows fields to be stored and passed from memory to
-          avoid unnecessary file IO. If ``store`` is used and the function returns more
-          than one field it must either match the full number of fields or match the
-          netcdf variable names.
+          avoid unnecessary file IO. ``store`` behaves the same as in
+          :attr:`input_files`.
     retrieve_data : Callable[[int, Path], None] | None
-        (optional) A user-defined function that is called each iteration to retrieve the
-        appropriate data and put it in. The first argument is the batch index, the
-        second argument is the batch directory.
+        (optional) A user-defined function that is called each iteration to retrieve
+        data and put it in the batch directory. E.g. to download the data if it will not
+        all fit on the filesystem in one go. The first argument of the function is the
+        batch index, the second argument is the batch directory.
+    tracker_inputs : Iterable[str]
+        (optional) A list of filenames from the batch directory to pass to the tracker.
+        By default it uses all the files (using ``["*"]``).
     config : BatchingConfig | None
         (optional) A dictionary of additional arguments. Valid keys:
 
@@ -222,21 +267,18 @@ def batching(
 
     Examples
     --------
-    Do 10 iterations. The input files are copied to the batch directory. The data is
-    then preprocessed to halve the latitude resolution and rename the netcdf variable.
+    Do 10 iterations. The input file is loaded and stored in memory and only saved to
+    the batch directory after preprocessing. The preprocessing involves halving the
+    latitude resolution and renaming the netcdf variable.
 
     >>> from tctrack.utils import batching
     >>> from tctrack import tempest_extremes as te
     >>> from tctrack.preprocessing import subsample_field, set_nc_variable_name
-    >>> def copy_files(i_iter, batch_dir):
-    ...     year = 1950 + i_iter
-    ...     file = Path(f"psl_{year}.nc")
-    ...     file.copy_into(batch_dir)
     >>> preprocessing = [
     ...     (
     ...         subsample_field,
-    ...         {"input": "%BATCH%/psl_*.nc", "X": slice(0, None, 2)},
-    ...         {"store": "psl"},
+    ...         {"X": slice(0, None, 2)},
+    ...         {"use": "psl", "store": "psl"},
     ...     ),
     ...     (
     ...         set_nc_variable_name,
@@ -248,8 +290,7 @@ def batching(
     >>> batching(
     ...     tracker,
     ...     10,
-    ...     "psl_processed.nc",
-    ...     retrieve_data=copy_files,
+    ...     [("psl_*.nc", {"store": "psl", "batch_file": None})],
     ...     preprocessing=preprocessing,
     ... )
     """
@@ -261,9 +302,6 @@ def batching(
     combine_outputs = config.get("combine_outputs", True)
     delete_batch_dirs = config.get("delete_batch_dirs", True)
 
-    if isinstance(input_files, str):
-        input_files = [input_files]
-
     # List of output files to use for combining
     output_files: list[Path] = []
 
@@ -273,12 +311,14 @@ def batching(
         batch_dir = output_dir / f"batch_{i_iter}"
         batch_dir.mkdir(parents=True, exist_ok=True)
 
-        # Put the relevant data in the batch directory
+        # Put input files in the batch directory & fields in the preprocessing registry
+        fields = _prepare_inputs(input_files, batch_dir)
+
+        # Put additional files in the batch directory
         if retrieve_data is not None:
             retrieve_data(i_iter, batch_dir)
 
         # Preprocess the data
-        fields: dict[str, cf.Field] = {}  # Fields to keep in memory across steps
         for preprocessing_step in preprocessing or ():
             _run_preprocessing(
                 preprocessing_step,
@@ -287,7 +327,7 @@ def batching(
             )
 
         # Run the tracker and keep track of the output files
-        input_file_paths = _parse_input_files(input_files, batch_dir)
+        input_file_paths = _parse_files(tracker_inputs, batch_dir)
         output_file = output_dir / f"tracks_{i_iter}.nc"
         tracker.run_tracker(input_file_paths, str(output_file))
         output_files.append(output_file)
