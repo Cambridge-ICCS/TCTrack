@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from typing import Any, Literal, TypeAlias, TypedDict, TypeGuard, TypeVar, overload
 
 import cf
+import cftime
 import numpy as np
 
 ESMPY_AVAILABLE = importlib.util.find_spec("esmpy") is not None
@@ -188,7 +189,7 @@ def _load_field(source: FieldSource) -> cf.Field:
 
 def select_time_range(
     inputs: FieldSource,
-    time_bounds: tuple[str, str],
+    time_bounds: tuple[str, str] | tuple[cftime.datetime, cftime.datetime],
     *,
     output_file: str | None = None,
 ) -> cf.Field | list[cf.Field]:
@@ -198,9 +199,9 @@ def select_time_range(
     ----------
     inputs : FieldSource
         The file path(s) or fields to use.
-    time_bounds : tuple[str, str]
-        Start and end datetime strings in format ``"YYYY-MM-DD[ HH:MM]"``.
-        The end bound is open / exclusive.
+    time_bounds : tuple[str, str] | tuple[cftime.datetime, cftime.datetime]
+        Start and end datetimes. Strings must use the format
+        ``"YYYY-MM-DD[ HH:MM]"``. The end bound is open / exclusive.
     output_file : str | None, optional
         Output file to write the result to.
 
@@ -211,10 +212,19 @@ def select_time_range(
     """
     fields = _load_fields(inputs)
 
-    time_interval = cf.wi(cf.dt(time_bounds[0]), cf.dt(time_bounds[1]), open_upper=True)
-    fields = [field.subspace(T=time_interval) for field in fields]
+    new_fields = []
+    for field in fields:
+        if isinstance(time_bounds[0], str):
+            time_coordinate = field.dimension_coordinate("T")
+            calendar = time_coordinate.get_property("calendar", "standard")
+            time_bounds = (
+                cf.dt(time_bounds[0], calendar=calendar),
+                cf.dt(time_bounds[1], calendar=calendar),
+            )
+        time_interval = cf.wi(time_bounds[0], time_bounds[1], open_upper=True)
+        new_fields.append(field.subspace(T=time_interval))
 
-    return _write_output(fields, output_file)
+    return _write_output(new_fields, output_file)
 
 
 def separate_variables(
