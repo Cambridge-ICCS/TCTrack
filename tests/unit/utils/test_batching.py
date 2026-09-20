@@ -6,12 +6,22 @@ from contextlib import nullcontext
 from functools import partial
 from pathlib import Path
 from typing import Iterable
+from unittest.mock import call
 
 import cf
 import pytest
 
 from tctrack.core import TCTracker
-from tctrack.utils.batching import _store_fields, batching
+from tctrack.utils.batching import (
+    _batch_time_ranges,
+    _get_calendar,
+    _store_fields,
+    batching,
+)
+
+BATCH_INTERVAL = cf.TimeDuration(1, "days")
+BATCH_TIME_RANGE = ("2000-01-01", "2000-01-02")
+TWO_BATCH_TIME_RANGE = ("2000-01-01", "2000-01-03")
 
 ### Dummy functions for testing the preprocessing
 
@@ -22,10 +32,13 @@ def dummy_step(comment="dummy step", log: list | None = None) -> None:
         log.append(comment)
 
 
-def make_field(name: str, log: list[str] | None = None) -> cf.Field:
+def make_field(
+    name: str, log: list[str] | None = None, calendar: str = "standard"
+) -> cf.Field:
     """Create a field with a netcdf variable name."""
     field = cf.example_field(0).copy()
     field.nc_set_variable(name)
+    field.dimension_coordinate("T").set_data([cf.dt("2000-01-01", calendar=calendar)])
     if log is not None:
         log.append(f"created {name}")
     return field
@@ -111,7 +124,8 @@ class TestBatchingPreprocessing:
 
         batching(
             tracker,
-            n_iter=1,
+            interval=BATCH_INTERVAL,
+            time_range=BATCH_TIME_RANGE,
             input_files=[],
             preprocessing=[
                 partial(dummy_step, log=log),
@@ -130,7 +144,8 @@ class TestBatchingPreprocessing:
 
         batching(
             tracker,
-            n_iter=2,
+            interval=BATCH_INTERVAL,
+            time_range=TWO_BATCH_TIME_RANGE,
             input_files=[],
             preprocessing=[partial(dummy_step, "%ITER%%BATCH%", log=log)],
             tracker_inputs=[],
@@ -147,7 +162,8 @@ class TestBatchingPreprocessing:
 
         batching(
             tracker,
-            n_iter=2,
+            interval=BATCH_INTERVAL,
+            time_range=TWO_BATCH_TIME_RANGE,
             input_files=[],
             preprocessing=[partial(dummy_step, "%ITER%", log=log)],
             tracker_inputs=[],
@@ -164,7 +180,8 @@ class TestBatchingPreprocessing:
 
         batching(
             tracker,
-            n_iter=1,
+            interval=BATCH_INTERVAL,
+            time_range=BATCH_TIME_RANGE,
             input_files=[],
             preprocessing=[
                 (partial(make_field, "p"), "field1"),
@@ -183,7 +200,8 @@ class TestBatchingPreprocessing:
 
         batching(
             tracker,
-            n_iter=1,
+            interval=BATCH_INTERVAL,
+            time_range=BATCH_TIME_RANGE,
             input_files=[],
             preprocessing=[
                 (partial(make_field, "p1"), "field1"),
@@ -253,7 +271,8 @@ class TestBatchingPreprocessing:
         ):
             batching(
                 tracker,
-                n_iter=1,
+                interval=BATCH_INTERVAL,
+                time_range=BATCH_TIME_RANGE,
                 input_files=[],
                 preprocessing=[
                     (partial(make_fields, ["p", "u", "v"]), store),
@@ -277,12 +296,34 @@ class TestBatchingPreprocessing:
 class TestBatching:
     """Tests for the batching utility."""
 
+    def test_calendar_from_input(self, config) -> None:
+        """Test batch ranges use the calendar of the input file."""
+        input_file = config["output_dir"] / "input.nc"
+        field = make_field("input", calendar="360_day")
+        cf.write(field, str(input_file))  # type: ignore[operator]
+
+        calendar = _get_calendar([str(input_file)])
+        ranges = _batch_time_ranges(("2000-01-01", "2000-03-01"), "month", calendar)
+
+        assert calendar == "360_day"
+        assert ranges == [
+            ("2000-01-01 00:00:00", "2000-02-01 00:00:00"),
+            ("2000-02-01 00:00:00", "2000-03-01 00:00:00"),
+        ]
+
     def test_batch_directories(self, config) -> None:
         """Test batching creates the expected batch directories."""
         tracker = DummyTracker()
         n_iter = 2
 
-        batching(tracker, n_iter, [], tracker_inputs=[], config=config)
+        batching(
+            tracker,
+            [],
+            BATCH_INTERVAL,
+            time_range=TWO_BATCH_TIME_RANGE,
+            tracker_inputs=[],
+            config=config,
+        )
 
         # Check the directories have been created
         batch_dirs = [config["output_dir"] / f"batch_{i}" for i in range(n_iter)]
@@ -298,8 +339,9 @@ class TestBatching:
 
         batching(
             tracker,
-            n_iter=n_iter,
             input_files=[],
+            interval=BATCH_INTERVAL,
+            time_range=TWO_BATCH_TIME_RANGE,
             retrieve_data=lambda _, batch_dir: Path.touch(batch_dir / "file.txt"),
             tracker_inputs=[],
             config=config,
@@ -321,8 +363,9 @@ class TestBatching:
 
         batching(
             tracker,
-            n_iter=n_iter,
             input_files=[],
+            interval=BATCH_INTERVAL,
+            time_range=TWO_BATCH_TIME_RANGE,
             retrieve_data=retrieve_data,
             tracker_inputs=[],
             config=config,
@@ -330,13 +373,51 @@ class TestBatching:
 
         assert log == [f"retrieve_data {i}" for i in range(n_iter)]
 
+    def test_input_time_selection(self, config, mocker) -> None:
+        """Test each batch selects its corresponding time range."""
+        tracker = DummyTracker()
+
+        # Create the input and mock the time selection function
+        input_file1 = str(config["output_dir"] / "input1.nc")
+        input_file2 = str(config["output_dir"] / "input2.nc")
+        field1 = make_field("input1", calendar="360_day")
+        cf.write(field1, input_file1)  # type: ignore[operator]
+        cf.write(make_field("input2", calendar="360_day"), input_file2)  # type: ignore[operator]
+        select_time_range = mocker.patch(
+            "tctrack.utils.batching.select_time_range", return_value=field1
+        )
+
+        batching(
+            tracker,
+            [
+                (input_file1, {"batch_file": None}),
+                (input_file2, {"batch_file": None, "time_varying": False}),
+            ],
+            interval="month",
+            time_range=("2000-01-01", "2000-03-01"),
+            tracker_inputs=[],
+            config=config,
+        )
+
+        # Check the time-varying input was subspaced in time for each batch
+        assert select_time_range.call_args_list == [
+            call([input_file1], ("2000-01-01 00:00:00", "2000-02-01 00:00:00")),
+            call([input_file1], ("2000-02-01 00:00:00", "2000-03-01 00:00:00")),
+        ]
+
     def test_input_file_copied_to_batch(self, config) -> None:
         """Test an input file is copied to the batch directory."""
         tracker = DummyTracker()
         input_file = config["output_dir"] / "input.nc"
         cf.write(make_field("input"), str(input_file))  # type: ignore[operator]
 
-        batching(tracker, n_iter=1, input_files=str(input_file), config=config)
+        batching(
+            tracker,
+            input_files=str(input_file),
+            interval=BATCH_INTERVAL,
+            time_range=BATCH_TIME_RANGE,
+            config=config,
+        )
 
         batch_file = config["output_dir"] / "batch_0" / input_file.name
         assert batch_file.is_file()
@@ -350,7 +431,8 @@ class TestBatching:
 
         batching(
             tracker,
-            n_iter=1,
+            interval=BATCH_INTERVAL,
+            time_range=BATCH_TIME_RANGE,
             input_files=[(input_file, {"batch_file": "renamed.nc"})],
             config=config,
         )
@@ -367,7 +449,8 @@ class TestBatching:
 
         batching(
             tracker,
-            n_iter=1,
+            interval=BATCH_INTERVAL,
+            time_range=BATCH_TIME_RANGE,
             input_files=[(input_file, {"batch_file": None})],
             tracker_inputs=[],
             config=config,
@@ -386,7 +469,8 @@ class TestBatching:
 
         batching(
             tracker,
-            n_iter=1,
+            interval=BATCH_INTERVAL,
+            time_range=BATCH_TIME_RANGE,
             input_files=[(input_file, {"store": "input"})],
             preprocessing=[partial(load_field, "input", log=log)],
             tracker_inputs=[],
@@ -406,7 +490,8 @@ class TestBatching:
 
         batching(
             tracker,
-            n_iter=1,
+            interval=BATCH_INTERVAL,
+            time_range=BATCH_TIME_RANGE,
             input_files=str(config["output_dir"] / "input_*.nc"),
             config=config,
         )
@@ -420,7 +505,13 @@ class TestBatching:
         tracker = DummyTracker()
 
         with pytest.raises(FileNotFoundError, match="No files matched"):
-            batching(tracker, n_iter=1, input_files="input_*.nc", config=config)
+            batching(
+                tracker,
+                input_files="input_*.nc",
+                interval=BATCH_INTERVAL,
+                time_range=BATCH_TIME_RANGE,
+                config=config,
+            )
 
     def test_tracker_input_output_files(self, config) -> None:
         """Test batching correctly sets the per-batch input and output files."""
@@ -428,7 +519,14 @@ class TestBatching:
         n_iter = 2
         tracker_inputs = ["file1", "file2"]
 
-        batching(tracker, n_iter, [], tracker_inputs=tracker_inputs, config=config)
+        batching(
+            tracker,
+            [],
+            BATCH_INTERVAL,
+            time_range=TWO_BATCH_TIME_RANGE,
+            tracker_inputs=tracker_inputs,
+            config=config,
+        )
 
         # Check the input and output files were set correctly
         batch_dirs = [config["output_dir"] / f"batch_{i}" for i in range(n_iter)]
@@ -450,7 +548,8 @@ class TestBatching:
 
         batching(
             tracker,
-            n_iter=2,
+            interval=BATCH_INTERVAL,
+            time_range=TWO_BATCH_TIME_RANGE,
             input_files=[],
             retrieve_data=retrieve_data,
             tracker_inputs="input_*.nc",
