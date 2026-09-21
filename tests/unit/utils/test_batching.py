@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+from datetime import timedelta
 from pathlib import Path
 from typing import Iterable
 from unittest.mock import call
@@ -11,7 +12,12 @@ import cf
 import pytest
 
 from tctrack.core import TCTracker
-from tctrack.utils.batching import _batch_time_ranges, _get_calendar, batching
+from tctrack.utils.batching import (
+    _batch_time_ranges,
+    _expand_batch_time_range,
+    _get_calendar,
+    batching,
+)
 
 BATCH_INTERVAL = cf.TimeDuration(1, "days")
 BATCH_TIME_RANGE = ("2000-01-01", "2000-01-02")
@@ -269,6 +275,22 @@ class TestBatchingPreprocessing:
 class TestBatching:
     """Tests for the batching utility."""
 
+    def test_expand_batch_time_range(self) -> None:
+        """Test batch buffer periods are applied and clamped to the overall range."""
+        expanded_range = _expand_batch_time_range(
+            (cf.dt("2000-02-01", calendar=None), cf.dt("2000-03-01", calendar=None)),
+            (cf.dt("2000-01-01", calendar=None), cf.dt("2000-03-01", calendar=None)),
+            {
+                "buffer_period": timedelta(days=10),
+                "start_buffer_period": timedelta(days=1),
+            },
+        )
+
+        assert expanded_range == (
+            cf.dt("2000-01-31", calendar=None),
+            cf.dt("2000-03-01", calendar=None),
+        )
+
     def test_calendar_from_input(self, config) -> None:
         """Test batch ranges use the calendar of the input file."""
         input_file = config["output_dir"] / "input.nc"
@@ -276,12 +298,22 @@ class TestBatching:
         cf.write(field, str(input_file))  # type: ignore[operator]
 
         calendar = _get_calendar([str(input_file)])
-        ranges = _batch_time_ranges(("2000-01-01", "2000-03-01"), "month", calendar)
+        time_range = (
+            cf.dt("2000-01-01", calendar=calendar),
+            cf.dt("2000-03-01", calendar=calendar),
+        )
+        ranges = _batch_time_ranges(time_range, "month")
 
         assert calendar == "360_day"
         assert ranges == [
-            ("2000-01-01 00:00:00", "2000-02-01 00:00:00"),
-            ("2000-02-01 00:00:00", "2000-03-01 00:00:00"),
+            (
+                cf.dt("2000-01-01", calendar=calendar),
+                cf.dt("2000-02-01", calendar=calendar),
+            ),
+            (
+                cf.dt("2000-02-01", calendar=calendar),
+                cf.dt("2000-03-01", calendar=calendar),
+            ),
         ]
 
     def test_batch_directories(self, config) -> None:
@@ -374,8 +406,55 @@ class TestBatching:
 
         # Check the time-varying input was subspaced in time for each batch
         assert select_time_range.call_args_list == [
-            call([input_file1], ("2000-01-01 00:00:00", "2000-02-01 00:00:00")),
-            call([input_file1], ("2000-02-01 00:00:00", "2000-03-01 00:00:00")),
+            call(
+                [input_file1],
+                (
+                    cf.dt("2000-01-01", calendar="360_day"),
+                    cf.dt("2000-02-01", calendar="360_day"),
+                ),
+            ),
+            call(
+                [input_file1],
+                (
+                    cf.dt("2000-02-01", calendar="360_day"),
+                    cf.dt("2000-03-01", calendar="360_day"),
+                ),
+            ),
+        ]
+
+    def test_input_time_selection_with_buffers(self, config, mocker) -> None:
+        """Test batch input selection includes the requested time buffers."""
+        tracker = DummyTracker()
+        input_file = str(config["output_dir"] / "input.nc")
+        field = make_field("input")
+        cf.write(field, input_file)  # type: ignore[operator]
+        select_time_range = mocker.patch(
+            "tctrack.utils.batching.select_time_range", return_value=field
+        )
+
+        batching(
+            tracker,
+            [(input_file, {"batch_file": None})],
+            interval="month",
+            time_range=("2000-01-01", "2000-03-01"),
+            tracker_inputs=[],
+            config={
+                **config,
+                "buffer_period": timedelta(days=10),
+            },
+        )
+
+        time_range1 = (
+            cf.dt("2000-01-01", calendar=None),
+            cf.dt("2000-02-11", calendar=None),
+        )
+        time_range2 = (
+            cf.dt("2000-01-31", calendar=None),
+            cf.dt("2000-03-01", calendar=None),
+        )
+        assert select_time_range.call_args_list == [
+            call([input_file], time_range1),
+            call([input_file], time_range2),
         ]
 
     def test_input_file_copied_to_batch(self, config) -> None:
