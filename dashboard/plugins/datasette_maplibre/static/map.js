@@ -5,7 +5,7 @@ import { LayerControl } from "https://unpkg.com/maplibre-gl-layer-control@0.17.4
 const BASEMAP_STYLE = window.DATASETTE_MAPLIBRE_STYLE || "https://demotiles.maplibre.org/style.json";
 const GROUP_BY = window.DATASETTE_MAPLIBRE_GROUP_BY || null;
 const LAYER_COLUMN = window.DATASETTE_MAPLIBRE_LAYER_COLUMN || null;
-const LAYER_PALETTE = window.DATASETTE_MAPLIBRE_LAYER_PALETTE || null;
+const PALETTE = window.DATASETTE_MAPLIBRE_PALETTE || { single: "#000000", layers: ["#ffffff"] };
 const MAX_LAYERS = window.DATASETTE_MAPLIBRE_MAX_LAYERS || 20;
 
 // Local storage key for persisting map view settings
@@ -301,7 +301,11 @@ function init() {
 		let layer_id;
 		let layer_filter;
 		let layers_added = [];
+
+		// Use feature colour for single layers and the layer palette for multiple
 		let colour_idx = 0;
+		let colour = geojson.layers.length > 1 ? PALETTE.layers[colour_idx] : PALETTE.single;
+
 		for (const layer of geojson.layers) {
 
 			// Set filter expression to restrict data to this layer only
@@ -317,7 +321,7 @@ function init() {
 					source: "datasette-geojson",
 					type: "line",
 					paint: {
-						"line-color": LAYER_PALETTE[colour_idx],
+						"line-color": colour,
 						"line-width": 3,
 					},
 					filter: [
@@ -337,7 +341,7 @@ function init() {
 				type: "circle",
 				paint: {
 					"circle-radius": 4,
-					"circle-color": LAYER_PALETTE[colour_idx],
+					"circle-color": colour,
 					"circle-stroke-color": "#00000060",
 					"circle-stroke-width": 1,
 				},
@@ -349,8 +353,9 @@ function init() {
 			});
 			layers_added.push(layer_id);
 
-			// Advance layer colour index - wraps at the end of palette (not ideal)
-			colour_idx = (colour_idx + 1) % LAYER_PALETTE.length;
+			// Advance layer colour index until palette end, then use the final palette colour for remaining layers
+			if (++colour_idx < PALETTE.layers.length)
+				colour = PALETTE.layers[colour_idx];
 		}
 
 		// Set on-click popups and pointer style for all added layers

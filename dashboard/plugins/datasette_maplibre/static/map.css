@@ -9,17 +9,17 @@ section.content:not(:has(> #datasette-maplibre))::before {
     margin-inline: calc(-1rem); /* remove parent margin */
 }
 
-#datasette-maplibre .maplibregl-popup-content dl.properties {
+.maplibregl-popup-content dl.properties {
 	margin: 0.5rem;
 	font-size: 1rem;
 }
 
-#datasette-maplibre .maplibregl-popup-content dl.properties dt {
+.maplibregl-popup-content dl.properties dt {
 	margin-top: 0.5em;
 	font-weight: bold;
 }
 
-/* Hide the zoom control help text when scrolling */
-#datasette-maplibre .maplibregl-cooperative-gesture-screen {
+/* Hide zoom control help text when scrolling */
+.maplibregl-cooperative-gesture-screen {
     display: none;
 }

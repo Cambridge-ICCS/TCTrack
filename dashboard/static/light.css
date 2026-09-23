@@ -80,6 +80,10 @@ h2 em {
     color: var(--text-muted);
     font-weight: 400;
 }
+h3 {
+	font-size: 1.2rem;
+	font-weight: 400;
+}
 
 ::selection {
     background: var(--focus-ring);
@@ -168,6 +172,7 @@ form.nav-menu-logout {
 }
 .page-header h1 {
     font-weight: 700;
+    font-size: 1.4rem;
 }
 
 .page-action-menu .icon-text {
@@ -381,6 +386,17 @@ form.sql textarea {
 }
 .facet-info a:hover {
     text-decoration: underline;
+}
+
+.facet-info ul.tight-bullets {
+	padding-left: 0.4rem;
+}
+.facet-info ul.tight-bullets li {
+	list-style-type: none;
+	font-family: var(--font-mono);
+}
+.facet-info ul.tight-bullets li a {
+	padding-right: 1rem;
 }
 
 .advanced-export {

@@ -67,7 +67,9 @@ The map can be configured in the `datasette-maplibre` section of the `metadata.y
 - `group_by` A collection of settings for defining groups in the source data. This is primarily used to create map lines from the observation points of each track. Data is added to the group in the order given by the query so it should be in sequence, e.g. order by trajectory_id, sequence.
 	- `column` The column name to group by. Use `trajectory_id` to define a group for each track.
 	- `properties` An array of column names that will be used as properties for each group if they exist in the dataset. These are linked to the group and displayed when selected. The columns are presumed to contain unique values across each group.
-- `layer_palette` Any number of hex colours to use for layers (in sequence). The default accessible set is taken from [Qualitative Colour Schemes](https://sronpersonalpages.nl/~pault/).
+- `palette` Colours for rendering features (#rrggbb[aa] hex format):
+	- `single` Feature colour when there is only one layer.
+	- `layers` Any number of colours to use for features on each layer. Colours are applied to layers in sequence. When all colours are used, subsequent layers will use the final colour in the list.
 - `max_layers` The maximum number of layers allowed (the layer pair of lines and points is counted as one). Data in layers beyond the maximum is not shown; a warning is sent to the console log.
 
 

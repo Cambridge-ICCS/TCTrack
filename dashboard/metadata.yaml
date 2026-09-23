@@ -4,25 +4,51 @@ title: TCTrack Dashboard
 description: Explore and compare tropical cyclone trajectories from TCTrack.
 
 extra_css_urls:
-  - url: /static/light.css  # dark.css
+  - url: /static/dark.css  # light.css
 
 # Plugin settings
 
 plugins:
   datasette-maplibre:
-    basemap: https://tiles.openfreemap.org/styles/positron
+    basemap: https://tiles.openfreemap.org/styles/dark  # dark
+    # basemap: https://tiles.openfreemap.org/styles/positron  # light
     group_by:
       column: trajectory_id
       properties: [filename]
-    layer_palette:
-      - "#ee7733"
-      - "#0077bb"
-      - "#33bbee"
-      - "#ee3377"
-      - "#cc3311"
-      - "#009988"
-      - "#bbbbbb"
-    max_layers: 7
+    # dark palette
+    palette:
+      single: '#d0b100a0'
+      layers:
+        - '#f3e000e0'
+        - '#ead400d0'
+        - '#e1c900c0'
+        - '#d9bd00b0'
+        - '#d0b100a0'
+        - '#c7a60090'
+        - '#be9a0080'
+        - '#b58f0080'
+        - '#ac830080'
+        - '#a4770080'
+        - '#9b6c0080'
+        - '#92600080'
+
+    # light palette
+    # palette:
+    #   single: '#b39ddba0'
+    #   layers:
+    #     - '#5e35b1e0'
+    #     - '#663eb5d0'
+    #     - '#6d48b9c0'
+    #     - '#7551bcb0'
+    #     - '#7d5bc0a0'
+    #     - '#8564c490'
+    #     - '#8c6ec880'
+    #     - '#9477cc70'
+    #     - '#9c81d060'
+    #     - '#a48ad360'
+    #     - '#ab94d760'
+    #     - '#b39ddb60'
+    max_layers: 20
 
 # Database and table metadata - optional
 # This is linked to the served database by the filename given here (tracks). Its
