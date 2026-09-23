@@ -1,0 +1,25 @@
+/* Reserve space for the map - keep height in sync with #datasette-maplibre */
+section.content:not(:has(> #datasette-maplibre))::before {
+	display: block;
+	height: 70dvh;
+}
+
+#datasette-maplibre {
+	height: 70dvh;
+    margin-inline: calc(-1rem); /* remove parent margin */
+}
+
+.maplibregl-popup-content dl.properties {
+	margin: 0.5rem;
+	font-size: 1rem;
+}
+
+.maplibregl-popup-content dl.properties dt {
+	margin-top: 0.5em;
+	font-weight: bold;
+}
+
+/* Hide zoom control help text when scrolling */
+.maplibregl-cooperative-gesture-screen {
+    display: none;
+}

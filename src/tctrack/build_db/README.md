@@ -6,10 +6,6 @@ The resulting database forms the foundation for a dashboard. However, it is also
 
 Imported files can be grouped together into collections, e.g. geographic areas or a particular research hypothesis. Collections are defined using the `--collection` option. Collections are optional.
 
-Longitude coordinates are wrapped from 0-360 to -180-180 for compatibility with the GeoJSON standard (RFC 7946).
-
-Storm tracks and properties are converted into GeoJSON format in the `trajectories` table. These representations can be viewed directly in GIS tools.
-
 
 ## Usage
 
@@ -28,7 +24,7 @@ python -m build_db --output OUTPUT files...
 
 ### Arguments
 
-| Flag                 | Required | Description |
+| Flag                 | Required | Description                                                                                              |
 |----------------------|----------|----------------------------------------------------------------------------------------------------------|
 | `--output`, `-o`     | yes      | SQLite database path and name. Created if it doesn't exist, appended to if it does.                      |
 | `--collection`, `-c` | no       | Collection name. Creates or reuses an existing collection. Will use a default collection if unspecified. |
@@ -56,7 +52,7 @@ build-db --output tracks.db --collection hadgem3 more_tracks.nc
 ```
 collections              Named groups of track files.
 └─ files                 Individual NetCDF files with metadata.
-   └─ trajectories       Cyclone tracks stored as GeoJSON (track and points).
+   └─ trajectories       Cyclone tracks.
       └─ observations    Individual observation rows.
 ```
 

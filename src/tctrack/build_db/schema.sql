@@ -4,7 +4,7 @@
 -- Hierarchy:
 --  collections              Named collections of trajectories.
 --  └─ files                 Individual files from TCTrack.
---     └─ trajectories       Single cyclone tracks with GeoJSON geometry.
+--     └─ trajectories       Single cyclone tracks.
 --        └─ observations    Attributes from each trajectory observation.
 
 pragma foreign_keys = on;
@@ -45,18 +45,12 @@ create table files (
 create index files_collection_idx on files(collection_id);
 
 -- Trajectories
--- A single cyclone trajectory stored as GeoJSON.
---
--- geojson_track  LineString for the full vector path.
--- geojson_points FeatureCollection with a Point for each observation.
+-- A single cyclone trajectory.
 create table trajectories (
     id              integer primary key,
     file_id         integer not null references files(id) on delete cascade,
 
-    start_end       text    check (start_end in ('S', 'E', 'SE')),
-
-    geojson_track   text    not null,
-    geojson_points  text    not null
+    start_end       text    check (start_end in ('S', 'E', 'SE'))
 );
 
 create index trajectories_file_idx on trajectories(file_id);
@@ -93,4 +87,39 @@ select file_id, files.filename, trajectory_id,
 	cast(ob.sequence = 0 as integer) as genesis
 from observations ob
 	join trajectories on trajectories.id = trajectory_id
+	join files on files.id = file_id
+order by
+	trajectory_id, sequence;
+
+
+-- Trajectory view
+create view trajectory_view as
+select trajectories.id as trajectory_id, start_end,
+	file_id, filename, filepath,
+	tctrack_version, tracker_name
+from trajectories
 	join files on files.id = file_id;
+
+
+-- File layers map view
+create view map_file_layers_view as
+select files.filename as layer_filename, trajectory_id,
+	ob.sequence, ob.date, ob.latitude, ob.longitude,
+	ob.air_pressure_at_sea_level, ob.surface_altitude, ob.wind_speed, ob.atmosphere_relative_vorticity,
+	cast(ob.sequence = 0 as integer) as genesis
+from observations ob
+	join trajectories on trajectories.id = trajectory_id
+	join files on files.id = file_id;
+
+
+-- Year layers map view
+create view map_year_layers_view as
+select files.filename, substr(ob.date, 1, 4) as layer_year, trajectory_id,
+	ob.sequence, ob.date, ob.latitude, ob.longitude,
+	ob.air_pressure_at_sea_level, ob.surface_altitude, ob.wind_speed, ob.atmosphere_relative_vorticity,
+	cast(ob.sequence = 0 as integer) as genesis
+from observations ob
+	join trajectories on trajectories.id = trajectory_id
+	join files on files.id = file_id
+order by
+	trajectory_id, sequence;
