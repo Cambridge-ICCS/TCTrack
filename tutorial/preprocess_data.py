@@ -1,151 +1,87 @@
-"""Script to pre-process and regrid CMIP6 data for use in TCTrack analysis."""
+"""Script to pre-process ERA5 data for use in TCTrack analysis.
+
+Fields are manually deleted when they are no longer needed to reduce memory usage.
+"""
 
 import os
-import shutil
 
 import cf
 
 from tctrack import preprocessing
 
 # Set up file structure
-data_dir = "data/"
-data_out = "data_processed/"
+data_dir = "data"
+data_out = "data_processed"
 os.makedirs(data_out, exist_ok=True)
 
-
-# Define time window for data - ASO 1950
-time_bounds = ("1950-08-01", "1950-11-01")
-time_window = cf.wi(cf.dt(time_bounds[0]), cf.dt(time_bounds[1]), open_upper=True)
-
+GRAVITY = 9.80665  # Standard gravitational acceleration [m s-2]
 
 # ======== Tempest Extremes ========
-# Extract ASO from annual data files
-print("Extracting subspace from psl...", end="", flush=True)
-field_psl = preprocessing.select_time_range(
-    f"{data_dir}/psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500101-19501230.nc",
-    time_bounds,
-    output_file=f"{data_out}/psl_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
+# Copy the geopotential and sea-level pressure across unchanged
+preprocessing.read_files(f"{data_dir}/era5_z.nc", output_file=f"{data_out}/z.nc")
+
+field_u10, field_v10, field_msl = preprocessing.separate_variables(
+    f"{data_dir}/era5_sfc.nc",
+    output_files={"msl": f"{data_out}/msl.nc"},
+    return_order=["u10", "v10", "msl"],
+)
+
+print("Calculating 10m wind speed from components...", end="", flush=True)
+preprocessing.calculate_wind_speed(
+    field_u10, field_v10, nc_name="si10", output_file=f"{data_out}/si10.nc"
 )
 print("done.")
 
-print("Extracting subspace from sfcWind...", end="", flush=True)
-preprocessing.select_time_range(
-    f"{data_dir}/sfcWind_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500101-19501230.nc",
-    time_bounds,
-    output_file=f"{data_out}/sfcWind_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
+print("Converting surface geopotential to orography...", end="", flush=True)
+# Remove time dimension and convert from geopotential to metres.
+field_orog = preprocessing.squeeze_field(f"{data_dir}/era5_sfc_z.nc")
+field_orog = preprocessing.multiply_field(field_orog, 1 / GRAVITY)
+field_orog = preprocessing.set_netcdf_info(
+    field_orog,
+    nc_name="orog",
+    properties={
+        "standard_name": "surface_altitude",
+        "long_name": "Surface Altitude",
+        "units": "m",
+    },
+    output_file=f"{data_out}/orog.nc",
 )
-print("done.")
-
-# Combine the monthly zg files into one, subspacing in time
-print("Combining zg files into one...", end="", flush=True)
-# zg is 3hr data from 00:00 but we want daily at 12:00, so subspace with a slice
-preprocessing.subsample_field(
-    f"{data_dir}/zg7h_*.nc",
-    {"T": slice(4, None, 8)},
-    output_file=f"{data_out}/zg7h_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500801-19501030.nc",
-)
-print("done.")
-
-# Copy orography across directly:
-print("Copying orography file...", end="", flush=True)
-shutil.copy(
-    f"{data_dir}/orog_fx_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn.nc", f"{data_out}"
-)
+del field_orog
 print("done.")
 
 
 # ======== TSTORMS ========
-print("Renaming slp...", end="", flush=True)
-preprocessing.set_netcdf_variable_name(
-    field_psl,
-    "slp",
-    output_file=f"{data_out}/slp_day_ASO50.nc",
-)
-del field_psl
-print("done.")
-
-print("Extracting subspace from uas and renaming...", end="", flush=True)
-field_uas = preprocessing.select_time_range(
-    f"{data_dir}/uas_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500101-19501230.nc",
-    time_bounds,
-)
-field_uas = preprocessing.set_netcdf_variable_name(
-    field_uas,
-    "u_ref",
-    output_file=f"{data_out}/u_ref_day_ASO50.nc",
-)
-print("done.")
-
-print("Extracting subspace from vas and renaming...", end="", flush=True)
-field_vas = preprocessing.select_time_range(
-    f"{data_dir}/vas_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500701-19501230.nc",
-    time_bounds,
-)
-field_vas = preprocessing.regrid_to_field(field_vas, field_uas, method="linear")
-preprocessing.set_netcdf_variable_name(
-    field_vas,
-    "v_ref",
-    output_file=f"{data_out}/v_ref_day_ASO50.nc",
-)
-del field_vas
-print("done.")
+# TSTORMS requires specific netcdf names, an unlimited time dimension, a change to the
+# time units as it cannot handle negative times, and ascending latitude
+def preprocess_tstorms_input(
+    field: str | cf.Field, nc_name: str, output_file: str
+) -> None:
+    """Remove extra dims, convert time units, and write a TSTORMS input."""
+    print(f"Preprocessing {nc_name}...", end="", flush=True)
+    field = preprocessing.squeeze_field(field)
+    field = preprocessing.set_time_units(field, "days since 1950-01-01")
+    field = preprocessing.flip_axis(field, "Y")
+    preprocessing.set_netcdf_info(
+        field,
+        nc_name=nc_name,
+        output_file=output_file,
+        coord_nc_names={"time": "time", "latitude": "lat", "longitude": "lon"},
+        axis_unlimited="T",
+    )
+    print("done.")
 
 
-print("Extracting subspace from ua and va to calculate vorticity and renaming...")
-print("\tExtracting subspace from ua for u850...", end="", flush=True)
-field_u850 = preprocessing.subsample_field(
-    f"{data_dir}/ua_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500701-19501230.nc",
-    {"T": time_window, "Z": [1]},
-    squeeze=True,
-)
-field_u850 = preprocessing.regrid_to_field(field_u850, field_uas, method="linear")
-field_u850 = preprocessing.set_netcdf_variable_name(
-    field_u850,
-    "u850",
-    output_file=f"{data_out}/u850_day_ASO50.nc",
-)
-print("done.")
+preprocess_tstorms_input(field_msl, "slp", f"{data_out}/slp.nc")
+del field_msl
 
-print("\tExtracting subspace from va for v850...", end="", flush=True)
-field_v850 = preprocessing.subsample_field(
-    f"{data_dir}/va_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500701-19501230.nc",
-    {"T": time_window, "Z": [1]},
-    squeeze=True,
-)
-field_v850 = preprocessing.regrid_to_field(field_v850, field_uas, method="linear")
-del field_uas
-field_v850 = preprocessing.set_netcdf_variable_name(
-    field_v850,
-    "v850",
-    output_file=f"{data_out}/v850_day_ASO50.nc",
-)
-print("done.")
+preprocess_tstorms_input(field_u10, "u_ref", f"{data_out}/u_ref.nc")
+del field_u10
 
-print("\tCalculating vorticity for vort850...", end="", flush=True)
-field_vort850 = preprocessing.calculate_vorticity(field_u850, field_v850)
-del field_u850
-del field_v850
-field_vort850 = preprocessing.replace_fill_value(field_vort850, 0.0)
-preprocessing.set_netcdf_variable_name(
-    field_vort850,
-    "vort850",
-    output_file=f"{data_out}/vort850_day_ASO50.nc",
-)
-del field_vort850
-print("done.")
+preprocess_tstorms_input(field_v10, "v_ref", f"{data_out}/v_ref.nc")
+del field_v10
 
-print("done.")
+preprocess_tstorms_input(f"{data_dir}/era5_vo.nc", "vort850", f"{data_out}/vort850.nc")
 
-print("Extracting subspace and taking mean of ta and renaming...", end="", flush=True)
-field_ta = preprocessing.subsample_field(
-    f"{data_dir}/ta_day_HadGEM3-GC31-HM_hist-1950_r1i1p1f1_gn_19500701-19501230.nc",
-    {"T": time_window, "Z": slice(3, -3)},
-)
-field_ta = preprocessing.collapse_field(field_ta, "mean", axes="Z")
-preprocessing.set_netcdf_variable_name(
-    field_ta,
-    "tm",
-    output_file=f"{data_out}/tm_day_ASO50.nc",
-)
-del field_ta
-print("done.")
+field_t = preprocessing.collapse_field(f"{data_dir}/era5_t.nc", "mean", axes="Z")
+preprocess_tstorms_input(field_t, "tm", f"{data_out}/tm.nc")
+del field_t

@@ -4,6 +4,7 @@ import os
 
 from tctrack import tstorms
 
+# ======== TSTORMS Parameters ========
 tstorms_params = tstorms.TSTORMSBaseParameters(
     tstorms_dir=f"{os.getcwd()}/TSTORMS",
     output_dir="tstorms_outputs",
@@ -11,11 +12,11 @@ tstorms_params = tstorms.TSTORMSBaseParameters(
 )
 
 detect_params = tstorms.TSTORMSDetectParameters(
-    u_in_file="u_ref_day_ASO50.nc",
-    v_in_file="v_ref_day_ASO50.nc",
-    vort_in_file="vort850_day_ASO50.nc",
-    tm_in_file="tm_day_ASO50.nc",
-    slp_in_file="slp_day_ASO50.nc",
+    u_in_file="u_ref.nc",
+    v_in_file="v_ref.nc",
+    vort_in_file="vort850.nc",
+    tm_in_file="tm.nc",
+    slp_in_file="slp.nc",
     vort_crit=3.5e-5,
     tm_crit=0.0,
     thick_crit=50.0,
@@ -38,8 +39,6 @@ stitch_params = tstorms.TSTORMSStitchParameters(
     lat_bound_s=-70.0,
 )
 
+# ======== Run TSTORMS ========
 tstorms_tracker = tstorms.TSTORMSTracker(tstorms_params, detect_params, stitch_params)
 tstorms_tracker.run_tracker("tracks_tstorms.nc")
-
-# tstorms_tracker.stitch(verbosity=2)
-# tstorms_tracker.to_netcdf("tracks_tstorms.nc")
