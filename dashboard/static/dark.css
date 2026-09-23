@@ -465,10 +465,6 @@ dialog.mobile-column-actions-dialog {
 /* Leaflet's CSS is injected dynamically at runtime (after this stylesheet),
    so !important is needed on properties used to ensure they're overridden.  */
 
-.leaflet-container {
-	height: 100dvh !important;
-}
-
 /* Leaflet popups */
 
 .leaflet-popup-content-wrapper {

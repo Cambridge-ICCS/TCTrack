@@ -463,11 +463,3 @@ dialog.mobile-column-actions-dialog {
 .maplibregl-popup-content {
 	width: fit-content;
 }
-
-/* Leaflet Map ------------------------------------------------------------- */
-/* Leaflet's CSS is injected dynamically at runtime (after this stylesheet),
-   so !important is needed on properties used to ensure they're overridden.  */
-
-.leaflet-container {
-	height: 100dvh !important;
-}

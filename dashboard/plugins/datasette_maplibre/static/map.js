@@ -39,8 +39,10 @@ async function fetchRows() {
 	Expects columns: latitude, longitude
 
 	@returns A GeoJSON FeatureCollection for all data.
-	         Includes a root-level key, groups, as the number of groups created from the dataset
-	         if a group-by is defined and matched.
+	         Includes two root-level keys:
+	           groups = number of groups created from the dataset if a group-by is defined and matched.
+	           lines  = number of LineString features added.
+
 */
 function buildGeoJSON({ columns, rows }) {
 	// Locate latitude and longitude column indices
@@ -70,6 +72,7 @@ function buildGeoJSON({ columns, rows }) {
 
 	// Group-by processing
 	const groups = new Map();
+	let lines = 0;
 	const group_idx = GROUP_BY?.column ? columns.indexOf(GROUP_BY.column) : -1;
 
 	if (group_idx != -1) {
@@ -114,13 +117,14 @@ function buildGeoJSON({ columns, rows }) {
 				geometry: { type: "LineString", coordinates: group.coordinates },
 				properties: group.properties,
 			});
+			lines++;
 		});
 	}
 
 	console.log(`Features: ${features.length}`);
-	console.log(`Groups: ${groups.size}`);
+	console.log(`Groups: ${groups.size}, Lines: ${lines}`);
 
-	return { type: "FeatureCollection", features, groups: groups.size };
+	return { type: "FeatureCollection", features, groups: groups.size, lines };
 }
 
 /**
@@ -209,21 +213,24 @@ function init() {
 		return;
 	}
 
-	// Load data concurrently with map loading
-	const data_promise = loadGeoJSON();
-
-	// Create map element
+	// Create map element early to minimise visual pop-in
 	const container = document.createElement("div");
 	container.id = "datasette-maplibre";
 	parent.prepend(container);
+
+	// Load data concurrently with map loading
+	const data_promise = loadGeoJSON();
 
 	const map = new maplibregl.Map({
 		container: container,
 		style: BASEMAP_STYLE,
 		center: [0, 0],
 		zoom: 1,
+		cooperativeGestures: true,  // ctrl+scroll for zoom to allow page scrolling
+		dragRotate: false,
+		attributionControl: false
 	});
-	map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
+	map.addControl(new maplibregl.NavigationControl({ showCompass: true }));
 	map.addControl(new maplibregl.GlobeControl(), 'top-right');
 	map.addControl(new LayerControl({ panelWidth: 500 }), 'top-right');
 
@@ -250,25 +257,28 @@ function init() {
 				layer_filter = ["==", ["get", LAYER_COLUMN], layer];
 
 			// Line layer - lines added first so that points can be rendered on top
-			layer_id = layer + "_lines";
-			map.addLayer({
-				id: layer_id,
-				source: "datasette-geojson",
-				type: "line",
-				paint: {
-					"line-color": LAYER_PALETTE[colour_idx],
-					"line-width": 3,
-				},
-				filter: [
-					"all",
-					["==", ["geometry-type"], "LineString"],
-					...(layer_filter ? [layer_filter] : [])
-				],
-			});
-			layers_added.push(layer_id);
+			// Only added if lines were made
+			if (geojson.lines > 0) {
+				layer_id = layer + "_lines";
+				map.addLayer({
+					id: layer_id,
+					source: "datasette-geojson",
+					type: "line",
+					paint: {
+						"line-color": LAYER_PALETTE[colour_idx],
+						"line-width": 3,
+					},
+					filter: [
+						"all",
+						["==", ["geometry-type"], "LineString"],
+						...(layer_filter ? [layer_filter] : [])
+					],
+				});
+				layers_added.push(layer_id);
+			}
 
 			// Points layer
-			layer_id = layer + "_points";
+			layer_id = String(layer);
 			map.addLayer({
 				id: layer_id,
 				source: "datasette-geojson",
@@ -276,13 +286,13 @@ function init() {
 				paint: {
 					"circle-radius": 4,
 					"circle-color": LAYER_PALETTE[colour_idx],
-					"circle-stroke-color": "#00000080",
+					"circle-stroke-color": "#00000060",
 					"circle-stroke-width": 1,
 				},
 				filter: [
 					"all",
 					["==", ["geometry-type"], "Point"],
-					...(layer_filter ? [layer_filter] : [])
+					...(layer_filter ? [layer_filter] : []),
 				],
 			});
 			layers_added.push(layer_id);
@@ -291,8 +301,15 @@ function init() {
 			colour_idx = (colour_idx + 1) % LAYER_PALETTE.length;
 		}
 
-		// Set on-click popups for all added layers
+		// Set on-click popups and pointer style for all added layers
 		for (const layer of layers_added) {
+			map.on("mouseenter", layer, () => {
+				map.getCanvas().style.cursor = "pointer";
+			});
+			map.on("mouseleave", layer, () => {
+				map.getCanvas().style.cursor = "";
+			});
+
 			map.on("click", layer, (ev) => {
 				const feature = ev.features[0];
 				const html = propertiesHtml(feature.properties);

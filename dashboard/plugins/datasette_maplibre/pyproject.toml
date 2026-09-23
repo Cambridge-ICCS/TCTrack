@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "datasette-maplibre"
-description = "MapLibre GL JS map plugin for Datasette, triggered by geojson columns"
-version = "0.1.0"
+description = "MapLibre GL JS map plugin for Datasette, triggered by latitude and longitude columns"
+version = "0.2.0"
 readme = "README.md"
 authors = [{ name="Simon Sadler" }]
 requires-python = ">=3.10"
