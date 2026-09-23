@@ -8,6 +8,9 @@ const LAYER_COLUMN = window.DATASETTE_MAPLIBRE_LAYER_COLUMN || null;
 const LAYER_PALETTE = window.DATASETTE_MAPLIBRE_LAYER_PALETTE || null;
 const MAX_LAYERS = window.DATASETTE_MAPLIBRE_MAX_LAYERS || 20;
 
+// Local storage key for persisting map view settings
+const STORAGE_KEY = "datasette-maplibre-view";
+
 /**
 	Fetch the current Datasette query as JSON.
 
@@ -200,6 +203,31 @@ function propertiesHtml(properties) {
 
 
 /**
+	Load a JSON value from browser local storage.
+
+	@returns The stored value or null when unset or unavailable.
+*/
+function loadStored(key) {
+	try {
+		return JSON.parse(localStorage.getItem(key));
+	} catch {
+		return null;
+	}
+}
+
+/**
+	Save a JSON value to browser local storage.
+*/
+function saveStored(key, value) {
+	try {
+		localStorage.setItem(key, JSON.stringify(value));
+	} catch {
+		// Quietly ignore
+	}
+}
+
+
+/**
 	Initialise map and load data source.
 */
 function init() {
@@ -233,6 +261,30 @@ function init() {
 	map.addControl(new maplibregl.NavigationControl({ showCompass: true }));
 	map.addControl(new maplibregl.GlobeControl(), 'top-right');
 	map.addControl(new LayerControl({ panelWidth: 500 }), 'top-right');
+
+	// Restore the persisted view settings (globe and camera position)
+	const view = loadStored(STORAGE_KEY);
+	map.on("style.load", () => {
+		if (view) map.setProjection({ type: view.globe ? "globe" : "mercator" });
+		if (view?.camera) map.jumpTo(view.camera);
+
+		// Persist view changes
+		const saveView = () => {
+			const center = map.getCenter();
+
+			saveStored(STORAGE_KEY, {
+				globe: map.getProjection()?.type === "globe",
+				camera: {
+					center: [center.lng, center.lat],
+					zoom: map.getZoom(),
+					bearing: map.getBearing(),
+					pitch: map.getPitch(),
+				},
+			});
+		};
+		map.on("projectiontransition", saveView);
+		map.on("moveend", saveView);
+	});
 
 	map.on("load", async () => {
 		// Wait for data load then set as data source
@@ -320,11 +372,12 @@ function init() {
 			});
 		}
 
-		// Zoom to data bounds
-		const bounds = calcGeoJSONBounds(geojson);
-		map.fitBounds(bounds, { padding: 40, maxZoom: 15 });
-
 		console.log(`Map load: ${Math.round(performance.now() - t0)}ms`);
+
+		// Zoom to data bounds when no view saved or no points are visible in the view
+		const data_bounds = calcGeoJSONBounds(geojson);
+		if (!view || !map.getBounds().intersects(data_bounds))
+			map.fitBounds(data_bounds, { padding: 40, maxZoom: 8 });
 
 		// Expose the map API for debugging
 		window.datasette_maplibre_map = map;
