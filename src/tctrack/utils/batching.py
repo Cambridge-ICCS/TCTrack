@@ -3,12 +3,15 @@
 import glob
 import shutil
 from collections.abc import Callable, Iterable, Sequence
+from datetime import timedelta
 from pathlib import Path
-from typing import Any, TypeAlias, TypedDict, cast
+from typing import Any, Literal, TypeAlias, TypedDict, cast
 
 import cf
+import cftime
 
 from tctrack.core import TCTracker
+from tctrack.preprocessing import read_files, select_time_range
 
 
 class InputArgs(TypedDict, total=False):
@@ -16,6 +19,7 @@ class InputArgs(TypedDict, total=False):
 
     batch_file: str | Path | None
     store: str | Sequence[str | None]
+    time_varying: bool
 
 
 class _PreprocessRegistryArgs(TypedDict, total=False):
@@ -25,19 +29,37 @@ class _PreprocessRegistryArgs(TypedDict, total=False):
 
 PreprocessResult: TypeAlias = cf.Field | Sequence[cf.Field] | None
 PreprocessFn: TypeAlias = Callable[..., PreprocessResult]
+TimeRange: TypeAlias = tuple[cftime.datetime, cftime.datetime]
 PreprocessStep: TypeAlias = (
     tuple[PreprocessFn, dict[str, Any]]
     | tuple[PreprocessFn, dict[str, Any], _PreprocessRegistryArgs]
 )
 
 
-def _combine_trajectories(output_file_list: list[Path], output_file: Path) -> None:
+def _combine_trajectories(
+    output_file_list: list[Path],
+    output_file: Path,
+    batch_time_ranges: list[TimeRange],
+) -> None:
     """Combine batched trajectory outputs into a single NetCDF file."""
     if not output_file_list:
         msg = "At least one output file is required to combine trajectories."
         raise ValueError(msg)
 
-    fields_by_batch = [cf.read(str(file)) for file in output_file_list]  # type: ignore[operator]
+    # Get the fields for each batch
+    # Selecting only the trajectories that start in the batch time period
+    fields_by_batch = []
+    for file, batch_time_range in zip(output_file_list, batch_time_ranges, strict=True):
+        batch_start_time, batch_end_time = batch_time_range
+        batch_fields = cf.read(str(file))  # type: ignore[operator]
+
+        trajectory_times = batch_fields[0].coordinate("time").datetime_array[:, 0]
+        in_batch = batch_start_time <= trajectory_times < batch_end_time
+
+        if any(in_batch):
+            fields_by_batch.append(
+                [field.subspace(trajectory=in_batch) for field in batch_fields]
+            )
 
     # Re-index the trajectory
     trajectory_offset = 0
@@ -194,23 +216,98 @@ def _parse_files(input_files: str | Iterable[str], directory: Path) -> list[str]
     return input_file_paths
 
 
-def _prepare_inputs(
-    input_files: str | Iterable[str | tuple[str, InputArgs]],
-    batch_dir: Path,
-) -> dict[str, cf.Field]:
-    """Write input files to the batch directory / store fields in the registry."""
-    if isinstance(input_files, str):
-        input_files = [input_files]
+def _batch_time_ranges(
+    time_range: TimeRange, interval: Literal["month", "year"] | cf.TimeDuration
+) -> list[TimeRange]:
+    """Split a time range into time ranges for each batch."""
+    if time_range[0] >= time_range[1]:
+        msg = "The start of 'time_range' must be before its end."
+        raise ValueError(msg)
 
-    fields_registry: dict[str, cf.Field] = {}
+    # Get the interval as a cf.TimeDuration
+    if interval == "month":
+        interval = cf.TimeDuration(1, "calendar_months")
+    elif interval == "year":
+        interval = cf.TimeDuration(1, "calendar_years")
+    elif not isinstance(interval, cf.TimeDuration) or interval <= 0:
+        msg = "Invalid batch interval. Use 'month', 'year' or a cf.TimeDuration object."
+        raise ValueError(msg)
+
+    # Get the list of time ranges
+    batch_ranges: list[TimeRange] = []
+    batch_start = time_range[0]
+    while batch_start < time_range[1]:
+        batch_start, batch_end = interval.interval(batch_start)  # type: ignore
+        batch_end = min(batch_end, time_range[1])
+        batch_ranges.append((batch_start, batch_end))
+        batch_start = batch_end
+
+    return batch_ranges
+
+
+def _expand_batch_time_range(
+    time_range: TimeRange, full_time_range: TimeRange, config: "BatchingConfig"
+) -> TimeRange:
+    """Expand the batch time range, without extending beyond the overall range."""
+    buffer_period = config.get("buffer_period")
+    start_buffer_period = config.get("start_buffer_period", timedelta(days=1))
+
+    if buffer_period is None:
+        return time_range
+
+    batch_start, batch_end = time_range
+    overall_start, overall_end = full_time_range
+
+    return (
+        max(overall_start, batch_start - start_buffer_period),
+        min(overall_end, batch_end + buffer_period),
+    )
+
+
+def _get_calendar(input_files: Iterable[str | tuple[str, InputArgs]]) -> str:
+    """Return the calendar of the first time-varying input coordinate."""
     for input_ in input_files:
         filename, args = (input_, {}) if isinstance(input_, str) else input_
+        if not args.get("time_varying", True):
+            continue
+
         input_paths = _parse_files(filename, Path())
-        input_fields = list(cf.read(input_paths))  # type: ignore[operator]
+
+        # Get the calendar from the time dimension (if it exists)
+        for field in cf.read(input_paths):  # type: ignore[operator]
+            time_coord = field.dimension_coordinate("T", default=None)
+            if time_coord is not None and time_coord.has_property("calendar"):
+                return time_coord.get_property("calendar")
+
+    # If no calendar in the input files use standard
+    return "standard"
+
+
+def _prepare_inputs(
+    input_files: Iterable[str | tuple[str, InputArgs]],
+    batch_dir: Path,
+    time_range: TimeRange,
+) -> dict[str, cf.Field]:
+    """Write input files to the batch directory / store fields in the registry."""
+    fields_registry: dict[str, cf.Field] = {}
+
+    for input_ in input_files:
+        # Note: filename may use wildcards to refer to multiple files
+        filename, args = (input_, InputArgs()) if isinstance(input_, str) else input_
+        input_file_paths = _parse_files(filename, Path())
+
+        time_varying = args.get("time_varying", True)
+        store_fields = args.get("store")
+
+        # Load the fields
+        if time_varying:
+            input_fields = select_time_range(input_file_paths, time_range)
+        else:
+            input_fields = read_files(input_file_paths)
 
         # Store fields in the registry for preprocessing
-        if store_names := args.get("store"):
-            _store_fields(input_fields, store_names, fields_registry, filename)
+        if store_fields:
+            _store_fields(input_fields, store_fields, fields_registry, filename)
 
         # Save the fields to a file in the batch directory
         batch_file = args.get("batch_file", Path(filename).name)
@@ -230,13 +327,19 @@ class BatchingConfig(TypedDict, total=False):
     Default: ``True``."""
     delete_batch_dirs: bool
     """Whether to delete the ``batch_[i]/`` directories. Default: ``True``."""
+    buffer_period: timedelta | None
+    """Extra time included at the end of each batch. Default: ``None``."""
+    start_buffer_period: timedelta
+    """Extra time included at the start of each batch. Defaults to one day when
+    ``buffer_period`` is set, otherwise not used."""
 
 
 def batching(
     tracker: TCTracker,
-    n_iter: int,
     input_files: str | Iterable[str | tuple[str, InputArgs]],
+    interval: Literal["month", "year"] | cf.TimeDuration,
     *,
+    time_range: tuple[str, str],
     preprocessing: Sequence[PreprocessStep] | None = None,
     retrieve_data: Callable[[int, Path], None] | None = None,
     tracker_inputs: Iterable[str] = ["*"],
@@ -252,8 +355,6 @@ def batching(
     ----------
     tracker : TCTracker
         The tracker object used to perform the tropical cyclone tracking.
-    n_iter : int
-        The number of batching iterations to perform.
     input_files : str | Iterable[str | tuple[str, InputArgs]]
         Input netcdf files to use for each batch. These will be copied into the batch
         directory. The `*` wildcard can be used to match multiple files, in which case
@@ -266,6 +367,14 @@ def batching(
         - ``store``: Keys for storing the fields in-memory for use in the preprocessing.
           If there are multiple fields this must either match the full number of fields
           or match the netcdf variable names.
+        - ``time_varying``: Whether the fields should be subset in time. Default:
+          ``True``.
+    interval : {"month", "year"} | cf.TimeDuration
+        The calendar interval of each batch. The final batch may be shorter to end at
+        the end of ``time_range``.
+    time_range : tuple[str, str]
+        The start and end datetimes for all batches. Must in YYYY-MM-DD format. The end
+        time is open (not inclusive).
     preprocessing : Sequence[PreprocessStep] | None
         (optional) The list of preprocessing steps. These are each specified by a tuple.
 
@@ -295,12 +404,18 @@ def batching(
           ``tracks.nc`` file. Default: ``True``.
         - delete_batch_dirs: Whether to delete the ``batch_[i]/`` directories. Default:
           ``True``.
+        - buffer_period: ``timedelta`` for extra time at the end of each batch so tracks
+          reaching a batch boundary are not cut off. Default: ``None``.
+        - start_buffer_period: ``timedelta`` for extra time included at the start of
+          each batch. This is to ensure that only tracks starting in the batch period
+          are retained. Defaults to one day, but is only used when ``buffer_period`` is
+          set.
 
     Examples
     --------
-    Do 10 iterations. The input file is loaded and stored in memory and only saved to
-    the batch directory after preprocessing. The preprocessing involves halving the
-    latitude resolution and renaming the netcdf variable.
+    Track monthly data from 1950. The input file is loaded, selected to each monthly
+    interval, and stored in memory. It is saved to the batch directory after
+    preprocessing, which halves the latitude resolution and renames the netCDF variable.
 
     >>> from tctrack.utils import batching
     >>> from tctrack import tempest_extremes as te
@@ -320,8 +435,9 @@ def batching(
     >>> tracker = te.TETracker()
     >>> batching(
     ...     tracker,
-    ...     10,
     ...     [("psl_*.nc", {"store": "psl", "batch_file": None})],
+    ...     interval="month",
+    ...     time_range=("1950-01-01", "1951-01-01"),
     ...     preprocessing=preprocessing,
     ... )
     """
@@ -333,17 +449,29 @@ def batching(
     combine_outputs = config.get("combine_outputs", True)
     delete_batch_dirs = config.get("delete_batch_dirs", True)
 
+    # Get the batch time ranges
+    input_files = [input_files] if isinstance(input_files, str) else list(input_files)
+    calendar = _get_calendar(input_files)
+    full_time_range: TimeRange = (
+        cf.dt(time_range[0], calendar=calendar),
+        cf.dt(time_range[1], calendar=calendar),
+    )
+    batch_time_ranges = _batch_time_ranges(full_time_range, interval)
+
     # List of output files to use for combining
     output_files: list[Path] = []
 
     # Perform the batching loop
-    for i_iter in range(n_iter):
+    for i_iter, batch_time_range in enumerate(batch_time_ranges):
         # Create the directory for the input files
         batch_dir = output_dir / f"batch_{i_iter}"
         batch_dir.mkdir(parents=True, exist_ok=True)
 
         # Put input files in the batch directory & fields in the preprocessing registry
-        fields = _prepare_inputs(input_files, batch_dir)
+        buffer_time_range = _expand_batch_time_range(
+            batch_time_range, full_time_range, config
+        )
+        fields = _prepare_inputs(input_files, batch_dir, buffer_time_range)
 
         # Put additional files in the batch directory
         if retrieve_data is not None:
@@ -368,4 +496,4 @@ def batching(
             shutil.rmtree(batch_dir)
 
     if combine_outputs:
-        _combine_trajectories(output_files, output_dir / "tracks.nc")
+        _combine_trajectories(output_files, output_dir / "tracks.nc", batch_time_ranges)
