@@ -23,7 +23,7 @@ class TestTrajectory:
         assert trajectory.start_time.hour == 3
         assert trajectory.start_time.minute == 0
         assert trajectory.start_time.second == 0
-        assert trajectory.calendar == "gregorian"
+        assert trajectory.calendar == "proleptic_gregorian"
 
     def test_trajectory_init_list_too_long(self) -> None:
         """Test the Trajectory class throws a warning if the time list is too long."""
