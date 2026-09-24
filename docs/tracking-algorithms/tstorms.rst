@@ -69,16 +69,45 @@ Usage of TSTORMS in TCTrack is through the ``tstorms`` module.
 This provides the :class:`TSTORMSTracker` class that stores algorithm parameters and provides
 access to the methods. The detection and stitching algorithms can be configured through
 the various parameters in the :class:`TSTORMSBaseParameters`, :class:`TSTORMSDetectParameters`, and
-:class:`TSTORMSStitchParameters` dataclasses.
+:class:`TSTORMSStitchParameters` dataclasses, or by using :func:`parameter_set` to get a
+default set of parameters.
+
+The basic usage is illustrated below:
+
+.. code-block:: python
+
+    from tctrack.tstorms import parameter_set, TSTORMSTracker
+
+    input_files = [
+        "path/to/u_input.nc",
+        "path/to/v_input.nc",
+        "path/to/vort_input.nc",
+        "path/to/tm_input.nc",
+        "path/to/slp_input.nc",
+    ]
+
+    # Define the parameters
+    base_params, detect_params, stitch_params = parameter_set(
+        "default",
+        tstorms_dir="path/to/tstorms/installation/",
+        output_dir="path/to/place/outputs/",
+    )
+
+    # Define and run the tracking algorithm
+    tracker = TSTORMSTracker(base_params, detect_params, stitch_params)
+    tracker.run_tracker(input_files, "trajectories.nc")
+
+The sections below go into further detail about the stages of the tracking algorithm and
+manually defining the parameters.
+
 
 Detection
 ^^^^^^^^^
 
 In the following example we demonstrate the approach for detecting tropical cyclones
-using TSTORMS. First, we set up the :meth:`~TSTORMSTracker.detect`
-functionality to run on a series of input files to generate output.
-Detection of candidate storms is based on locating points that satisfy certain minima or
-maxima, with full details of each input given in the :class:`TSTORMSDetectParameters`
+using TSTORMS. First, we set up the :meth:`~TSTORMSTracker.detect` functionality to
+detect candidate storms based on locating points that satisfy certain minima or maxima,
+with full details of each input given in the :class:`TSTORMSDetectParameters`
 documentation:
 
 .. code-block:: python
@@ -89,17 +118,19 @@ documentation:
         TSTORMSTracker,
     )
 
+    input_files = [
+        "path/to/u_input.nc",
+        "path/to/v_input.nc",
+        "path/to/vort_input.nc",
+        "path/to/tm_input.nc",
+        "path/to/slp_input.nc",
+    ]
+
     tstorms_params = TSTORMSBaseParameters(
         tstorms_dir="path/to/tstorms/installation/",
         output_dir="path/to/place/outputs/",
-        input_dir="path/to/input/files/",
     )
     detect_params = TSTORMSDetectParameters(
-        u_in_file="u_input.nc",
-        v_in_file="v_input.nc",
-        vort_in_file="vort_input.nc",
-        tm_in_file="tm_input.nc",
-        slp_in_file="slp_input.nc",
         vort_crit=3.5e-5,
         tm_crit=0.0,
         thick_crit=50.0,
@@ -113,6 +144,7 @@ documentation:
 
     # Initialize the tracker
     tracker = TSTORMSTracker(tstorms_params, detect_params)
+    tracker.set_input_files(input_files)
 
     detect_call = tracker.detect(verbosity=2)
 
@@ -178,31 +210,6 @@ This can be read using any NetCDF reading utility, though
 `cf-python <https://ncas-cms.github.io/cf-python/>`_ will load it following the
 `CF data model <https://ncas-cms.github.io/cf-python/#cf-data-model>`_.
 
-Combined run
-^^^^^^^^^^^^
-
-The above examples demonstrate running :meth:`~TSTORMSTracker.detect`,
-:meth:`~TSTORMSTracker.stitch`, and :meth:`~TSTORMSTracker.to_netcdf` separately.
-However, it is likely that users will want to these in succession which can be done
-using the :meth:`~TSTORMSTracker.run_tracker` method after defining a :class:`TSTORMSTracker`
-object with appropriate :class:`TSTORMSDetectParameters` and :class:`TSTORMSStitchParameters`:
-
-.. code-block:: python
-
-    from tctrack.tstorms import (
-        TSTORMSBaseParameters,
-        TSTORMSDetectParameters,
-        TSTORMSStitchParameters,
-        TSTORMSTracker,
-    )
-
-    tstorms_params = TSTORMSBaseParameters(...)
-    detect_params = TSTORMSDetectParameters(...)
-    stitch_params = TSTORMSStitchParameters(...)
-    tracker = TSTORMSTracker(tstorms_params, detect_params, stitch_params)
-
-    tracker.run_tracker("my_tstorms_cf_trajectories.nc")
-
 Input data
 ----------
 
@@ -221,7 +228,6 @@ variable names described below.
     :attr:`~TSTORMSDetectParameters.use_sfc_wind` to ``False``.
   * Named ``u_ref`` or ``u850`` in the NetCDF file depending on the value of
     :attr:`~TSTORMSDetectParameters.use_sfc_wind`.
-  * The filename is proviuded to TSTORMS through :attr:`~TSTORMSDetectParameters.u_in_file`.
 
 * Northward Velocity:
 
@@ -231,27 +237,23 @@ variable names described below.
     :attr:`~TSTORMSDetectParameters.use_sfc_wind` to ``False``.
   * Named ``v_ref`` or ``v850`` in the NetCDF file depending on the value of
     :attr:`~TSTORMSDetectParameters.use_sfc_wind`.
-  * The filename is proviuded to TSTORMS through :attr:`~TSTORMSDetectParameters.v_in_file`.
 
 * Vorticity:
 
   * Vorticity in s-1.
   * Should be at a pressure level of 850 hPa.
   * Named ``vort850`` in the NetCDF file.
-  * The filename is proviuded to TSTORMS through :attr:`~TSTORMSDetectParameters.vort_in_file`.
 
 * Mean Temperature:
 
   * Mean air temperature in the warm core layer in degrees K.
   * Should be the mean air temperature over 500-200 hPa.
   * Named ``tm`` in the NetCDF file.
-  * The filename is proviuded to TSTORMS through :attr:`~TSTORMSDetectParameters.tm_in_file`.
 
 * Sea-level Pressure:
 
   * Sea-level pressure in Pa .
   * Named ``slp`` in the NetCDF file.
-  * The filename is proviuded to TSTORMS through :attr:`~TSTORMSDetectParameters.slp_in_file`.
 
 To extract these variables from an input dataset and write to individual files with the
 requisite variable names, combine multiple files over times, or regrid variables to a

@@ -3,7 +3,7 @@
 import glob
 import importlib.util
 from collections.abc import Sequence
-from typing import Any, Literal, TypeAlias, TypedDict, overload
+from typing import Any, Literal, TypeAlias, TypedDict, TypeGuard, TypeVar, overload
 
 import cf
 import numpy as np
@@ -130,69 +130,28 @@ def read_files(
     return _write_output(fields, output_file, squeeze=False)
 
 
-def select_time_range(
-    input_files: str | Sequence[str],
-    time_bounds: tuple[str, str],
-    *,
-    output_file: str | None = None,
-) -> cf.Field | list[cf.Field]:
-    """Combine files in time and select a time range.
-
-    Parameters
-    ----------
-    input_files : str | Sequence[str]
-        Input file path(s) to combine. ``glob`` pattern matching allowed.
-    time_bounds : tuple[str, str]
-        Start and end datetime strings in format ``"YYYY-MM-DD[ HH:MM]"``.
-        The end bound is open / exclusive.
-    output_file : str | None, optional
-        Output file to write the result to.
-
-    Returns
-    -------
-    list[cf.Field]
-        The list of combined fields.
-    """
-    fields = read_files(input_files)
-
-    time_interval = cf.wi(cf.dt(time_bounds[0]), cf.dt(time_bounds[1]), open_upper=True)
-    fields = [field.subspace(T=time_interval) for field in fields]
-
-    return _write_output(fields, output_file)
+T = TypeVar("T")
 
 
-def separate_variables(
-    input_files: str | Sequence[str],
-    output_files: dict[str, str],
-) -> list[cf.Field]:
-    """Split variables into separate files.
+def _is_sequence(obj: object, typ: type[T]) -> TypeGuard[Sequence[T]]:
+    return isinstance(obj, Sequence) and all(isinstance(x, typ) for x in obj)
 
-    Parameters
-    ----------
-    input_files : str | Sequence[str]
-        Input file path(s) to read. ``glob`` pattern matching allowed.
-    output_files : dict[str, str]
-        Mapping from NetCDF variable name to output file path.
 
-    Returns
-    -------
-    list[cf.Field]
-        The list of fields read from the input files.
-    """
-    fields = {field.nc_get_variable(): field for field in read_files(input_files)}
+def _load_fields(sources: FieldSource) -> list[cf.Field]:
+    """Load multiple fields from input files (or use in-memory fields)."""
+    if isinstance(sources, str) or _is_sequence(sources, str):
+        return read_files(sources)
 
-    for var_name, output_file in output_files.items():
-        if var_name not in fields:
-            msg = f"A variable to save ({var_name}) is not provided in the inputs."
-            raise ValueError(msg)
-        cf.write(fields[var_name], output_file)  # type: ignore[operator]
+    elif _is_sequence(sources, cf.Field):
+        return list(sources)
 
-    return list(fields.values())
+    else:
+        return [_load_field(sources)]
 
 
 def _load_field(source: FieldSource) -> cf.Field:
     """Load a single field from an in-memory field or file input."""
-    if isinstance(source, list) and all(isinstance(s, cf.Field) for s in source):
+    if _is_sequence(source, cf.Field):
         if len(source) == 1:
             return source[0]
         else:
@@ -210,7 +169,7 @@ def _load_field(source: FieldSource) -> cf.Field:
             raise ValueError(msg)
         return fields[0]
 
-    if isinstance(source, (str, Sequence)):
+    if isinstance(source, str) or _is_sequence(source, str):
         fields = read_files(source)
         if len(fields) != 1:
             msg = (
@@ -225,6 +184,65 @@ def _load_field(source: FieldSource) -> cf.Field:
         "Allowed types are cf.Field, FieldSelect, or string filepath(s)."
     )
     raise ValueError(msg)
+
+
+def select_time_range(
+    inputs: FieldSource,
+    time_bounds: tuple[str, str],
+    *,
+    output_file: str | None = None,
+) -> cf.Field | list[cf.Field]:
+    """Combine files in time and select a time range.
+
+    Parameters
+    ----------
+    inputs : FieldSource
+        The file path(s) or fields to use.
+    time_bounds : tuple[str, str]
+        Start and end datetime strings in format ``"YYYY-MM-DD[ HH:MM]"``.
+        The end bound is open / exclusive.
+    output_file : str | None, optional
+        Output file to write the result to.
+
+    Returns
+    -------
+    list[cf.Field]
+        The list of combined fields.
+    """
+    fields = _load_fields(inputs)
+
+    time_interval = cf.wi(cf.dt(time_bounds[0]), cf.dt(time_bounds[1]), open_upper=True)
+    fields = [field.subspace(T=time_interval) for field in fields]
+
+    return _write_output(fields, output_file)
+
+
+def separate_variables(
+    input_files: FieldSource, output_files: dict[str, str]
+) -> list[cf.Field]:
+    """Split variables into separate files.
+
+    Parameters
+    ----------
+    input_files : FieldSource
+        The file path(s) or fields to use.
+    output_files : dict[str, str]
+        Mapping from NetCDF variable name to output file path.
+
+    Returns
+    -------
+    list[cf.Field]
+        The list of fields read from the input files.
+    """
+    fields = {field.nc_get_variable(): field for field in _load_fields(input_files)}
+
+    for var_name, output_file in output_files.items():
+        if var_name not in fields:
+            msg = f"A variable to save ({var_name}) is not provided in the inputs."
+            raise ValueError(msg)
+        cf.write(fields[var_name], output_file)  # type: ignore[operator]
+
+    return list(fields.values())
 
 
 def subsample_field(

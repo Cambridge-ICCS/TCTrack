@@ -69,7 +69,35 @@ Usage of Tempest Extremes in TCTrack is done through the ``tempest_extremes`` mo
 This provides the :class:`TETracker` class that stores algorithm parameters and provides
 access to the methods. The detection and stitching algorithm can be configured through
 the various parameters in the :class:`TEDetectParameters` and
-:class:`TEStitchParameters` dataclasses.
+:class:`TEStitchParameters` dataclasses or by using :func:`parameter_set` to get a
+default set of parameters.
+
+The basic usage is illustrated below:
+
+.. code-block:: python
+
+    from tctrack.tempest_extremes import parameter_set, TETracker
+
+    input_files = [
+        "msl_input.nc",  # Sea-level pressure (msl)
+        "gh_input.nc",  # Geopotential height (gh) at 500 and 300 hPa
+        "orog_input.nc",  # Orography (orog)
+        "si10_input.nc",  # Surface windspeed at 10 m (si10)
+    ]
+
+    # Define the parameters
+    params = parameter_set("default")
+
+    # Define and run the tracking algorithm
+    tracker = TETracker(params)
+    tracker.run_tracker(input_files, "trajectories.nc")
+
+If the netcdf names of the input data are different to those shown a second argument can
+be passed to :func:`parameter_set` to provide these. See the function documentation for
+more detail.
+
+The sections below go into further detail about the stages of the tracking algorithm and
+manually defining the parameters.
 
 Detection
 ^^^^^^^^^
@@ -108,17 +136,19 @@ with :meth:`~TETracker.stitch`:
     ]
 
     dn_params = te.TEDetectParameters(
-        in_data=input_files,
         search_by_min="psl",
         time_filter="6hr",
         merge_dist=6.0,
         closed_contours=closed_contours,
+        lat_name="lat",
+        lon_name="lon",
         out_header=True,
         output_commands=output_commands,
         output_dir="te_outputs",
     )
 
     te_tracker = te.TETracker(dn_params)
+    te_tracker.set_input_files(input_files)
 
     run_info = te_tracker.detect()
 
@@ -164,7 +194,7 @@ using :meth:`~TETracker.to_netcdf`:
 
 .. code-block:: python
 
-    te_tracker.to_netcdf("my_cf_tracks.nc")
+    te_tracker.to_netcdf("trajectories.nc")
 
 This can be read using any NetCDF reading utility, though
 `cf-python <https://ncas-cms.github.io/cf-python/>`_ will load it following the
@@ -176,16 +206,7 @@ Combined run
 The above examples demonstrate running :meth:`~TETracker.detect`,
 :meth:`~TETracker.stitch`, and :meth:`~TETracker.to_netcdf` separately. However, it is
 likely that users will want to these in succession which can be done using the
-:meth:`~TETracker.run_tracker` method after defining a :class:`TETracker` object with
-appropriate :class:`TEDetectParameters` and :class:`TEStitchParameters`:
-
-.. code-block:: python
-
-    dn_params = te.TEDetectParameters(...)
-    sn_params = te.TEStitchParameters(...)
-    te_tracker = te.TETracker(dn_params, sn_params)
-
-    te_tracker.run_tracker("my_cf_tracks.nc")
+:meth:`~TETracker.run_tracker` method as initially shown.
 
 When running in this way there are certain parameters that *should not* be set. In
 :class:`TEStitchParameters`, :attr:`~TEStitchParameters.in_fmt` and
@@ -206,12 +227,12 @@ instance.
 Input data
 ----------
 
-The input data must be stored in NetCDF files with dimensions named ``lon``, ``lat``,
-and ``time`` (or otherwise specified using the :attr:`~TEDetectParameters.lon_name`
-and :attr:`~TEDetectParameters.lat_name` parameters). There can be multiple input
-files and multiple variables per file. However, each variable must only appear in one
-file, i.e. variables split over time into multiple files must first be combined (see
-:ref:`combine_time`).
+The input data must be stored in NetCDF files with dimensions named ``longitude``,
+``latitude``, and ``time`` (or otherwise specified using the
+:attr:`~TEDetectParameters.lon_name` and :attr:`~TEDetectParameters.lat_name`
+parameters). There can be multiple input files and multiple variables per file. However,
+each variable must only appear in one file, i.e. variables split over time into multiple
+files must first be combined (see :ref:`combine_time`).
 
 
 .. [*] These are named detect and stitch for consistency across the TCTrack package.
