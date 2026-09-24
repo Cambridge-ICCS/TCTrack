@@ -10,15 +10,20 @@ import tctrack.preprocessing
 from tctrack.preprocessing import (
     _load_field,
     calculate_vorticity,
+    calculate_wind_speed,
     collapse_field,
+    flip_axis,
     gaussian_grid,
+    multiply_field,
     read_files,
     regrid_to_field,
     regrid_to_gaussian,
     replace_fill_value,
     select_time_range,
     separate_variables,
-    set_netcdf_variable_name,
+    set_netcdf_info,
+    set_time_units,
+    squeeze_field,
     subsample_field,
 )
 
@@ -153,6 +158,24 @@ class TestPreprocessing:
         with pytest.raises(ValueError, match=r"A variable to save \(invalid\)"):
             separate_variables(input_file, {"invalid": str(tmp_path / "output.nc")})
 
+    def test_separate_varibles_return_order(self, tmp_path: Path):
+        """Test separate_variables returns fields in the requested order."""
+        input_file = write_fields(
+            [make_field("mslp"), make_field("u")],
+            tmp_path / "input.nc",
+        )
+
+        fields = separate_variables(input_file, {}, return_order=["u", "mslp"])
+
+        assert [field.nc_get_variable() for field in fields] == ["u", "mslp"]
+
+    def test_separate_varibles_invalid_return_order(self, tmp_path: Path):
+        """Test separate_variables fails if an invalid return order name is given."""
+        input_file = write_fields(make_field("mslp"), tmp_path / "input.nc")
+
+        with pytest.raises(ValueError, match=r"A variable to return \(invalid\)"):
+            separate_variables(input_file, {}, return_order=["invalid"])
+
     def test_load_field_accepts_fields(self):
         """Test _load_field accepts in-memory fields."""
         field = make_field("mslp")
@@ -200,6 +223,39 @@ class TestPreprocessing:
         ):
             _load_field({"files": input_file, "var_name": "invalid"})
 
+    def test_squeeze_field(self):
+        """Test squeeze_field removes size-1 dimensions."""
+        field = make_field("mslp")
+        field.insert_dimension("T", 1, inplace=True)
+
+        squeezed = squeeze_field(field)
+
+        assert squeezed.shape == field.squeeze().shape
+        assert "T" not in squeezed.domain_axes()
+
+    def test_flip_axis(self):
+        """Test flip_axis reverses the axis and its coordinate values."""
+        field = make_field("mslp")
+
+        before = field.copy()
+        flipped = flip_axis(field, "Y")
+
+        assert flipped.coordinate("Y").array[0] == before.coordinate("Y").array[-1]
+        assert np.allclose(
+            flipped.coordinate("Y").array, before.coordinate("Y").array[::-1]
+        )
+
+    def test_flip_axis_stored_direction(self):
+        """Test flip_axis updates the stored_direction property if present."""
+        field = make_field("mslp")
+        field.coordinate("Y").set_property("stored_direction", "increasing")
+        # Make sure it is increasing
+        assert field.coordinate("Y").array[0] < field.coordinate("Y").array[-1]
+
+        flipped = flip_axis(field, "Y")
+
+        assert flipped.coordinate("Y").get_property("stored_direction") == "decreasing"
+
     def test_subsample_field(self):
         """Test subsample_field works correctly."""
         field = make_field("mslp")
@@ -238,6 +294,38 @@ class TestPreprocessing:
         )
         assert vorticity.get_property("units") == "s-1"
 
+    def test_calculate_wind_speed(self):
+        """Test calculate_wind_speed works correctly."""
+        field_u = make_field("u")
+        field_v = make_field("v")
+
+        wind_speed = calculate_wind_speed(field_u, field_v)
+
+        assert wind_speed.nc_get_variable() == "wind_speed"
+        assert wind_speed.get_property("standard_name") == "wind_speed"
+        expected = np.hypot(field_u.array, field_v.array)
+        assert np.allclose(wind_speed.array, expected)
+
+    def test_multiply_field(self):
+        """Test multiply_field works correctly."""
+        field = make_field("mslp")
+
+        scaled = multiply_field(field, 0.5)
+
+        assert np.allclose(scaled.array, field.array * 0.5)
+
+    def test_set_time_units(self):
+        """Test set_time_units converts values without changing datetimes."""
+        field = make_field("mslp", "2000-01-01")
+
+        updated = set_time_units(field, "days since 1999-12-31")
+
+        assert str(updated.coordinate("T").Units) == "days since 1999-12-31"
+        assert updated.coordinate("T").array[0] == 1
+        assert updated.coordinate("T").datetime_array[0] == cf.dt(
+            2000, 1, 1, calendar="gregorian"
+        )
+
     def test_replace_fill_value(self):
         """Test replace_fill_value works correctly."""
         field = make_field("mslp")
@@ -247,19 +335,46 @@ class TestPreprocessing:
 
         assert filled.array[0, 0] == pytest.approx(-1.0)
 
-    def test_set_netcdf_variable_name(self):
-        """Test set_netcdf_variable_name works correctly."""
+    def test_set_netcdf_info(self):
+        """Test set_netcdf_info sets names and properties correctly."""
         field = make_field("mslp")
 
-        renamed = set_netcdf_variable_name(
+        updated = set_netcdf_info(
             field,
-            "pressure",
-            coord_names={"X": "longitude", "Y": "latitude"},
+            nc_name="pressure",
+            properties={"standard_name": "air_pressure"},
+            coord_nc_names={"X": "longitude", "Y": "latitude"},
         )
 
-        assert renamed.nc_get_variable() == "pressure"
-        assert renamed.coordinate("X").nc_get_variable() == "longitude"
-        assert renamed.coordinate("Y").nc_get_variable() == "latitude"
+        assert updated.nc_get_variable() == "pressure"
+        assert updated.get_property("standard_name") == "air_pressure"
+        assert updated.coordinate("X").nc_get_variable() == "longitude"
+        assert updated.coordinate("Y").nc_get_variable() == "latitude"
+
+    def test_set_netcdf_info_optional_name(self):
+        """Test set_netcdf_info leaves the name unchanged when nc_name is None."""
+        field = make_field("mslp")
+
+        updated = set_netcdf_info(field)
+
+        assert updated.nc_get_variable() == "mslp"
+
+    def test_set_netcdf_info_unlimited_axis(self, tmp_path: Path):
+        """Test set_netcdf_info sets and removes unlimited axis status."""
+        field = make_field("mslp")
+
+        updated = set_netcdf_info(field, axis_unlimited="T")
+        assert updated.domain_axis("T").nc_is_unlimited() is True
+
+        output = str(tmp_path / "unlimited.nc")
+        updated = set_netcdf_info(
+            updated, axis_unlimited=("T", False), output_file=output
+        )
+        assert updated.domain_axis("T").nc_is_unlimited() is False
+
+        # Check the status is applied in the written file
+        fields = cf.read(output)  # type: ignore[operator]
+        assert fields[0].domain_axis("T").nc_is_unlimited() is False
 
     def test_regrid_esmpy_guard(self, monkeypatch):
         """Test regridding fails clearly when esmpy is unavailable."""

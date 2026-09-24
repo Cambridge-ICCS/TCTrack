@@ -92,7 +92,9 @@ def _write_output(
 ) -> cf.Field | list[cf.Field]:
     """Optionally write output before returning and squeeze size-1 lists."""
     if output_file is not None:
-        cf.write(result, output_file)  # type: ignore[operator]
+        # The default backend writes NC_STRING attributes which are not read correctly
+        # by netCDF-Fortran (e.g. for TSTORMS), so use netCDF4 instead.
+        cf.write(result, output_file, backend="netCDF4")  # type: ignore[operator]
 
     if squeeze and isinstance(result, list) and len(result) == 1:
         return result[0]
@@ -164,6 +166,8 @@ def select_time_range(
 def separate_variables(
     input_files: str | Sequence[str],
     output_files: dict[str, str],
+    *,
+    return_order: Sequence[str] | None = None,
 ) -> list[cf.Field]:
     """Split variables into separate files.
 
@@ -173,6 +177,9 @@ def separate_variables(
         Input file path(s) to read. ``glob`` pattern matching allowed.
     output_files : dict[str, str]
         Mapping from NetCDF variable name to output file path.
+    return_order : Sequence[str] | None
+        Optional list of NetCDF variable names to specify the order of the returned
+        fields.
 
     Returns
     -------
@@ -187,7 +194,13 @@ def separate_variables(
             raise ValueError(msg)
         cf.write(fields[var_name], output_file)  # type: ignore[operator]
 
-    return list(fields.values())
+    if return_order is None:
+        return list(fields.values())
+    try:
+        return [fields[var_name] for var_name in return_order]
+    except KeyError as error:
+        msg = f"A variable to return ({error.args[0]}) is not provided in the inputs."
+        raise ValueError(msg) from error
 
 
 def _load_field(source: FieldSource) -> cf.Field:
@@ -225,6 +238,57 @@ def _load_field(source: FieldSource) -> cf.Field:
         "Allowed types are cf.Field, FieldSelect, or string filepath(s)."
     )
     raise ValueError(msg)
+
+
+def squeeze_field(input_: FieldSource, *, output_file: str | None = None) -> cf.Field:
+    """Remove size-1 dimensions from a field.
+
+    Parameters
+    ----------
+    input_ : FieldSource
+        A field, file path(s), or :class:`FieldSelect` describing which field to load.
+    output_file : str | None, optional
+        Output file to write the squeezed field to.
+
+    Returns
+    -------
+    cf.Field
+        The squeezed field.
+    """
+    field = _load_field(input_)
+    field.squeeze(inplace=True)
+    return _write_output(field, output_file)
+
+
+def flip_axis(
+    input_: FieldSource, axis: str | Sequence[str], *, output_file: str | None = None
+) -> cf.Field:
+    """Flip (reverse) a field along one or more axes.
+
+    Parameters
+    ----------
+    input_ : FieldSource
+        A field, file path(s), or :class:`FieldSelect` describing which field to load.
+    axis : str | Sequence[str]
+        Axis or axes to flip, e.g. ``"Y"`` to reverse the latitude order.
+    output_file : str | None, optional
+        Output file to write the flipped field to.
+
+    Returns
+    -------
+    cf.Field
+        The flipped field.
+    """
+    field = _load_field(input_)
+    field.flip(axis, inplace=True)
+    axes_list = [axis] if isinstance(axis, str) else list(axis)
+    for _axis in axes_list:
+        coordinate = field.coordinate(_axis)
+        if coordinate.get_property("stored_direction", None) is not None:
+            values = coordinate.array
+            direction = "increasing" if values[0] < values[-1] else "decreasing"
+            coordinate.set_property("stored_direction", direction)
+    return _write_output(field, output_file)
 
 
 def subsample_field(
@@ -301,8 +365,8 @@ def collapse_field(
 def calculate_curl_xy(
     input_x: FieldSource,
     input_y: FieldSource,
-    variable_name: str,
-    variable_info: dict[str, str],
+    nc_name: str,
+    properties: dict[str, str],
     *,
     output_file: str | None = None,
 ) -> cf.Field:
@@ -314,9 +378,9 @@ def calculate_curl_xy(
         Field for the x component.
     input_y : FieldSource
         Field for the y component.
-    variable_name : str
+    nc_name : str
         NetCDF variable name for the output field.
-    variable_info : dict[str, str]
+    properties : dict[str, str]
         Field properties to set on the output.
     output_file : str | None, optional
         Output file to write the curl field to.
@@ -336,8 +400,8 @@ def calculate_curl_xy(
     # (The second term should be the gradient of the southward windspeed)
     curl.data = -curl.data
 
-    curl.nc_set_variable(variable_name)
-    for name, value in variable_info.items():
+    curl.nc_set_variable(nc_name)
+    for name, value in properties.items():
         if name == "units":
             curl.override_units(value, inplace=True)
         else:
@@ -349,6 +413,7 @@ def calculate_vorticity(
     input_u: FieldSource,
     input_v: FieldSource,
     *,
+    nc_name: str = "vorticity",
     output_file: str | None = None,
 ) -> cf.Field:
     """Calculate vorticity from colocated velocity fields.
@@ -359,6 +424,8 @@ def calculate_vorticity(
         Field for the eastward velocity component.
     input_v : FieldSource
         Field for the northward velocity component.
+    nc_name : str, optional
+        NetCDF variable name for the output field.
     output_file : str | None, optional
         Output file to write the vorticity field to.
 
@@ -370,13 +437,150 @@ def calculate_vorticity(
     return calculate_curl_xy(
         input_u,
         input_v,
-        variable_name="vorticity",
-        variable_info={
+        nc_name=nc_name,
+        properties={
             "standard_name": "atmosphere_upward_relative_vorticity",
             "units": "s-1",
         },
         output_file=output_file,
     )
+
+
+def calculate_norm_xy(
+    input_x: FieldSource,
+    input_y: FieldSource,
+    nc_name: str,
+    properties: dict[str, str] | None = None,
+    *,
+    output_file: str | None = None,
+) -> cf.Field:
+    """Calculate the norm (magnitude) of x and y vector components.
+
+    Parameters
+    ----------
+    input_x : FieldSource
+        Field for the x component.
+    input_y : FieldSource
+        Field for the y component.
+    nc_name : str
+        NetCDF variable name for the output field.
+    properties : dict[str, str] | None, optional
+        Field properties to set on the output. This should atleast include
+        standard_name.
+    output_file : str | None, optional
+        Output file to write the norm field to.
+
+    Returns
+    -------
+    cf.Field
+        Norm field derived from the two inputs.
+    """
+    field_x = _load_field(input_x)
+    field_y = _load_field(input_y)
+
+    norm = (field_x**2 + field_y**2) ** 0.5
+
+    # Set metadata
+    norm.nc_set_variable(nc_name)
+    norm.set_property(
+        "long_name", f"Norm of ({field_x.identity()}, {field_y.identity()})"
+    )
+    properties = properties or {}
+    units = properties.pop("units", None)
+    if units is not None:
+        norm.override_units(units, inplace=True)
+    norm.set_properties(properties)
+
+    return _write_output(norm, output_file)
+
+
+def calculate_wind_speed(
+    input_u: FieldSource,
+    input_v: FieldSource,
+    *,
+    nc_name: str = "wind_speed",
+    output_file: str | None = None,
+) -> cf.Field:
+    """Calculate wind speed from colocated velocity fields.
+
+    Parameters
+    ----------
+    input_u : FieldSource
+        Field for the eastward velocity component.
+    input_v : FieldSource
+        Field for the northward velocity component.
+    nc_name : str, optional
+        NetCDF variable name for the output field.
+    output_file : str | None, optional
+        Output file to write the wind speed field to.
+
+    Returns
+    -------
+    cf.Field
+        Wind speed field.
+    """
+    return calculate_norm_xy(
+        input_u,
+        input_v,
+        nc_name=nc_name,
+        properties={"standard_name": "wind_speed", "long_name": "Wind Speed"},
+        output_file=output_file,
+    )
+
+
+def multiply_field(
+    input_: FieldSource, factor: float, *, output_file: str | None = None
+) -> cf.Field:
+    """Multiply a field by a constant factor.
+
+    Parameters
+    ----------
+    input_ : FieldSource
+        A field, file path(s), or :class:`FieldSelect` describing which field to load.
+    factor : float
+        Constant factor to multiply the field by.
+    output_file : str | None, optional
+        Output file to write the result to.
+
+    Returns
+    -------
+    cf.Field
+        The scaled field.
+    """
+    field = _load_field(input_)
+    return _write_output(field * factor, output_file)
+
+
+def set_time_units(
+    input_: FieldSource,
+    units: str,
+    *,
+    output_file: str | None = None,
+) -> cf.Field:
+    """Set the units (reference date) of the time coordinate of a field.
+
+    The coordinate values are converted to the new units so the actual datetimes
+    are unchanged.
+
+    Parameters
+    ----------
+    input_ : FieldSource
+        A field, file path(s), or :class:`FieldSelect` describing which field to load.
+    units : str
+        New units for the time coordinate, e.g. ``"days since 1950-01-01"``.
+        These must be time reference units compatible with the existing ones.
+    output_file : str | None, optional
+        Output file to write the updated field to.
+
+    Returns
+    -------
+    cf.Field
+        Field with updated time coordinate units.
+    """
+    field = _load_field(input_)
+    coord = field.coordinate("T")
+    coord.Units = cf.Units(units, calendar=coord.get_property("calendar", None))
+    return _write_output(field, output_file)
 
 
 def replace_fill_value(
@@ -406,36 +610,60 @@ def replace_fill_value(
     return _write_output(field, output_file)
 
 
-def set_netcdf_variable_name(
+def set_netcdf_info(  # noqa: PLR0913  # Allow more arguments
     input_: FieldSource,
-    field_name: str,
     *,
+    nc_name: str | None = None,
+    properties: dict[str, str] | None = None,
+    coord_nc_names: dict[str, str] | None = None,
+    axis_unlimited: str | tuple[str, bool] | None = None,
     output_file: str | None = None,
-    coord_names: dict[str, str] | None = None,
 ) -> cf.Field:
-    """Set NetCDF variable names for a field and, optionally, its coordinates.
+    """Set NetCDF variable names and properties for a field and its coordinates.
 
     Parameters
     ----------
     input_ : FieldSource
         A field, file path(s), or :class:`FieldSelect` describing which field to load.
-    field_name : str
-        NetCDF variable name for the field.
+    nc_name : str | None, optional
+        NetCDF variable name for the field. If ``None`` the name is left unchanged.
+    properties : dict[str, str] | None, optional
+        Field properties to set, e.g. ``standard_name``, ``long_name``, ``units``.
+    coord_nc_names : dict[str, str] | None, optional
+        Updated NetCDF variable names for coordinates. Keys are the standard names.
+    axis_unlimited : str | tuple[str, bool] | None, optional
+        Set a domain axis as unlimited. Or use a tuple with the axis as the
+        first value and a boolean as the second (``False`` removes the
+        unlimited status).
     output_file : str | None, optional
         Output file to write the updated field to.
-    coord_names : dict[str, str] | None, optional
-        Optional updated NetCDF variable names for coordinates. Keys are the standard
-        names.
 
     Returns
     -------
     cf.Field
-        Field with updated NetCDF variable names.
+        Field with updated NetCDF variable names and properties.
     """
     field = _load_field(input_)
-    field.nc_set_variable(field_name)
-    for coordinate, variable_name in (coord_names or {}).items():
+
+    if nc_name is not None:
+        field.nc_set_variable(nc_name)
+
+    properties = dict(properties or {})
+    units = properties.pop("units", None)
+    if units is not None:
+        field.override_units(units, inplace=True)
+    if properties:
+        field.set_properties(properties)
+
+    for coordinate, variable_name in (coord_nc_names or {}).items():
         field.coordinate(coordinate).nc_set_variable(variable_name)
+
+    if axis_unlimited is not None:
+        if isinstance(axis_unlimited, str):
+            field.domain_axis(axis_unlimited).nc_set_unlimited(True)
+        else:
+            field.domain_axis(axis_unlimited[0]).nc_set_unlimited(axis_unlimited[1])
+
     return _write_output(field, output_file)
 
 
@@ -569,12 +797,18 @@ __all__ = [  # noqa: RUF022  # Prevent reorder for a more logical order in the a
     "read_files",
     "select_time_range",
     "separate_variables",
+    "squeeze_field",
+    "flip_axis",
     "subsample_field",
     "collapse_field",
     "calculate_curl_xy",
     "calculate_vorticity",
+    "calculate_norm_xy",
+    "calculate_wind_speed",
+    "multiply_field",
+    "set_time_units",
     "replace_fill_value",
-    "set_netcdf_variable_name",
+    "set_netcdf_info",
     "regrid_to_field",
     "regrid_to_lat_lon",
     "gaussian_grid",
