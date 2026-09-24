@@ -279,7 +279,7 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
         """insert into trajectories
            (file_id, start_end)
            values (?, ?)""",
-        (file_id, traj["start_end"])
+        (file_id, traj["start_end"]),
     )
     if cur.lastrowid is None:
         msg = "Insert into trajectories table failed"
@@ -309,7 +309,7 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
                 air_pressure_at_sea_level, surface_altitude, wind_speed,
                 atmosphere_relative_vorticity)
                values (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            rows
+            rows,
         )
         if cur.rowcount != len(rows):
             msg = "Inserts into observations table failed"

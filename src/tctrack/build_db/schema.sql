@@ -79,47 +79,51 @@ create index surface_altitude_idx on observations(surface_altitude);
 create index wind_speed_idx on observations(wind_speed);
 
 
--- Observation view
-create view observation_view as
-select file_id, files.filename, trajectory_id,
-	ob.sequence, ob.date, ob.latitude, ob.longitude,
-	ob.air_pressure_at_sea_level, ob.surface_altitude, ob.wind_speed, ob.atmosphere_relative_vorticity,
-	cast(ob.sequence = 0 as integer) as genesis
-from observations ob
+-- Views used for map display
+
+-- Points only (trajectory_id renamed so it is not grouped into tracks as per the metadata group_by setting)
+create view points as
+select
+	files.filename,
+	trajectory_id as track_id,
+	cast(substr(date, 1, 4) as integer) as year,
+	sequence, date, latitude, longitude,
+	air_pressure_at_sea_level, surface_altitude, wind_speed,
+	cast(sequence = 0 as integer) as genesis
+from
+	observations ob
 	join trajectories on trajectories.id = trajectory_id
+	join files on files.id = file_id;
+
+-- Points layered by year
+create view points_layer_year as
+select *, year as layer_year from points;
+
+-- Points layered by filename
+create view points_layer_file as
+select *, filename as layer_file from points;
+
+
+-- Tracks
+create view tracks as
+select
+	files.filename,
+	trajectory_id,
+	tr.start_end,
+	cast(substr(date, 1, 4) as integer) as year,
+	sequence, date, latitude, longitude,
+	air_pressure_at_sea_level, surface_altitude, wind_speed
+from
+	observations ob
+	join trajectories tr on tr.id = ob.trajectory_id
 	join files on files.id = file_id
 order by
 	trajectory_id, sequence;
 
+-- Tracks layered by year
+create view tracks_layer_year as
+select *, year as layer_year from tracks;
 
--- Trajectory view
-create view trajectory_view as
-select trajectories.id as trajectory_id, start_end,
-	file_id, filename, filepath,
-	tctrack_version, tracker_name
-from trajectories
-	join files on files.id = file_id;
-
-
--- File layers map view
-create view map_file_layers_view as
-select files.filename as layer_filename, trajectory_id,
-	ob.sequence, ob.date, ob.latitude, ob.longitude,
-	ob.air_pressure_at_sea_level, ob.surface_altitude, ob.wind_speed, ob.atmosphere_relative_vorticity,
-	cast(ob.sequence = 0 as integer) as genesis
-from observations ob
-	join trajectories on trajectories.id = trajectory_id
-	join files on files.id = file_id;
-
-
--- Year layers map view
-create view map_year_layers_view as
-select files.filename, substr(ob.date, 1, 4) as layer_year, trajectory_id,
-	ob.sequence, ob.date, ob.latitude, ob.longitude,
-	ob.air_pressure_at_sea_level, ob.surface_altitude, ob.wind_speed, ob.atmosphere_relative_vorticity,
-	cast(ob.sequence = 0 as integer) as genesis
-from observations ob
-	join trajectories on trajectories.id = trajectory_id
-	join files on files.id = file_id
-order by
-	trajectory_id, sequence;
+-- Tracks layered by filename
+create view tracks_layer_file as
+select *, filename as layer_file from tracks;

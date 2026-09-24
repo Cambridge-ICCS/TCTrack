@@ -50,14 +50,13 @@ plugins:
     #     - '#b39ddb60'
     max_layers: 20
 
-# Database and table metadata - optional
-# This is linked to the served database by the filename given here (tracks). Its
-# purpose is to show descriptions for each table and field. If there is no link
-# to the served database, no metadata will be shown but all other functionality
-# will remain.
+
+# Database and table metadata
+# Database name must match served database
+# This is most important for showing facets on views
 
 databases:
-  tracks:
+  database_name:
     title: Cyclone Tracks
     description_html: >-
       <p>Cyclone trajectories imported from TCTrack NetCDF files.</p>
@@ -78,7 +77,6 @@ databases:
       files:
         label_column: filename
         description: Individual TCTrack NetCDF files imported by build-db.
-        facets: [collection_id, tracker_name]
         columns:
           filepath: Path of the imported file on the build machine.
           tctrack_version: TCTrack version that produced the file.
@@ -89,12 +87,13 @@ databases:
           time_units: Time units of the source timestamps.
           time_calendar: Calendar of the source timestamps.
           created: Import timestamp (UTC).
+        facets: [collection_id, tracker_name]
 
       trajectories:
         description: One row per cyclone track.
-        facets: [file_id, start_end]
         columns:
           start_end: Start/end marker from the source file (S, E or SE).
+        facets: [file_id, start_end]
 
       observations:
         description: One row per trajectory observation point.
@@ -105,12 +104,22 @@ databases:
           surface_altitude: Model surface altitude at the observation point.
           wind_speed: Wind speed at the observation point.
           atmosphere_relative_vorticity: Relative vorticity of the atmosphere at the observation point.
+        facets: []
 
-      trajectory_view:
-        description: Trajectories from all files.
+      points:
+        facets: [genesis]
+      points_layer_file:
+        facets: [genesis]
+      points_layer_year:
+        facets: [genesis]
 
-      observation_view:
-        description: Every observation joined with its file name.
+      tracks:
+        facets: [start_end]
+      tracks_layer_file:
+        facets: [start_end]
+      tracks_layer_year:
+        facets: [start_end]
+
 
     # Useful queries
 

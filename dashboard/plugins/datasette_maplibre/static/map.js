@@ -1,4 +1,4 @@
-import * as maplibregl from "https://unpkg.com/maplibre-gl@6.8.0/dist/maplibre-gl.mjs";
+import * as maplibregl from "https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.mjs";
 import { LayerControl } from "https://unpkg.com/maplibre-gl-layer-control@0.17.4/dist/index.mjs";
 
 // Pick up config passed from Python __init__ layer
