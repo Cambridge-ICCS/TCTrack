@@ -615,7 +615,8 @@ class TCTracker(ABC):
         lat_lon_fill = -999.9
         lat_data = cf.Data(
             [
-                trajectory.data["lat"] + [None] * (max_obs - trajectory.observations)
+                trajectory.data["lat"]
+                + [lat_lon_fill] * (max_obs - trajectory.observations)
                 for trajectory in trajectories
             ],
             fill_value=lat_lon_fill,
@@ -632,7 +633,8 @@ class TCTracker(ABC):
 
         lon_data = cf.Data(
             [
-                trajectory.data["lon"] + [None] * (max_obs - trajectory.observations)
+                trajectory.data["lon"]
+                + [lat_lon_fill] * (max_obs - trajectory.observations)
                 for trajectory in trajectories
             ],
             fill_value=lat_lon_fill,
@@ -688,7 +690,7 @@ class TCTracker(ABC):
             variable_data = cf.Data(
                 [
                     trajectory.data[variable]
-                    + [None] * (max_obs - trajectory.observations)
+                    + [field_fill] * (max_obs - trajectory.observations)
                     for trajectory in trajectories
                 ],
                 fill_value=field_fill,
