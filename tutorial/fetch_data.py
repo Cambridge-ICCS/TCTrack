@@ -1,11 +1,51 @@
-"""Script to download the ERA5 data used in the TCTrack tutorial."""
+"""Script to download the ERA5 data used in the TCTrack tutorial.
 
+By default this downloads a pre-prepared bundle from the TCTrack GitHub
+releases. Alternatively the data can be fetched directly from the Copernicus
+Climate Data Store (CDS) using the ``fetch_data_cds`` function, which requires
+registering for a CDS API key:
+https://cds.climate.copernicus.eu/how-to-api
+"""
+
+import hashlib
 import os
+import tarfile
+import urllib.request
 
-import cdsapi
+
+def fetch_data() -> None:
+    """Download the ERA5 tutorial data from the TCTrack releases."""
+    data_url = (
+        "https://github.com/Cambridge-ICCS/TCTrack/releases/download/"
+        "data/tutorial-v1/tctrack-tutorial-data.tar.gz"
+    )
+    expected_sha256 = "d256b48d904be0fa31093453eab36ed1641ca645c1a78a1824b912b1318fef3c"
+
+    print("Downloading data...")
+    bundle = "tctrack-tutorial-data.tar.gz"
+    urllib.request.urlretrieve(data_url, bundle)  # noqa: S310 - URL audit not required
+
+    # Verify checksum
+    digest = hashlib.sha256()
+    with open(bundle, "rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    if digest.hexdigest() != expected_sha256:
+        msg = (
+            "Checksum of the downloaded data does not match the expected value. "
+            "Please report this at https://github.com/Cambridge-ICCS/TCTrack/issues"
+        )
+        raise RuntimeError(msg)
+
+    # Extract data
+    with tarfile.open(bundle) as tar:
+        tar.extractall(filter="data")
+    os.remove(bundle)
+
+    print("Done.")
 
 
-def fetch_data_cds(data_dir: str = "data/") -> None:
+def fetch_data_cds() -> None:
     """Download the ERA5 tutorial data from CDS.
 
     This requires registering for a CDS API key:
@@ -13,13 +53,11 @@ def fetch_data_cds(data_dir: str = "data/") -> None:
 
     Then accept the licences for the data:
     https://cds.climate.copernicus.eu/datasets/reanalysis-era5-pressure-levels?tab=download#manage-licences
-
-    Parameters
-    ----------
-    data_dir : str, optional
-        Directory to download the data to. Created if it does not exist.
     """
+    import cdsapi  # noqa: PLC0415
+
     print("Downloading data. This may take several minutes.")
+    data_dir = "data/"
     os.makedirs(data_dir, exist_ok=True)
     client = cdsapi.Client()
 
@@ -99,4 +137,4 @@ def fetch_data_cds(data_dir: str = "data/") -> None:
 
 
 if __name__ == "__main__":
-    fetch_data_cds()
+    fetch_data()
