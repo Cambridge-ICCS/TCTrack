@@ -208,8 +208,11 @@ Input data
 
 TSTORMS requires data for Eastward and Northward velocities, vorticity, air temperature,
 and sea-level pressure at certain pressure levels or ranges.
-The input data must be stored in NetCDF files with dimensions named ``lon``, ``lat``,
-and ``time`` and all variables must be on the same grid.
+The input data must be stored in NetCDF files with dimensions ``(time, lat, lon)`` and
+all variables must be on the same grid.
+Time should be unlimited dimension and should only have positive values (e.g. if using
+data from 1950 the time units should be ``days since 1950-01-01`` or earlier).
+The latitude coordinates should be increasing (from south to north).
 There can be only one variable per file and they should conform to the pre-defined
 variable names described below.
 
@@ -253,9 +256,8 @@ variable names described below.
   * Named ``slp`` in the NetCDF file.
   * The filename is proviuded to TSTORMS through :attr:`~TSTORMSDetectParameters.slp_in_file`.
 
-To extract these variables from an input dataset and write to individual files with the
-requisite variable names, combine multiple files over times, or regrid variables to a
-consistent grid see :doc:`../data/preprocessing_data`.
+Functions to preprocess the data into these forms are described in
+:doc:`../data/preprocessing_data`.
 
 
 
