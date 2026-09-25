@@ -5,6 +5,7 @@ import json
 import re
 import tempfile
 from dataclasses import asdict, dataclass
+from datetime import timedelta
 from pathlib import Path
 
 import cf
@@ -245,7 +246,12 @@ class TestTCTracker:
         }
         assert tracker.global_metadata == expected_metadata
 
-    def make_netcdf_file(self, tmp_path: Path, delete_std_name: bool = False) -> Path:
+    def make_netcdf_file(
+        self,
+        tmp_path: Path,
+        delete_std_name: bool = False,
+        flag_interval: timedelta = timedelta(days=1),
+    ) -> Path:
         """Output a trajectories netcdf file with to_netcdf.
 
         We will take some predefined Trajectories (matching the variable_metadata and
@@ -311,7 +317,7 @@ class TestTCTracker:
 
         # Write to NetCDF
         output_file = tmp_path / "trajectories.nc"
-        tracker.to_netcdf(str(output_file))
+        tracker.to_netcdf(str(output_file), flag_interval=flag_interval)
 
         return output_file
 
@@ -439,6 +445,22 @@ class TestTCTracker:
         end_flag = variable.constructs("ncvar%end_flag")
         assert np.array_equal(start_flag.value().array, [True, False, False])
         assert np.array_equal(end_flag.value().array, [False, False, True])
+        assert start_flag.get_property("flag_interval") == "1 day, 0:00:00"
+        assert end_flag.get_property("flag_interval") == "1 day, 0:00:00"
+
+    def test_to_netcdf_custom_track_flag_interval(self, tmp_path: Path):
+        """Check custom flag intervals change boundary detection and metadata."""
+        flag_interval = timedelta(days=300)
+        netcdf_file = self.make_netcdf_file(tmp_path, flag_interval=flag_interval)
+
+        field = cf.read(str(netcdf_file))[0]  # type: ignore[operator]
+        start_flag = field.constructs("ncvar%start_flag")
+        end_flag = field.constructs("ncvar%end_flag")
+
+        assert np.array_equal(start_flag.value().array, [True, True, False])
+        assert np.array_equal(end_flag.value().array, [False, True, True])
+        assert start_flag.get_property("flag_interval") == str(flag_interval)
+        assert end_flag.get_property("flag_interval") == str(flag_interval)
 
     def test_to_netcdf_global_metadata(self, tmp_path: Path):
         """Check to_netcdf writes trajectories with the correct global metadata."""
