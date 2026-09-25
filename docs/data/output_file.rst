@@ -127,13 +127,16 @@ Files always include two
 - **start_flag**
 
   - *Dimensions*: ``(trajectory)``
+  - *Attributes* include ``flag_interval``, recording the interval used.
 
 - **end_flag**
 
   - *Dimensions*: ``(trajectory)``
+  - *Attributes* include ``flag_interval``, recording the interval used.
 
-These indicate any tracks that start or end within 1 day of the input dataset bounds
-and may therefore extend outside this range.
+These indicate any tracks that start or end within the interval passed to
+``TCTracker.to_netcdf(..., flag_interval=...)`` of the input dataset bounds and may
+therefore extend outside this range. The default interval is 1 day.
 
 Global Attributes
 ^^^^^^^^^^^^^^^^^
