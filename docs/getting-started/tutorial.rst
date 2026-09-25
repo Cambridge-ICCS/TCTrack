@@ -69,19 +69,14 @@ running::
 Obtaining Data
 --------------
 
-We will use example data from CMIP6, specifically from the HadGEM model and the
-1950-historical experiment. We will use just a subset of ASO (August, September, October)
-from 1951 to demonstrate the code and some preprocessing techniques.
+We will use example data from the ERA5 reanalysis dataset from 1950-09-01 to 1950-09-07.
 
-This data can be obtained from the `ESGF CEDA archive <https://esgf.ceda.ac.uk/thredds/catalog/catalog.html>`_
-or direct from `CEDA <https://data.ceda.ac.uk/>`_ using the included fetch data script::
+This can be downloaded from the TCTrack GitHub releases using the included fetch data
+script::
 
-    ./fetch_data.sh
+    python fetch_data.py
 
-This will fetch the NetCDF data files using ``wget`` and place them in a ``data/``
-directory.
-Again, read carefully to understand and check that you are happy with what it will do
-before running.
+This will download and place the NetCDF files in a ``data/`` directory.
 
 
 Pre-processing of Data
@@ -95,14 +90,13 @@ This will pre-process the downloaded data as required for our codes and place it
 ``data_processed/``.
 This includes the following processes:
 
-* Target months (ASO) are extracted from the yearly files
-* The 3hr data is mapped to the same daily time values as the daily data
-* Single variables at single levels are extracted for TSTORMS inputs
-* Vorticity is calculated from velocity data (following regridding to surface grid)
+* 10m wind speed is calculated from the wind components
+* Surface geopotential is converted to orography in metres
+* Single variables are extracted for TSTORMS inputs with the required dimension
+  names, orientation, and time units
 * A mean is taken over pressure levels of temperature
 
-Note that since this requires significant IO it may take a little time to complete.
-Note also the use of the Python ``del`` command where appropriate as the data consumes a
+Note the use of the Python ``del`` command where appropriate as the data can consume a
 large amount of memory which we want to free when possible.
 
 
