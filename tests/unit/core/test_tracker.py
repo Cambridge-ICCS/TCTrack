@@ -112,7 +112,8 @@ class TestTCTracker:
     class ExampleTracker(TCTracker):
         """Concrete implementation of TCTracker for testing purposes."""
 
-        def __init__(self, example_trajectories):
+        def __init__(self, example_trajectories, verbosity=1):
+            super().__init__(verbosity=verbosity)
             self._example_trajectories = example_trajectories
             self.params = ExampleParameters(42, "test")
 
@@ -142,6 +143,12 @@ class TestTCTracker:
             TypeError, match="Can't instantiate abstract class TCTracker"
         ):
             TCTracker()
+
+    @pytest.mark.parametrize("verbosity", [0, 1, 2])
+    def test_verbosity_initialization(self, verbosity):
+        """Test verbosity is stored on the tracker instance."""
+        tracker = self.ExampleTracker([], verbosity=verbosity)
+        assert tracker.verbosity == verbosity
 
     def test_parameters_property(self):
         """Test that _parameters correctly accesses the parameter objects."""
@@ -466,11 +473,10 @@ class TestTCTracker:
             temp_file = f.name
 
         try:
-            result = self.ExampleTracker([]).run_tracker_subprocess(
+            result = self.ExampleTracker([], verbosity=verbosity).run_tracker_subprocess(
                 command_name="TestCommand",
                 command_list=["cat"],
                 input_file=temp_file,
-                verbosity=verbosity,
             )
 
             assert isinstance(result, dict), "Should return a dict"
@@ -485,20 +491,15 @@ class TestTCTracker:
 
     def test_run_tracker_subprocess_invalid_verbosity(self):
         """Test that invalid verbosity raises ValueError."""
-        with pytest.raises(ValueError):
-            self.ExampleTracker([]).run_tracker_subprocess(
-                command_name="TestCommand",
-                command_list=["cat"],
-                verbosity=5,
-            )
+        with pytest.raises(ValueError, match="Verbosity must be 0, 1, or 2."):
+            self.ExampleTracker([], verbosity=5)
 
     @pytest.mark.parametrize("verbosity", [0, 1, 2])
     def test_run_tracker_subprocess_returns_stderr(self, verbosity):
         """Test that function returns correct stderr."""
-        result = self.ExampleTracker([]).run_tracker_subprocess(
+        result = self.ExampleTracker([], verbosity=verbosity).run_tracker_subprocess(
             command_name="TestCommand",
             command_list=["sh", "-c", 'echo "test error" >&2'],
-            verbosity=verbosity,
         )
 
         assert isinstance(result, dict), "Should return a dict"
