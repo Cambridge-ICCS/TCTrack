@@ -268,6 +268,7 @@ class TSTORMSTracker(TCTracker):
         tstorms_parameters: TSTORMSBaseParameters,
         detect_parameters: TSTORMSDetectParameters,
         stitch_parameters: TSTORMSStitchParameters | None = None,
+        verbosity: int = 1,
     ):
         """
         Construct the TSTORMSTracker class.
@@ -282,7 +283,10 @@ class TSTORMSTracker(TCTracker):
         stitch_parameters : TSTORMSStitchParameters | None
             Class containing the parameters for the stitching algorithm of TSTORMS
             Defaults to the default values in TSTORMSStitchParameters Class
+        verbosity : int
+            Controls tracker subprocess output. Defaults to 1.
         """
+        super().__init__(verbosity=verbosity)
         self.tstorms_parameters: TSTORMSBaseParameters = tstorms_parameters
         self.detect_parameters: TSTORMSDetectParameters = detect_parameters
 
