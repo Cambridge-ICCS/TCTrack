@@ -493,6 +493,22 @@ class TestTCTracker:
         """Test that invalid verbosity raises ValueError."""
         with pytest.raises(ValueError, match="Verbosity must be 0, 1, or 2."):
             self.ExampleTracker([], verbosity=5)
+        with pytest.raises(ValueError, match="Verbosity must be 0, 1, or 2."):
+            self.ExampleTracker([]).run_tracker_subprocess(
+                command_name="TestCommand",
+                command_list=["cat"],
+                verbosity=5,
+            )
+
+    @pytest.mark.parametrize("verbosity", [0, 1, 2])
+    def test_run_tracker_subprocess_verbosity_override(self, verbosity):
+        """Test that verbosity argument overrides the instance verbosity."""
+        result = self.ExampleTracker([], verbosity=0).run_tracker_subprocess(
+            command_name="TestCommand",
+            command_list=["sh", "-c", 'echo "test override"'],
+            verbosity=verbosity,
+        )
+        assert isinstance(result, dict)
 
     @pytest.mark.parametrize("verbosity", [0, 1, 2])
     def test_run_tracker_subprocess_returns_stderr(self, verbosity):

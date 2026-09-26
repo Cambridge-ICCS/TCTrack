@@ -286,6 +286,7 @@ class TCTracker(ABC):
         input_file: str | None = None,
         input_str: str | None = None,
         cwd: str | None = None,
+        verbosity: int | None = None,
     ) -> dict:
         """Run a subprocess command for a cyclone tracking algorithm.
 
@@ -303,6 +304,13 @@ class TCTracker(ABC):
             Cannot be used together with input_file. Defaults to None.
         cwd : str | None
             Working directory in which to execute the command. Defaults to None.
+        verbosity : int | None
+            Controls how much output is shown:
+            0 = No output gets printed.
+            1 = summary, first and last 12 lines printed.
+            2 = Entire output is streamed in real-time.
+            If None, uses the tracker's verbosity level. Defaults to None.
+
         Returns
         -------
         dict
@@ -312,6 +320,8 @@ class TCTracker(ABC):
         ------
         ValueError
             If both input_file and input_str are provided simultaneously.
+        ValueError
+            If verbosity is not None, 0, 1, or 2.
         """
         stdin_context: Union[IO, AbstractContextManager]
 
@@ -321,7 +331,11 @@ class TCTracker(ABC):
         if not command_list:
             msg = "command_list cannot be empty"
             raise ValueError(msg)
-        verbosity = self.verbosity
+        if verbosity is None:
+            verbosity = self.verbosity
+        elif verbosity not in (0, 1, 2):
+            msg = "Verbosity must be 0, 1, or 2."
+            raise ValueError(msg)
         if verbosity != 0:
             print(f"Executing {command_name}...")
         if input_file is not None:

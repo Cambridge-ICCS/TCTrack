@@ -379,7 +379,7 @@ class TSTORMSTracker(TCTracker):
 
         return dn_argslist
 
-    def detect(self, verbosity: int = 1):
+    def detect(self, verbosity: int | None = None):
         """
         Call the driver utility of TSTORMS.
 
@@ -409,12 +409,12 @@ class TSTORMSTracker(TCTracker):
 
         Parameters
         ----------
-        verbosity : int
+        verbosity : int | None
             Controls how much output is shown:
             0 = No output gets printed.
-            1 = summary, first and last 12 lines printed (default).
+            1 = summary, first and last 12 lines printed.
             2 = Entire output is streamed in real-time.
-            Defaults to 1.
+            If None, uses the tracker's verbosity level. Defaults to None.
 
         Returns
         -------
@@ -527,7 +527,7 @@ class TSTORMSTracker(TCTracker):
 
         return stitch_argslist
 
-    def stitch(self, verbosity: int = 1):
+    def stitch(self, verbosity: int | None = None):
         """
         Call the trajectory analysis utility of TSTORMS to stitch candidate storms.
 
@@ -557,12 +557,12 @@ class TSTORMSTracker(TCTracker):
 
         Parameters
         ----------
-        verbosity : int
+        verbosity : int | None
             Controls how much output is shown:
             0 = No output gets printed.
-            1 = summary, first and last 12 lines printed (default).
+            1 = summary, first and last 12 lines printed.
             2 = Entire output is streamed in real-time.
-            Defaults to 1.
+            If None, uses the tracker's verbosity level. Defaults to None.
 
         Returns
         -------
