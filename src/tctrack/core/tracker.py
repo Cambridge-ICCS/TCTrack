@@ -430,6 +430,7 @@ class TCTracker(ABC):
         self,
         output_file: str,
         trajectories: list[Trajectory] | None = None,
+        flag_interval: timedelta = timedelta(days=1),
     ) -> None:
         """
         Write track trajectories to CF-compliant NetCDF trajectory file.
@@ -440,8 +441,8 @@ class TCTracker(ABC):
         Trajectories are assumed to contain as a minimum data for ``lat``, ``lon``,
         and ``timestep``.
 
-        An ancillary field variable is added to the output file indicating any tracks
-        that start/end within 1 day of the input dataset boundaries.
+        Ancillary field variables are added to the output file indicating any tracks
+        that start/end within flag_interval of the input dataset boundaries.
 
         Parameters
         ----------
@@ -452,6 +453,9 @@ class TCTracker(ABC):
             An optional list of trajectories to write. If the tracking algorithm
             produces an intermediate output file then this can be skipped as it will
             instead read from there.
+        flag_interval: timedelta
+            Maximum interval from the dataset start/end used to set the trajectory
+            boundary flags. Defaults to one day.
 
         Warnings
         --------
@@ -510,14 +514,14 @@ class TCTracker(ABC):
                 )
                 raise ValueError(errmsg)
 
-            # Check for trajectories starting and ending within a day of file boundaries
+            # Check for trajectories starting and ending within the requested interval
             if (
                 trajectory.data["time"][0] - self.time_metadata["start_time"]
-            ) <= timedelta(days=1):
+            ) <= flag_interval:
                 starting_trajectory[i] = True
             if (
                 self.time_metadata["end_time"] - trajectory.data["time"][-1]
-            ) <= timedelta(days=1):
+            ) <= flag_interval:
                 ending_trajectory[i] = True
 
         start_field = cf.FieldAncillary(
@@ -525,6 +529,7 @@ class TCTracker(ABC):
             properties={
                 "standard_name": "status_flag",
                 "long_name": "Trajectory starting at start of dataset flag.",
+                "flag_interval": str(flag_interval),
             },
         )
         start_field.nc_set_variable("start_flag")
@@ -533,6 +538,7 @@ class TCTracker(ABC):
             properties={
                 "standard_name": "status_flag",
                 "long_name": "Trajectory finishing at end of dataset flag.",
+                "flag_interval": str(flag_interval),
             },
         )
         end_field.nc_set_variable("end_flag")
