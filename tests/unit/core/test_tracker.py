@@ -473,7 +473,8 @@ class TestTCTracker:
             temp_file = f.name
 
         try:
-            result = self.ExampleTracker([], verbosity=verbosity).run_tracker_subprocess(
+            tracker = self.ExampleTracker([], verbosity=verbosity)
+            result = tracker.run_tracker_subprocess(
                 command_name="TestCommand",
                 command_list=["cat"],
                 input_file=temp_file,
@@ -491,9 +492,13 @@ class TestTCTracker:
 
     def test_run_tracker_subprocess_invalid_verbosity(self):
         """Test that invalid verbosity raises ValueError."""
-        with pytest.raises(ValueError, match="Verbosity must be 0, 1, or 2."):
+        with pytest.raises(
+            ValueError, match=re.escape("Verbosity must be 0, 1, or 2.")
+        ):
             self.ExampleTracker([], verbosity=5)
-        with pytest.raises(ValueError, match="Verbosity must be 0, 1, or 2."):
+        with pytest.raises(
+            ValueError, match=re.escape("Verbosity must be 0, 1, or 2.")
+        ):
             self.ExampleTracker([]).run_tracker_subprocess(
                 command_name="TestCommand",
                 command_list=["cat"],
