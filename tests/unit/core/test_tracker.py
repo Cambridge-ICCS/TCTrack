@@ -445,8 +445,8 @@ class TestTCTracker:
         end_flag = variable.constructs("ncvar%end_flag")
         assert np.array_equal(start_flag.value().array, [True, False, False])
         assert np.array_equal(end_flag.value().array, [False, False, True])
-        assert start_flag.get_property("flag_interval") == "1 day, 0:00:00"
-        assert end_flag.get_property("flag_interval") == "1 day, 0:00:00"
+        assert start_flag.value().get_property("flag_interval") == "1 day, 0:00:00"
+        assert end_flag.value().get_property("flag_interval") == "1 day, 0:00:00"
 
     def test_to_netcdf_custom_track_flag_interval(self, tmp_path: Path):
         """Check custom flag intervals change boundary detection and metadata."""
@@ -459,8 +459,8 @@ class TestTCTracker:
 
         assert np.array_equal(start_flag.value().array, [True, True, False])
         assert np.array_equal(end_flag.value().array, [False, True, True])
-        assert start_flag.get_property("flag_interval") == str(flag_interval)
-        assert end_flag.get_property("flag_interval") == str(flag_interval)
+        assert start_flag.value().get_property("flag_interval") == str(flag_interval)
+        assert end_flag.value().get_property("flag_interval") == str(flag_interval)
 
     def test_to_netcdf_global_metadata(self, tmp_path: Path):
         """Check to_netcdf writes trajectories with the correct global metadata."""
