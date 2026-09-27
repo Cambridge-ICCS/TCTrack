@@ -17,6 +17,7 @@ build:
   os: ubuntu-22.04
   apt_packages:
     - libudunits2-dev
+    - pandoc
   tools:
     python: "3.13"
 
