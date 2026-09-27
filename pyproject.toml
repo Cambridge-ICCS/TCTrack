@@ -58,6 +58,8 @@ doc = [
     "sphinx<8.2.0",  # Pin version due to autodoc type hints incompatibilities
     "sphinx_rtd_theme",
     "sphinx_autodoc_typehints",
+    "nbsphinx",
+    "nbsphinx_link",
 ]
 tutorial = [
     "jupyter",

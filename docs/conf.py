@@ -33,6 +33,8 @@ extensions = [
     "sphinx.ext.autodoc",  # pull in documentation from docstrings
     "sphinx_autodoc_typehints",  # use type hints from code/docstrings
     "sphinx.ext.autosectionlabel",  # Auto-generate reference labels for sections
+    "nbsphinx",  # render the tutorial notebooks
+    "nbsphinx_link",  # link to notebooks outside the docs directory
 ]
 
 templates_path = ["_templates"]
