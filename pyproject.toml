@@ -59,8 +59,13 @@ doc = [
     "sphinx_rtd_theme",
     "sphinx_autodoc_typehints",
 ]
+tutorial = [
+    "jupyter",
+    "matplotlib",
+    "cartopy",
+]
 dev = [
-    "tctrack[test,lint,doc]",
+    "tctrack[test,lint,doc,tutorial]",
     "pre-commit",
 ]
 
