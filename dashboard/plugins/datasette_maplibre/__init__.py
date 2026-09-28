@@ -7,7 +7,7 @@ from datasette import hookimpl
 PLUGIN = "datasette-maplibre"
 
 MAPLIBRE_CSS = "https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.css"
-LAYER_CONTROL_CSS = "https://unpkg.com/maplibre-gl-layer-control@0.17.4/dist/maplibre-gl-layer-control.css"
+LAYER_CONTROL_CSS = "https://unpkg.com/maplibre-gl-layer-control@0.17.5/dist/maplibre-gl-layer-control.css"
 DEFAULT_BASEMAP = "https://demotiles.maplibre.org/style.json"
 
 

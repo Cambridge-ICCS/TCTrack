@@ -1,5 +1,5 @@
 import * as maplibregl from "https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.mjs";
-import { LayerControl } from "https://unpkg.com/maplibre-gl-layer-control@0.17.4/dist/index.mjs";
+import { LayerControl } from "https://unpkg.com/maplibre-gl-layer-control@0.17.5/dist/index.mjs";
 
 // Pick up config passed from Python __init__ layer
 const BASEMAP_STYLE = window.DATASETTE_MAPLIBRE_STYLE || "https://demotiles.maplibre.org/style.json";
@@ -156,7 +156,7 @@ async function loadGeoJSON() {
 		collection.layers = [...new Set(data.rows.map((row) => row[layer_idx]))];
 		if (collection.layers.length > MAX_LAYERS) {
 			collection.layers = collection.layers.slice(0, MAX_LAYERS);
-			console.log(`Layers truncated at max: ${MAX_LAYERS}`);
+			console.log(`WARNING Layers truncated at max: ${MAX_LAYERS}`);
 		}
 	} else {
 		// Set a single base layer when no dynamic layers are specified
@@ -262,7 +262,7 @@ function init() {
 	});
 	map.addControl(new maplibregl.NavigationControl({ showCompass: true }));
 	map.addControl(new maplibregl.GlobeControl(), 'top-right');
-	map.addControl(new LayerControl({ panelWidth: 500 }), 'top-right');
+	map.addControl(new LayerControl({ panelWidth: 300, showOpacitySlider: false }), 'top-right');
 
 	// Restore the persisted view settings (globe and camera position)
 	const view = loadStored(STORAGE_KEY);
@@ -308,7 +308,27 @@ function init() {
 		let colour_idx = 0;
 		let colour = geojson.layers.length > 1 ? PALETTE.layers[colour_idx] : PALETTE.single;
 
-		// Create circle-radius style
+		// Create opacity expressions for point and line layers
+		let circle_opacity = 1.0;
+		if (POINT.opacity_property && POINT.opacity_property.column in geojson.features[0].properties)
+			circle_opacity = [
+				"interpolate",
+				["linear"],
+				["get", POINT.opacity_property.column],
+				POINT.opacity_property.min[0], POINT.opacity_property.min[1],
+				POINT.opacity_property.max[0], POINT.opacity_property.max[1]
+			];
+		let line_opacity = 1.0;
+		if (LINE.opacity_property && LINE.opacity_property.column in geojson.features[0].properties)
+			line_opacity = [
+				"interpolate",
+				["linear"],
+				["get", LINE.opacity_property.column],
+				LINE.opacity_property.min[0], LINE.opacity_property.min[1],
+				LINE.opacity_property.max[0], LINE.opacity_property.max[1]
+			];
+
+		// Create circle-radius expression
 		let circle_radius = POINT.radius;
 		// Link to property value if defined and column exists
 		if (POINT.radius_property && POINT.radius_property.column in geojson.features[0].properties)
@@ -337,6 +357,7 @@ function init() {
 					paint: {
 						"line-color": colour,
 						"line-width": LINE.thickness,
+						"line-opacity": line_opacity,
 					},
 					filter: [
 						"all",
@@ -356,7 +377,8 @@ function init() {
 				paint: {
 					"circle-radius": circle_radius,
 					"circle-color": colour,
-					"circle-stroke-color": "#00000060",
+					"circle-opacity": circle_opacity,
+					"circle-stroke-color": "#00000040",
 					"circle-stroke-width": 1,
 				},
 				filter: [

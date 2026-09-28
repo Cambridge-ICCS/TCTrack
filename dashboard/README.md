@@ -71,14 +71,22 @@ The following settings are available:
 	- `properties` An array of column names that will be used as properties for each group if they exist in the dataset. These are linked to the group and displayed when selected. The columns are presumed to contain unique values across each group.
 - `point` Point rendering options:
 	- `radius` Standard point radius.
-	- `radius_property` Link radius size to property value:
+	- `radius_property` Link radius size to a property value:
 		- `column`: Column name to use as the linked property.
-		- `min`: Value/radius pair for smallest point, e.g. [0, 2] when property is 0, radius is 2.
-		- `max`: Value/radius pair for largest point, e.g. [30, 12] when property is 30, radius is 12.
+		- `min`: Value/radius pair for smallest point, e.g. [0, 2] when property = 0, radius = 2.
+		- `max`: Value/radius pair for largest point, e.g. [30, 12] when property >= 30, radius = 12.
 		- `exponential`: Exponential base for radius scaling.
+	- `opacity_property`: Link opacity (0.0–1.0) to a property value.
+		- `column`: Column name to use as the linked property.
+		- `min`: Value/opacity pair for smallest value, e.g. [0, 0.1] when property = 0, opacity = 0.1.
+		- `max`: Value/opacity pair for largest value, e.g. [25, 1] when property >= 25, opacity = 1.0.
 - `line` Line rendering options:
 	- `thickness`: Line thickness.
-- `palette` Colours for rendering features (`#rrggbb[aa]` hex format):
+	- `opacity_property`: Link opacity (0.0–1.0) to a property value.
+		- `column`: Column name to use as the linked property.
+		- `min`: Value/opacity pair for smallest value, e.g. [0, 0.1] when property = 0, opacity = 0.1.
+		- `max`: Value/opacity pair for largest value, e.g. [25, 1] when property >= 25, opacity = 1.0.
+- `palette` Colours for rendering features (`#rrggbb[aa]` hex format). The default accessible set is taken from [Qualitative Colour Schemes](https://sronpersonalpages.nl/~pault/):
 	- `single` Feature colour when there is only one layer.
 	- `layers` Any number of colours to use for features on each layer. Colours are applied to layers in sequence. When all colours are used, subsequent layers will use the final colour in the list.
 - `max_layers` The maximum number of layers allowed (the layer pair of lines and points is counted as one). Data in layers beyond the maximum is not shown; a warning is sent to the console log.
