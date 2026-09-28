@@ -4,6 +4,8 @@ import { LayerControl } from "https://unpkg.com/maplibre-gl-layer-control@0.17.4
 // Pick up config passed from Python __init__ layer
 const BASEMAP_STYLE = window.DATASETTE_MAPLIBRE_STYLE || "https://demotiles.maplibre.org/style.json";
 const GROUP_BY = window.DATASETTE_MAPLIBRE_GROUP_BY || null;
+const POINT = window.DATASETTE_MAPLIBRE_POINT || { radius: 4 };
+const LINE = window.DATASETTE_MAPLIBRE_LINE || { thickness: 2 };
 const LAYER_COLUMN = window.DATASETTE_MAPLIBRE_LAYER_COLUMN || null;
 const PALETTE = window.DATASETTE_MAPLIBRE_PALETTE || { single: "#000000", layers: ["#ffffff"] };
 const MAX_LAYERS = window.DATASETTE_MAPLIBRE_MAX_LAYERS || 20;
@@ -306,6 +308,18 @@ function init() {
 		let colour_idx = 0;
 		let colour = geojson.layers.length > 1 ? PALETTE.layers[colour_idx] : PALETTE.single;
 
+		// Create circle-radius style
+		let circle_radius = POINT.radius;
+		// Link to property value if defined and column exists
+		if (POINT.radius_property && POINT.radius_property.column in geojson.features[0].properties)
+			circle_radius = [
+				"interpolate",
+				["exponential", POINT.radius_property.exponential],
+				["get", POINT.radius_property.column],
+				POINT.radius_property.min[0], POINT.radius_property.min[1],
+				POINT.radius_property.max[0], POINT.radius_property.max[1]
+			];
+
 		for (const layer of geojson.layers) {
 
 			// Set filter expression to restrict data to this layer only
@@ -322,7 +336,7 @@ function init() {
 					type: "line",
 					paint: {
 						"line-color": colour,
-						"line-width": 3,
+						"line-width": LINE.thickness,
 					},
 					filter: [
 						"all",
@@ -340,7 +354,7 @@ function init() {
 				source: "datasette-geojson",
 				type: "circle",
 				paint: {
-					"circle-radius": 4,
+					"circle-radius": circle_radius,
 					"circle-color": colour,
 					"circle-stroke-color": "#00000060",
 					"circle-stroke-width": 1,

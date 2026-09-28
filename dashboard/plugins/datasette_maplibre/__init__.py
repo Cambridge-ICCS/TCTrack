@@ -59,6 +59,8 @@ def extra_body_script(
     config = datasette.plugin_config(PLUGIN, database=database, table=table) or {}
     basemap_style = config.get("basemap", DEFAULT_BASEMAP)
     group_by = config.get("group_by")
+    point = config.get("point")
+    line = config.get("line")
     palette = config.get("palette")
     max_layers = config.get("max_layers")
 
@@ -66,6 +68,8 @@ def extra_body_script(
     return (
         f"window.DATASETTE_MAPLIBRE_STYLE = {json.dumps(basemap_style)};\n"
         f"window.DATASETTE_MAPLIBRE_GROUP_BY = {json.dumps(group_by)};\n"
+        f"window.DATASETTE_MAPLIBRE_POINT = {json.dumps(point)};\n"
+        f"window.DATASETTE_MAPLIBRE_LINE = {json.dumps(line)};\n"
         f"window.DATASETTE_MAPLIBRE_LAYER_COLUMN = {json.dumps(layer_column)};\n"
         f"window.DATASETTE_MAPLIBRE_PALETTE = {json.dumps(palette)};\n"
         f"window.DATASETTE_MAPLIBRE_MAX_LAYERS = {json.dumps(max_layers)};\n"

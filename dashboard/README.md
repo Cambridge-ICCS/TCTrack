@@ -69,6 +69,15 @@ The following settings are available:
 - `group_by` A collection of settings for defining groups in the source data. This is primarily used to create map lines from the observation points of each track. Data is added to the group in the order given by the query so it should be in sequence, e.g. `order by trajectory_id, sequence`.
 	- `column` The column name to group by. Use `trajectory_id` to define a group for each track.
 	- `properties` An array of column names that will be used as properties for each group if they exist in the dataset. These are linked to the group and displayed when selected. The columns are presumed to contain unique values across each group.
+- `point` Point rendering options:
+	- `radius` Standard point radius.
+	- `radius_property` Link radius size to property value:
+		- `column`: Column name to use as the linked property.
+		- `min`: Value/radius pair for smallest point, e.g. [0, 2] when property is 0, radius is 2.
+		- `max`: Value/radius pair for largest point, e.g. [30, 12] when property is 30, radius is 12.
+		- `exponential`: Exponential base for radius scaling.
+- `line` Line rendering options:
+	- `thickness`: Line thickness.
 - `palette` Colours for rendering features (`#rrggbb[aa]` hex format):
 	- `single` Feature colour when there is only one layer.
 	- `layers` Any number of colours to use for features on each layer. Colours are applied to layers in sequence. When all colours are used, subsequent layers will use the final colour in the list.
