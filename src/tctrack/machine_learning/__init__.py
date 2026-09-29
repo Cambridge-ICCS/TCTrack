@@ -2,10 +2,12 @@
 
 from .cyclone_track_ml import (
     MLParameters,
+    MLStitchParameters,
     MLTracker,
 )
 
 __all__ = [
     "MLParameters",
+    "MLStitchParameters",
     "MLTracker",
 ]
