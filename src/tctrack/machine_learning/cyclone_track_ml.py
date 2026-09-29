@@ -74,9 +74,10 @@ def _angular_distance_deg(lat1: float, lon1: float, lat2: float, lon2: float) ->
     179W is 2 degrees apart, not 358), and it ignores that a degree of
     longitude covers less physical distance away from the equator. This
     wraps the longitude difference to ``(-180, 180]`` and scales it by the
-    cosine of the mean latitude to correct for both. Still an approximation
-    - the Haversine formula would be exact - but adequate at the latitudes
-    tropical cyclones occur at.
+    cosine of the mean latitude to correct for both.
+
+    An approximation - the Haversine formula would be exact - but adequate at small
+    distances and the latitudes tropical cyclones occur at.
     """
     dlat = lat1 - lat2
     dlon = (lon1 - lon2 + 180) % 360 - 180
