@@ -6,7 +6,7 @@ import warnings
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, fields
 from datetime import timedelta
-from typing import TypedDict
+from typing import TypedDict, Any
 
 import cf
 from cftime import date2num, datetime
@@ -77,7 +77,7 @@ def is_typed_dict_instance(data, typed_dict_class):
 class TCTrackerMetadata:
     """Dataclass containing the metadata for a single variable in variable_metadata."""
 
-    properties: dict[str, str]
+    properties: dict[str, Any]
     """The basic metadata properties for the variable."""
 
     constructs: list | None = None
