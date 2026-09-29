@@ -5,6 +5,8 @@ from typing import TypedDict
 
 from tctrack.core import TCTrackerParameters
 
+GRAVITY = 9.80665  # Standard gravity [m/s^2]
+
 
 class TEContour(TypedDict):
     """
@@ -436,8 +438,13 @@ def _nc_names_defaults_uz(nc_names: dict[str, str]) -> None:
     nc_names.setdefault("msl", "msl")
     nc_names.setdefault("orog", "orog")
     nc_names.setdefault("si10", "si10")
-    gh_name = nc_names.get("gh", "gh")
-    nc_names.setdefault("ghdiff", f"_DIFF({gh_name}(300hPa),{gh_name}(500hPa))")
+    # Uses geopotential if z/zdiff are used, otherwise uses geopotential height
+    if any(key in nc_names for key in ("z", "zdiff")):
+        z_name = nc_names.get("z", "z")
+        nc_names.setdefault("zdiff", f"_DIFF({z_name}(300hPa),{z_name}(500hPa))")
+    else:
+        zg_name = nc_names.get("zg", "zg")
+        nc_names.setdefault("zgdiff", f"_DIFF({zg_name}(300hPa),{zg_name}(500hPa))")
 
 
 def parameter_set_uz(
@@ -455,9 +462,12 @@ def parameter_set_uz(
         An optional dictionary of NetCDF variable names.
 
         The dictionary keys match the default variable names, which are shown in the
-        table below. The difference in geopotential height uses the 300 and 500 hPa
+        table below. The difference in geopotential (height) uses the 300 and 500 hPa
         levels by default, but can be overridden, for example:
-        ``{"ghdiff": "_DIFF(gh(250hPa),gh(500hPa))"}``.
+        ``{"zgdiff": "_DIFF(zg(250hPa),zg(500hPa))"}``.
+
+        By default geopotential height is used. But if either ``z`` or ``zdiff`` are set
+        it will use geopotential instead.
 
         .. list-table:: NetCDF variable name defaults
            :header-rows: 1
@@ -481,14 +491,29 @@ def parameter_set_uz(
              - ``si10``
              -
            * - Geopotential height
-             - ``gh``
-             - Used to calculate ``ghdiff`` at 300 hPa and 500 hPa.
+             - ``zg``
+             - Used to calculate ``zgdiff`` at 300 hPa and 500 hPa.
            * - Geopotential height difference
-             - ``ghdiff``
-             - Default: ``_DIFF(gh(300hPa),gh(500hPa))``.
+             - ``zgdiff``
+             - Default: ``_DIFF(zg(300hPa),zg(500hPa))``.
+           * - Geopotential
+             - ``z``
+             - Used to calculate ``zdiff`` at 300 hPa and 500 hPa.
+           * - Geopotential difference
+             - ``zdiff``
+             - Default: ``_DIFF(z(300hPa),z(500hPa))``.
     """
     nc_names = nc_names.copy()
     _nc_names_defaults_uz(nc_names)
+
+    # Use either geopotential or geopotential height
+    geopotential_contour = (
+        TEContour(var=nc_names["zgdiff"], delta=-6.0, dist=6.5, minmaxdist=1.0)
+        if "zgdiff" in nc_names
+        else TEContour(
+            var=nc_names["zdiff"], delta=-6.0 * GRAVITY, dist=6.5, minmaxdist=1.0
+        )
+    )
 
     return (
         TEDetectParameters(
@@ -497,7 +522,7 @@ def parameter_set_uz(
             merge_dist=6.0,
             closed_contours=[
                 TEContour(var=nc_names["msl"], delta=200.0, dist=5.5, minmaxdist=0.0),
-                TEContour(var=nc_names["ghdiff"], delta=-6.0, dist=6.5, minmaxdist=1.0),
+                geopotential_contour,
             ],
             lon_name=nc_names["longitude"],
             lat_name=nc_names["latitude"],
