@@ -837,7 +837,7 @@ class MLTracker(TCMLTracker):
             ),
             properties={
                 "standard_name": "time",
-                "long_name": "time of detection",
+                "long_name": "time",
                 "units": cf.Units(
                     self.time_metadata["units"], calendar=self.time_metadata["calendar"]
                 ),
@@ -847,7 +847,7 @@ class MLTracker(TCMLTracker):
             data=cf.Data([candidate["lat"] for candidate in self._candidates]),
             properties={
                 "standard_name": "latitude",
-                "long_name": "latitude of detection",
+                "long_name": "latitude",
                 "units": "degrees_north",
             },
         )
@@ -855,7 +855,7 @@ class MLTracker(TCMLTracker):
             data=cf.Data([candidate["lon"] for candidate in self._candidates]),
             properties={
                 "standard_name": "longitude",
-                "long_name": "longitude of detection",
+                "long_name": "longitude",
                 "units": "degrees_east",
             },
         )
