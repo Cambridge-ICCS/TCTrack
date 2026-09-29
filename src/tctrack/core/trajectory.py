@@ -26,7 +26,8 @@ class Trajectory:
         Number of points in the trajectory.
     calendar : str
         The calendar type to use for datetime handling.
-        Options are "gregorian", "360_day", or "noleap".
+        Options are the calendars supported by ``cftime``: "standard"/"gregorian",
+        "proleptic_gregorian", "julian", "noleap", "360_day", and "all_leap".
     start_time : cftime.datetime
         Start time of the trajectory as a cftime.datetime object.
     data : dict
@@ -56,7 +57,9 @@ class Trajectory:
             using the appropriate calendar.
         calendar : str, optional
             The calendar type to use for datetime handling if the time is provided as a
-            list. Options are "gregorian", "julian", "360_day", or "noleap".
+            list. Options are the calendars supported by ``cftime``: "standard"/
+            "gregorian", "proleptic_gregorian", "julian", "noleap", "360_day", and
+            "all_leap".
 
         Raises
         ------
@@ -98,7 +101,15 @@ class Trajectory:
         UserWarning
             If more than six values are passed as a time.
         """
-        supported_types = {"360_day", "noleap", "julian", "gregorian", "standard"}
+        supported_types = {
+            "360_day",
+            "noleap",
+            "julian",
+            "gregorian",
+            "standard",
+            "proleptic_gregorian",
+            "all_leap",
+        }
         if self.calendar in supported_types:
             time_units = ("year", "month", "day", "hour", "minute", "second")
             # Set all the time units provided in `time`, set the rest to zero

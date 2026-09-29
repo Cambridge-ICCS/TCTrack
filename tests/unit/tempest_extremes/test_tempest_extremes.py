@@ -542,11 +542,18 @@ class TestTETracker:
         ],
     )
     def test_read_trajectories(
-        self, file_format, mock_file_fixture, expected_trajectories, request
+        self,
+        file_format,
+        mock_file_fixture,
+        expected_trajectories,
+        request,
+        netcdf_psl_file,
     ):
         """Test read_trajectories for different formats and multiple trajectories."""
         mock_file = request.getfixturevalue(mock_file_fixture)
-        dn_params = TEDetectParameters(in_data=["input_file.nc"])
+        dn_params = TEDetectParameters(
+            in_data=[netcdf_psl_file({})], search_by_min="psl"
+        )
         tracker = TETracker(dn_params)
         tracker.stitch_parameters.output_dir = str(mock_file.parent)
         tracker.stitch_parameters.output_file = mock_file.name
@@ -569,7 +576,7 @@ class TestTETracker:
         ],
     )
     def test_read_trajectories_header_names(
-        self, file_format, mock_file_fixture, request
+        self, file_format, mock_file_fixture, request, netcdf_psl_file
     ) -> None:
         """
         Test the track header names are assigned correctly when not in file.
@@ -584,7 +591,9 @@ class TestTETracker:
             TEOutputCommand(var="v2", operator="min", dist=0.0),
         ]
         dn_params = TEDetectParameters(
-            in_data=["input_file.nc"], output_commands=output_commands
+            in_data=[netcdf_psl_file({})],
+            search_by_min="psl",
+            output_commands=output_commands,
         )
         tracker = TETracker(dn_params)
 
