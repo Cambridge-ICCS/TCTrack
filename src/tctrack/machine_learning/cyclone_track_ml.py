@@ -167,7 +167,7 @@ class MLStitchParameters(TCTrackerParameters):
     MLTracker : The tracker class that uses these parameters.
     """
 
-    stitch_max_distance_deg: float = 3.0
+    max_distance_deg: float = 3.0
     """Maximum distance (degrees lat/lon) between a track's last point and a
     candidate in the next timestep for them to be linked as the same storm.
 
@@ -177,12 +177,12 @@ class MLStitchParameters(TCTrackerParameters):
     cyclone translation speeds; reduce for higher-frequency input.
     """
 
-    stitch_max_gap: int = 1
+    max_gap: int = 1
     """Number of consecutive timesteps a track may go unmatched before it is
     closed, tolerating brief drops below :attr:`~TCMLParameters.threshold`.
     """
 
-    stitch_min_length: int = 2
+    min_length: int = 2
     """Minimum number of observations a track must have to be kept, filtering
     out single-timestep detections likely to be noise.
     """
@@ -691,10 +691,10 @@ class MLTracker(TCMLTracker):
         -------
         int | None
             Index of the nearest candidate within
-            :attr:`stitch_parameters.stitch_max_distance_deg`, or ``None`` if
+            :attr:`stitch_parameters.max_distance_deg`, or ``None`` if
             none qualify.
         """
-        best_index, best_distance = None, self.stitch_parameters.stitch_max_distance_deg #best distance is closest distance found so far
+        best_index, best_distance = None, self.stitch_parameters.max_distance_deg #best distance is closest distance found so far
         for i in unmatched:
             candidate = candidates[i]
             distance = _angular_distance_deg(
@@ -723,7 +723,7 @@ class MLTracker(TCMLTracker):
         -------
         list[Trajectory]
             One :class:`~tctrack.core.Trajectory` per track with at least
-            :attr:`stitch_parameters.stitch_min_length` observations.
+            :attr:`stitch_parameters.min_length` observations.
         """
         # Group detect()'s flat list of locations by the timestep they belong
         # to, so each timestep's candidates can be looked up by index below.
@@ -755,7 +755,7 @@ class MLTracker(TCMLTracker):
 
             still_active = []
             for track in active_tracks:
-                if track["missed"] > self.stitch_parameters.stitch_max_gap:
+                if track["missed"] > self.stitch_parameters.max_gap:
                     finished.append(track["traj"])
                 else:
                     still_active.append(track)
@@ -776,7 +776,7 @@ class MLTracker(TCMLTracker):
         self._trajectories = [
             trajectory
             for trajectory in finished
-            if trajectory.observations >= self.stitch_parameters.stitch_min_length
+            if trajectory.observations >= self.stitch_parameters.min_length
         ]
         return self._trajectories
 

@@ -177,7 +177,7 @@ def test_pipeline(input_file: str, stats_file: str) -> None:
         "would write nothing"
     )
     for trajectory in trajectories:
-        assert trajectory.observations >= tracker.stitch_parameters.stitch_min_length
+        assert trajectory.observations >= tracker.stitch_parameters.min_length
         for key in ("time", "lat", "lon"):
             assert key in trajectory.data, f"trajectory missing '{key}'"
     print(f"  stitch():     {len(trajectories)} trajectories, all well-formed   OK")
@@ -201,7 +201,7 @@ def test_output_writers(work_dir: str, input_file: str, stats_file: str) -> None
         input_file,
         stats_file,
         threshold=LOW_THRESHOLD,
-        stitch_min_length=1,  # keep single-timestep tracks, so tracks exist
+        min_length=1,  # keep single-timestep tracks, so tracks exist
     )
 
     # run_tracker() runs detect() and stitch() and writes the trajectories.
