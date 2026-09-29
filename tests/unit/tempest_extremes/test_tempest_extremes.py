@@ -29,6 +29,7 @@ from tctrack.tempest_extremes import (
     parameter_set_uz,
 )
 from tctrack.tempest_extremes.parameters import (
+    GRAVITY,
     _nc_names_defaults_owz,
     _nc_names_defaults_uz,
 )
@@ -190,7 +191,7 @@ class TestTEParameterSets:
                 closed_contours=[
                     TEContour(var="msl", delta=200.0, dist=5.5, minmaxdist=0.0),
                     TEContour(
-                        var="_DIFF(gh(300hPa),gh(500hPa))",
+                        var="_DIFF(zg(300hPa),zg(500hPa))",
                         delta=-6.0,
                         dist=6.5,
                         minmaxdist=1.0,
@@ -220,6 +221,18 @@ class TestTEParameterSets:
             ),
         )
 
+    def test_parameter_set_uz_geopotential(self) -> None:
+        """Check the UZ parameter set uses geopotential when z or zdiff is set."""
+        detect, _ = parameter_set_uz({"z": "z_new"})
+
+        assert detect.closed_contours is not None
+        assert detect.closed_contours[1] == TEContour(
+            var="_DIFF(z_new(300hPa),z_new(500hPa))",
+            delta=-6.0 * GRAVITY,
+            dist=6.5,
+            minmaxdist=1.0,
+        )
+
     def test_parameter_set_uz_nc_names_unchanged(self) -> None:
         """Check a dictionary passed to parameter_set_uz does not get modified."""
         nc_names = {
@@ -227,7 +240,7 @@ class TestTEParameterSets:
             "msl": "msl_new",
             "orog": "orog_new",
             "si10": "si10_new",
-            "gh": "gh_new",
+            "zg": "zg_new",
         }
         nc_names_before = nc_names.copy()
         _ = parameter_set_uz(nc_names)
@@ -324,20 +337,20 @@ class TestTEParameterSets:
             "msl": "msl_new",
             "orog": "orog_new",
             "si10": "si10_new",
-            "gh": "gh_new",
+            "zg": "zg_new",
         }
         nc_names = overrides.copy()
         _nc_names_defaults_uz(nc_names)
 
         for key, value in overrides.items():
             assert nc_names[key] == value
-        assert nc_names["ghdiff"] == "_DIFF(gh_new(300hPa),gh_new(500hPa))"
+        assert nc_names["zgdiff"] == "_DIFF(zg_new(300hPa),zg_new(500hPa))"
 
     def test_nc_names_uz_derived_names(self) -> None:
         """Check UZ derived variable names correctly override defaults."""
-        nc_names = {"ghdiff": "ghdiff_new"}
-        _nc_names_defaults_owz(nc_names)
-        assert nc_names["ghdiff"] == "ghdiff_new"
+        nc_names = {"zgdiff": "zgdiff_new"}
+        _nc_names_defaults_uz(nc_names)
+        assert nc_names["zgdiff"] == "zgdiff_new"
 
     def test_nc_names_owz_base_names(self) -> None:
         """Check OWZ base names generate the expected level / derived names."""
