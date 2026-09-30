@@ -86,6 +86,18 @@ The following settings are available:
 		- `column`: Column name to use as the linked property.
 		- `min`: Value/opacity pair for smallest value, e.g. [0, 0.1] when property = 0, opacity = 0.1.
 		- `max`: Value/opacity pair for largest value, e.g. [25, 1] when property >= 25, opacity = 1.0.
+- `heatmap` Heatmap configuration:
+	- `weight_property`: Link a property value to heatmap weights (0.0–1.0):
+		- `column`: Column name to use as the linked property.
+		- `min`: Value/weight pair for lowest weight, e.g. [0, 0] when property = 0, weight = 0.
+		- `max`: Value/weight pair for strongest weight, e.g. [30, 1] when property >= 30, weight = 1.
+		- `exponential`: Exponential base for weight scaling.
+	- `palette` Colour ramp for heatmap density (`#rrggbb` hex format, no alpha).
+		- `low`: Starting colour.
+		- `mid`: Colour at midpoint.
+		- `high`: Colour at maximum weight.
+	- `max_zoom`: Maximum zoom level. The heatmap will be faded out by this level of zoom.
+	- `opacity`: Heatmap opacity.
 - `palette` Colours for rendering features (`#rrggbb[aa]` hex format). The default accessible set is taken from [Qualitative Colour Schemes](https://sronpersonalpages.nl/~pault/):
 	- `single` Feature colour when there is only one layer.
 	- `layers` Any number of colours to use for features on each layer. Colours are applied to layers in sequence. When all colours are used, subsequent layers will use the final colour in the list.

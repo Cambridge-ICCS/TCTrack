@@ -6,6 +6,7 @@ const BASEMAP_STYLE = window.DATASETTE_MAPLIBRE_STYLE || "https://demotiles.mapl
 const GROUP_BY = window.DATASETTE_MAPLIBRE_GROUP_BY || null;
 const POINT = window.DATASETTE_MAPLIBRE_POINT || { radius: 4 };
 const LINE = window.DATASETTE_MAPLIBRE_LINE || { thickness: 2 };
+const HEATMAP = window.DATASETTE_MAPLIBRE_HEATMAP || null;
 const LAYER_COLUMN = window.DATASETTE_MAPLIBRE_LAYER_COLUMN || null;
 const PALETTE = window.DATASETTE_MAPLIBRE_PALETTE || { single: "#000000", layers: ["#ffffff"] };
 const MAX_LAYERS = window.DATASETTE_MAPLIBRE_MAX_LAYERS || 20;
@@ -298,6 +299,54 @@ function init() {
 
 		const source_id = "datasette-geojson";
 		map.addSource(source_id, { type: "geojson", data: geojson });
+
+		// Link heatmap weight to property value if defined and column exists
+		let heatmap_weight = null;
+		if (HEATMAP?.weight_property?.column && HEATMAP.weight_property.column in geojson.features[0].properties)
+			heatmap_weight = [
+				"interpolate",
+				["exponential", HEATMAP.weight_property.exponential],
+				["coalesce", ["get", HEATMAP.weight_property.column], 0.0],  // default to zero when no value present
+				HEATMAP.weight_property.min[0], HEATMAP.weight_property.min[1],
+				HEATMAP.weight_property.max[0], HEATMAP.weight_property.max[1],
+			];
+
+		// Add heatmap if configured
+		if (heatmap_weight)
+			map.addLayer({
+				id: "heatmap",
+				type: "heatmap",
+				source: source_id,
+				maxzoom: HEATMAP.max_zoom,
+				paint: {
+					"heatmap-weight": heatmap_weight,
+					"heatmap-color": [
+						"interpolate",
+						["linear"],
+						["heatmap-density"],
+						0.0, HEATMAP.palette.low + "00",  // add transparent alpha channel for zero values
+						0.1, HEATMAP.palette.low,
+						0.5, HEATMAP.palette.mid,
+						1.0, HEATMAP.palette.high,
+					],
+					// Adjust the heatmap radius by zoom level
+					"heatmap-radius": [
+						"interpolate",
+						["linear"],
+						["zoom"],
+						0, 1,
+						HEATMAP.max_zoom, 50,
+					],
+					// Fade out heatmap as it reaches maximum zoom
+					"heatmap-opacity": [
+						"interpolate",
+						["linear"],
+						["zoom"],
+						HEATMAP.max_zoom - 2, HEATMAP.opacity,
+						HEATMAP.max_zoom, 0,
+					],
+				},
+			});
 
 		// Add new layers for each distinct layer value
 		let layer_id;
