@@ -183,42 +183,40 @@ class TestTEParameterSets:
         """Check the UZ parameter set defaults."""
         detect, stitch = parameter_set("UZ")
 
-        assert (detect, stitch) == (
-            TEDetectParameters(
-                search_by_min="msl",
-                time_filter="6hr",
-                merge_dist=6.0,
-                closed_contours=[
-                    TEContour(var="msl", delta=200.0, dist=5.5, minmaxdist=0.0),
-                    TEContour(
-                        var="_DIFF(zg(300hPa),zg(500hPa))",
-                        delta=-6.0,
-                        dist=6.5,
-                        minmaxdist=1.0,
-                    ),
-                ],
-                lon_name="longitude",
-                lat_name="latitude",
-                out_header=True,
-                output_commands=[
-                    TEOutputCommand(var="msl", operator="min", dist=0.0),
-                    TEOutputCommand(var="orog", operator="max", dist=0.0),
-                    TEOutputCommand(var="si10", operator="max", dist=2.0),
-                ],
-            ),
-            TEStitchParameters(
-                caltype="360_day",
-                max_sep=8.0,
-                min_time="54h",
-                max_gap="24h",
-                min_endpoint_dist=8.0,
-                threshold_filters=[
-                    TEThreshold(var="latitude", op="<=", value=50, count=10),
-                    TEThreshold(var="latitude", op=">=", value=-50, count=10),
-                    TEThreshold(var="orog", op="<=", value=150, count=10),
-                    TEThreshold(var="si10", op=">=", value=10, count=10),
-                ],
-            ),
+        assert detect == TEDetectParameters(
+            search_by_min="msl",
+            time_filter="6hr",
+            merge_dist=6.0,
+            closed_contours=[
+                TEContour(var="msl", delta=200.0, dist=5.5, minmaxdist=0.0),
+                TEContour(
+                    var="_DIFF(zg(300hPa),zg(500hPa))",
+                    delta=-6.0,
+                    dist=6.5,
+                    minmaxdist=1.0,
+                ),
+            ],
+            lon_name="longitude",
+            lat_name="latitude",
+            out_header=True,
+            output_commands=[
+                TEOutputCommand(var="msl", operator="min", dist=0.0),
+                TEOutputCommand(var="orog", operator="max", dist=0.0),
+                TEOutputCommand(var="si10", operator="max", dist=2.0),
+            ],
+        )
+        assert stitch == TEStitchParameters(
+            caltype="360_day",
+            max_sep=8.0,
+            min_time="54h",
+            max_gap="24h",
+            min_endpoint_dist=8.0,
+            threshold_filters=[
+                TEThreshold(var="lat", op="<=", value=50, count=10),
+                TEThreshold(var="lat", op=">=", value=-50, count=10),
+                TEThreshold(var="orog", op="<=", value=150, count=10),
+                TEThreshold(var="si10", op=">=", value=10, count=10),
+            ],
         )
 
     def test_parameter_set_uz_geopotential(self) -> None:
