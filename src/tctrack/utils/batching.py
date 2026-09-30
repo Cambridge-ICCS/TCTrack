@@ -51,6 +51,10 @@ def _combine_trajectories(
     # Selecting only the trajectories that start in the batch time period
     fields_by_batch = []
     for file, batch_time_range in zip(output_file_list, batch_time_ranges, strict=True):
+        # Skip batches with no tracks, for which no output file was written
+        if not file.is_file():
+            continue
+
         batch_start_time, batch_end_time = batch_time_range
         batch_fields = cf.read(str(file))  # type: ignore[operator]
 
@@ -61,6 +65,11 @@ def _combine_trajectories(
             fields_by_batch.append(
                 [field.subspace(trajectory=in_batch) for field in batch_fields]
             )
+
+    if not fields_by_batch:
+        msg = "No tracks were found in any batch so no output file will be written."
+        warnings.warn(msg, category=UserWarning, stacklevel=2)
+        return
 
     # Re-index the trajectory
     trajectory_offset = 0
@@ -497,7 +506,11 @@ def batching(
         # Run the tracker and keep track of the output files
         input_file_paths = _parse_files(tracker_inputs, batch_dir)
         output_file = output_dir / f"tracks_{i_iter}.nc"
-        tracker.run_tracker(input_file_paths, str(output_file))
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message="There are no trajectories in this period.*"
+            )
+            tracker.run_tracker(input_file_paths, str(output_file))
         output_files.append(output_file)
 
         # Optionally delete the batch directory
