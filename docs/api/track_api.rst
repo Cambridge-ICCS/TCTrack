@@ -26,3 +26,5 @@ For an overview of the functionalities, installation, and usage see the
    :undoc-members:
    :show-inheritance:
    :inherited-members:
+
+.. autofunction:: parameter_set
