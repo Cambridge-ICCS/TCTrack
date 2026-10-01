@@ -3,10 +3,14 @@
 These tests cover the logic of the machine-learning tracker that turns model output
 into tracks.
 
-No test needs a real model, a download, or input data. A fixture creates trackers with
-model loading disabled, the model itself is replaced by a mock that returns chosen
-output, and the inputs are small hand-built grids and candidate lists. The tests
-therefore check the tracker's logics.
+No test needs a real model or a download. A fixture creates trackers with model loading
+disabled, the model itself is replaced by a mock that returns chosen output, and the
+inputs are small hand-built grids and candidate lists. The tests of reading the input
+file use the small ERA5 sample in ``data/machine_learning``. The tests therefore check
+the tracker's logic.
+
+The data used for tests is sample subset of ERA5 data in the directory /data/machine_learning, 
+and is licensed under the Open Government Licence v3.0 (OGL). 
 """
 
 # The tests inspect module-private helpers on purpose.
@@ -15,8 +19,10 @@ therefore check the tracker's logics.
 import json
 from dataclasses import asdict
 from datetime import timedelta
+from pathlib import Path
 from unittest.mock import MagicMock
 
+import cf
 import numpy as np
 import pytest
 import torch
@@ -31,6 +37,15 @@ from tctrack.machine_learning.cyclone_track_ml import (
     _angular_distance_deg,
     _point_variables,
 )
+
+
+SAMPLE_FILE = (
+    Path(__file__).parents[3]
+    / "data"
+    / "machine_learning"
+    / "era5_dikeledi_2025-01-10.nc"
+)
+N_CHANNELS = 17  # 5 pressure variables x 3 levels, land mask, sea surface temperature
 
 
 @pytest.fixture
@@ -176,6 +191,90 @@ class TestMLTrackerInit:
         parameters = MLParameters(model_path=str(tmp_path / "missing.pt"))
         with pytest.raises(OSError, match="Model file not found"):
             MLTracker(parameters)
+
+
+class TestPreprocess:
+    """Tests for MLTracker.preprocess, run on the ERA5 sample file."""
+
+    @pytest.fixture
+    def tracker(self, make_tracker, monkeypatch):
+        """Tracker on the sample file, with normalisation switched off (mean 0, range 1)."""
+        tracker = make_tracker(MLParameters(input_file=str(SAMPLE_FILE)))
+        monkeypatch.setattr(
+            tracker,
+            "_load_normalisation_stats",
+            lambda: (np.zeros(N_CHANNELS), np.ones(N_CHANNELS)),
+        )
+        return tracker
+
+    @pytest.fixture(scope="class")
+    def fields(self):
+        """The fields in the sample file, for comparison with the tensor."""
+        return cf.read(str(SAMPLE_FILE))
+
+    def test_tensor_shape(self, tracker):
+        """The tensor is (channel, time, lat, lon) float32 with no NaNs."""
+        data = tracker.preprocess()
+        assert tuple(data.shape) == (N_CHANNELS, 10, 80, 80)
+        assert data.dtype == torch.float32
+        assert not torch.isnan(data).any()
+
+    def test_grid_and_times_stored(self, tracker):
+        """The latitudes, longitudes and times of the file are stored on the tracker."""
+        tracker.preprocess()
+        assert len(tracker._lats) == 80
+        assert len(tracker._lons) == 80
+        assert len(tracker._times) == 10
+        assert (tracker._lats.min(), tracker._lats.max()) == (-22.25, -2.5)
+        assert (tracker._lons.min(), tracker._lons.max()) == (41.0, 60.75)
+        assert (tracker._times[0].month, tracker._times[0].day) == (1, 10)
+        assert (tracker._times[-1].day, tracker._times[-1].hour) == (12, 6)
+
+    def test_pressure_channels_ordered_variable_then_level(self, tracker, fields):
+        """Channels run through each variable's levels in turn: 1000, 750, 500 hPa."""
+        data = tracker.preprocess().numpy()
+        temperature = fields.select_field("air_temperature")
+        for channel, level in zip((3, 4, 5), (1000, 750, 500)):
+            expected = temperature.subspace(Z=level).squeeze("Z").array
+            assert np.allclose(data[channel], expected)
+
+    def test_normalisation_applied(self, tracker, monkeypatch):
+        """Each channel is normalised as (x - mean) / range."""
+        raw = tracker.preprocess()
+        mean = np.arange(N_CHANNELS, dtype=float)
+        value_range = np.full(N_CHANNELS, 2.0)
+        monkeypatch.setattr(
+            tracker, "_load_normalisation_stats", lambda: (mean, value_range)
+        )
+        expected = (raw - torch.from_numpy(mean).float()[:, None, None, None]) / 2.0
+        assert torch.allclose(tracker.preprocess(), expected)
+
+    def test_land_mask_channel(self, tracker, fields):
+        """The land mask is 1 where sea surface temperature is undefined, all times."""
+        data = tracker.preprocess().numpy()
+        land_mask = data[15]
+        sst_mask = np.ma.getmaskarray(fields.select_field("ncvar%sst").array)
+        assert set(np.unique(land_mask)) == {0.0, 1.0}
+        assert np.array_equal(land_mask[0], sst_mask[0].astype(np.float32))
+        assert all(np.array_equal(land_mask[0], frame) for frame in land_mask)
+
+    def test_sea_surface_temperature_filled_over_land(self, tracker, fields):
+        """Sea surface temperature is replaced by 2 m temperature over land."""
+        data = tracker.preprocess().numpy()
+        sst = fields.select_field("ncvar%sst").array
+        t2m = fields.select_field("ncvar%t2m").array
+        land = np.ma.getmaskarray(sst)
+        assert land.any()
+        assert np.allclose(data[16][land], np.asarray(t2m)[land])
+        assert np.allclose(data[16][~land], np.ma.getdata(sst)[~land])
+
+    def test_missing_variable_raises(self, make_tracker):
+        """A configured variable that is not in the file raises ValueError."""
+        parameters = MLParameters(
+            input_file=str(SAMPLE_FILE), pressure_variables=("not_a_variable",)
+        )
+        with pytest.raises(ValueError):
+            make_tracker(parameters).preprocess()
 
 
 class TestDetect:
