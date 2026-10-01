@@ -23,6 +23,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import cf
+import h5py
 import numpy as np
 import pytest
 import torch
@@ -75,6 +76,19 @@ def _candidate(hour: int, lat: float, lon: float, score: float = 0.9) -> dict:
         "class_index": 2.0,
         "score": score,
     }
+
+
+def _logits(storms=None, n_lat=6, n_lon=6):
+    """Model output where every pixel is background except those in ``storms``.
+
+    ``storms`` maps ``(y, x)`` to ``(class_index, logit)``.
+    """
+    logits = torch.zeros(1, 5, n_lat, n_lon)
+    logits[0, 0] = 10.0
+    for (y, x), (class_index, value) in (storms or {}).items():
+        logits[0, :, y, x] = 0.0
+        logits[0, class_index, y, x] = value
+    return logits
 
 
 class TestAngularDistanceDeg:
@@ -136,6 +150,21 @@ class TestMLStitchParameters:
         assert params.min_length == 2
 
 
+class TestMLParametersThreshold:
+    """Tests for the validation of the confidence threshold."""
+
+    @pytest.mark.parametrize("threshold", [0.0, 0.5, 1.0])
+    def test_valid_threshold_accepted(self, threshold):
+        """Thresholds from 0 to 1 inclusive are accepted."""
+        assert MLParameters(threshold=threshold).threshold == threshold
+
+    @pytest.mark.parametrize("threshold", [-0.1, 1.1])
+    def test_invalid_threshold_raises(self, threshold):
+        """Thresholds outside 0 to 1 raise a ValueError."""
+        with pytest.raises(ValueError, match="threshold must be in"):
+            MLParameters(threshold=threshold)
+
+
 class TestMLTrackerInit:
     """Tests for MLTracker setup."""
 
@@ -191,6 +220,94 @@ class TestMLTrackerInit:
         parameters = MLParameters(model_path=str(tmp_path / "missing.pt"))
         with pytest.raises(OSError, match="Model file not found"):
             MLTracker(parameters)
+
+
+class TestNormalisationStats:
+    """Tests for MLTracker._load_normalisation_stats."""
+
+    def test_bundled_stats_used_by_default(self, make_tracker):
+        """The statistics shipped with the package cover every channel."""
+        tracker = make_tracker()
+        mean, value_range = tracker._load_normalisation_stats()
+        assert mean.shape == value_range.shape == (N_CHANNELS,)
+        assert np.isfinite(mean).all()
+        assert (value_range > 0).all()
+
+    def test_custom_stats_file_used(self, make_tracker, tmp_path):
+        """The mean and range are read from normalisation_stats_path when set."""
+        stats_file = tmp_path / "stats.nc"
+        with h5py.File(stats_file, "w") as stats:
+            stats["mean"] = np.arange(N_CHANNELS, dtype=float)
+            stats["range"] = np.arange(1, N_CHANNELS + 1, dtype=float)
+        tracker = make_tracker(MLParameters(normalisation_stats_path=str(stats_file)))
+        mean, value_range = tracker._load_normalisation_stats()
+        assert np.array_equal(mean, np.arange(N_CHANNELS))
+        assert np.array_equal(value_range, np.arange(1, N_CHANNELS + 1))
+
+    def test_missing_stats_file_raises(self, make_tracker, tmp_path):
+        """A normalisation_stats_path that does not exist raises an OSError."""
+        parameters = MLParameters(normalisation_stats_path=str(tmp_path / "none.nc"))
+        with pytest.raises(OSError):
+            make_tracker(parameters)._load_normalisation_stats()
+
+
+class TestSetMetadata:
+    """Tests for MLTracker._set_metadata, run on the ERA5 sample file."""
+
+    @pytest.fixture
+    def tracker(self, make_tracker):
+        """Tracker on the sample file with its metadata set."""
+        tracker = make_tracker(MLParameters(input_file=str(SAMPLE_FILE)))
+        tracker._set_metadata()
+        return tracker
+
+    def test_time_metadata(self, tracker):
+        """The calendar, units and first and last times come from the file."""
+        metadata = tracker._time_metadata
+        assert metadata["calendar"] == "proleptic_gregorian"
+        assert metadata["units"] == "seconds since 1970-01-01"
+        assert (metadata["start_time"].month, metadata["start_time"].day) == (1, 10)
+        assert (metadata["end_time"].day, metadata["end_time"].hour) == (12, 6)
+
+    def test_variable_metadata_matches_channels(self, tracker):
+        """Every input channel and both model outputs have metadata."""
+        expected = {*tracker._channel_names, "class_index", "score"}
+        assert set(tracker._variable_metadata) == expected
+
+    def test_class_index_flags(self, tracker):
+        """The lifecycle class is described with CF flag values and meanings."""
+        properties = tracker._variable_metadata["class_index"].properties
+        assert properties["flag_values"] == [0, 1, 2, 3, 4]
+        assert len(properties["flag_meanings"].split()) == 5
+
+    def test_pressure_variable_metadata(self, tracker):
+        """A pressure-level variable has its CF name, level and units."""
+        properties = tracker._variable_metadata["air_temperature_500"].properties
+        assert properties["standard_name"] == "air_temperature"
+        assert properties["long_name"] == "air temperature at 500 hPa"
+        assert properties["units"] == "K"
+
+    def test_file_without_time_raises(self, make_tracker, tmp_path):
+        """An input file with no time coordinate raises a ValueError."""
+        field = cf.Field(properties={"standard_name": "air_temperature", "units": "K"})
+        lat_axis = field.set_construct(cf.DomainAxis(3))
+        lon_axis = field.set_construct(cf.DomainAxis(4))
+        for name, axis, size, units in (
+            ("latitude", lat_axis, 3, "degrees_north"),
+            ("longitude", lon_axis, 4, "degrees_east"),
+        ):
+            coordinate = cf.DimensionCoordinate(
+                data=cf.Data(np.arange(size, dtype=float), units=units),
+                properties={"standard_name": name},
+            )
+            field.set_construct(coordinate, axes=axis)
+        field.set_data(cf.Data(np.zeros((3, 4)), units="K"), axes=(lat_axis, lon_axis))
+        input_file = tmp_path / "no_time.nc"
+        cf.write(field, str(input_file))
+
+        tracker = make_tracker(MLParameters(input_file=str(input_file)))
+        with pytest.raises(ValueError, match="time"):
+            tracker._set_metadata()
 
 
 class TestPreprocess:
@@ -305,22 +422,10 @@ class TestDetect:
         )
         return tracker
 
-    def _logits(self, storms=None, n_lat=None, n_lon=None):
-        """Model output where every pixel is background except those in ``storms``.
-
-        ``storms`` maps ``(y, x)`` to ``(class_index, logit)``.
-        """
-        logits = torch.zeros(1, 5, n_lat or self.n_lat, n_lon or self.n_lon)
-        logits[0, 0] = 10.0
-        for (y, x), (class_index, value) in (storms or {}).items():
-            logits[0, :, y, x] = 0.0
-            logits[0, class_index, y, x] = value
-        return logits
-
     def test_storm_pixel_becomes_candidate(self, tracker):
         """Test that a confident storm pixel is reported with its location and class."""
         tracker.model = MagicMock(
-            side_effect=[self._logits({(2, 3): (2, 10.0)}), self._logits()]
+            side_effect=[_logits({(2, 3): (2, 10.0)}), _logits()]
         )
         tracker.detect()
         assert len(tracker._candidates) == 1
@@ -332,20 +437,20 @@ class TestDetect:
 
     def test_background_gives_no_candidates(self, tracker):
         """Test that a model predicting only background finds nothing."""
-        tracker.model = MagicMock(return_value=self._logits())
+        tracker.model = MagicMock(return_value=_logits())
         tracker.detect()
         assert tracker._candidates == []
 
     def test_low_confidence_discarded(self, tracker):
         """Test that a storm class below the threshold is not a candidate."""
         # A winning probability of about 0.4, below the default threshold of 0.5.
-        tracker.model = MagicMock(return_value=self._logits({(2, 3): (2, 1.0)}))
+        tracker.model = MagicMock(return_value=_logits({(2, 3): (2, 1.0)}))
         tracker.detect()
         assert tracker._candidates == []
 
     def test_scores_hold_every_pixel(self, tracker):
         """Test that the class probabilities are kept for every pixel and timestep."""
-        tracker.model = MagicMock(return_value=self._logits())
+        tracker.model = MagicMock(return_value=_logits())
         tracker.detect()
         assert len(tracker._scores) == self.n_time * self.n_lat * self.n_lon
         assert set(tracker._scores[0]) == {"time", "lat", "lon", "probs"}
@@ -355,7 +460,7 @@ class TestDetect:
     def test_colocated_variables_in_physical_units(self, tracker):
         """Test that input variables at the storm are reported un-normalised."""
         tracker.model = MagicMock(
-            side_effect=[self._logits({(2, 3): (2, 10.0)}), self._logits()]
+            side_effect=[_logits({(2, 3): (2, 10.0)}), _logits()]
         )
         tracker.detect()
         candidate = tracker._candidates[0]
@@ -365,7 +470,7 @@ class TestDetect:
 
     def test_grid_mismatch_raises(self, tracker):
         """Test that a model output on a different grid is rejected."""
-        tracker.model = MagicMock(return_value=self._logits(n_lat=4, n_lon=4))
+        tracker.model = MagicMock(return_value=_logits(n_lat=4, n_lon=4))
         with pytest.raises(ValueError, match="does not match"):
             tracker.detect()
 
@@ -568,3 +673,99 @@ class TestStitch:
         track = {"last": _candidate(0, 10.0, 50.0)}
         candidates = [_candidate(1, 20.0, 50.0)]
         assert tracker._nearest_candidate(track, candidates, {0}) is None
+
+
+class TestDetectionsToNetcdf:
+    """Tests for MLTracker.detections_to_netcdf."""
+
+    @pytest.fixture
+    def tracker(self, make_tracker):
+        """Tracker on the sample file holding two detections."""
+        tracker = make_tracker(MLParameters(input_file=str(SAMPLE_FILE)))
+        start = datetime(2025, 1, 10, calendar="proleptic_gregorian")
+        tracker._candidates = [
+            {
+                "time": start,
+                "lat": -13.0,
+                "lon": 55.0,
+                "class_index": 3.0,
+                "score": 0.6,
+                "sea_surface_temperature": 301.0,
+                "air_temperature_500": 265.0,
+            },
+            {
+                "time": start + timedelta(hours=6),
+                "lat": -12.5,
+                "lon": 54.0,
+                "class_index": 4.0,
+                "score": 0.7,
+                "sea_surface_temperature": 302.0,
+                "air_temperature_500": 266.0,
+            },
+        ]
+        return tracker
+
+    @staticmethod
+    def _read(path):
+        """Read a written file into {netCDF variable name: field}."""
+        return {field.nc_get_variable("?"): field for field in cf.read(str(path))}
+
+    def test_no_detections_warns_and_writes_nothing(self, make_tracker, tmp_path):
+        """With no detections a warning is given and no file is created."""
+        tracker = make_tracker(MLParameters(input_file=str(SAMPLE_FILE)))
+        output_file = tmp_path / "detections.nc"
+        with pytest.warns(UserWarning, match="no detections"):
+            tracker.detections_to_netcdf(str(output_file))
+        assert not output_file.exists()
+
+    def test_one_variable_per_detection_value(self, tracker, tmp_path):
+        """Each variable of a detection is written as its own field."""
+        tracker.detections_to_netcdf(str(tmp_path / "detections.nc"))
+        written = self._read(tmp_path / "detections.nc")
+        assert set(written) == {
+            "class_index",
+            "score",
+            "sea_surface_temperature",
+            "air_temperature_500",
+        }
+
+    def test_values_and_coordinates_round_trip(self, tracker, tmp_path):
+        """The values and the latitude and longitude read back unchanged."""
+        tracker.detections_to_netcdf(str(tmp_path / "detections.nc"))
+        score = self._read(tmp_path / "detections.nc")["score"]
+        assert np.allclose(score.array, [0.6, 0.7])
+        assert np.allclose(score.coordinate("latitude").array, [-13.0, -12.5])
+        assert np.allclose(score.coordinate("longitude").array, [55.0, 54.0])
+        assert score.coordinate("time").array.size == 2
+
+    def test_cf_attributes(self, tracker, tmp_path):
+        """The fields are CF point data with the metadata of each variable."""
+        tracker.detections_to_netcdf(str(tmp_path / "detections.nc"))
+        written = self._read(tmp_path / "detections.nc")
+        assert all(f.get_property("featureType") == "point" for f in written.values())
+        assert written["class_index"].get_property("flag_meanings")
+        sst = written["sea_surface_temperature"]
+        assert sst.get_property("standard_name") == "sea_surface_temperature"
+        assert np.allclose(sst.array, [301.0, 302.0])
+
+
+class TestRunTracker:
+    """Tests for MLTracker.run_tracker, with a mocked model on the ERA5 sample."""
+
+    def test_storm_becomes_trajectory_in_file(self, make_tracker, tmp_path):
+        """A storm in the first 3 timesteps becomes one trajectory, written to file."""
+        tracker = make_tracker(MLParameters(input_file=str(SAMPLE_FILE)))
+        storm = _logits({(40, 40): (4, 10.0)}, 80, 80)
+        quiet = _logits(None, 80, 80)
+        tracker.model = MagicMock(side_effect=[storm] * 3 + [quiet] * 7)
+        output_file = tmp_path / "tracks.nc"
+
+        tracker.run_tracker(str(output_file))
+
+        trajectories = tracker.read_trajectories()
+        assert len(trajectories) == 1
+        assert trajectories[0].observations == 3
+        assert trajectories[0].data["lat"] == [float(tracker._lats[40])] * 3
+        written = cf.read(str(output_file))
+        assert written
+        assert written[0].get_property("featureType") == "trajectory"
