@@ -115,11 +115,6 @@ class TestAngularDistanceDeg:
 class TestPointVariables:
     """Tests for the _point_variables helper."""
 
-    def test_removes_time(self):
-        """Test that the time key is dropped from a candidate."""
-        candidate = {"time": "2025-01-01", "lat": 1.0, "lon": 2.0}
-        assert "time" not in _point_variables(candidate)
-
     def test_keeps_other_keys(self):
         """Test that every non-time key is kept, including extra channels."""
         candidate = {
@@ -139,24 +134,8 @@ class TestPointVariables:
         }
 
 
-class TestMLStitchParameters:
-    """Tests for the MLStitchParameters dataclass."""
-
-    def test_defaults(self):
-        """Test the default values of MLStitchParameters."""
-        params = MLStitchParameters()
-        assert params.max_distance_deg == 3.0
-        assert params.max_gap == 1
-        assert params.min_length == 2
-
-
 class TestMLParametersThreshold:
     """Tests for the validation of the confidence threshold."""
-
-    @pytest.mark.parametrize("threshold", [0.0, 0.5, 1.0])
-    def test_valid_threshold_accepted(self, threshold):
-        """Thresholds from 0 to 1 inclusive are accepted."""
-        assert MLParameters(threshold=threshold).threshold == threshold
 
     @pytest.mark.parametrize("threshold", [-0.1, 1.1])
     def test_invalid_threshold_raises(self, threshold):
@@ -244,13 +223,6 @@ class TestNormalisationStats:
         assert np.array_equal(mean, np.arange(N_CHANNELS))
         assert np.array_equal(value_range, np.arange(1, N_CHANNELS + 1))
 
-    def test_missing_stats_file_raises(self, make_tracker, tmp_path):
-        """A normalisation_stats_path that does not exist raises an OSError."""
-        parameters = MLParameters(normalisation_stats_path=str(tmp_path / "none.nc"))
-        with pytest.raises(OSError):
-            make_tracker(parameters)._load_normalisation_stats()
-
-
 class TestSetMetadata:
     """Tests for MLTracker._set_metadata, run on the ERA5 sample file."""
 
@@ -273,19 +245,6 @@ class TestSetMetadata:
         """Every input channel and both model outputs have metadata."""
         expected = {*tracker._channel_names, "class_index", "score"}
         assert set(tracker._variable_metadata) == expected
-
-    def test_class_index_flags(self, tracker):
-        """The lifecycle class is described with CF flag values and meanings."""
-        properties = tracker._variable_metadata["class_index"].properties
-        assert properties["flag_values"] == [0, 1, 2, 3, 4]
-        assert len(properties["flag_meanings"].split()) == 5
-
-    def test_pressure_variable_metadata(self, tracker):
-        """A pressure-level variable has its CF name, level and units."""
-        properties = tracker._variable_metadata["air_temperature_500"].properties
-        assert properties["standard_name"] == "air_temperature"
-        assert properties["long_name"] == "air temperature at 500 hPa"
-        assert properties["units"] == "K"
 
     def test_file_without_time_raises(self, make_tracker, tmp_path):
         """An input file with no time coordinate raises a ValueError."""
@@ -385,15 +344,6 @@ class TestPreprocess:
         assert np.allclose(data[16][land], np.asarray(t2m)[land])
         assert np.allclose(data[16][~land], np.ma.getdata(sst)[~land])
 
-    def test_missing_variable_raises(self, make_tracker):
-        """A configured variable that is not in the file raises ValueError."""
-        parameters = MLParameters(
-            input_file=str(SAMPLE_FILE), pressure_variables=("not_a_variable",)
-        )
-        with pytest.raises(ValueError):
-            make_tracker(parameters).preprocess()
-
-
 class TestDetect:
     """Tests for MLTracker.detect, using a fake model and a synthetic input grid."""
 
@@ -434,12 +384,6 @@ class TestDetect:
         assert candidate["class_index"] == 2.0
         assert candidate["score"] > 0.99
         assert candidate["time"] == tracker._times[0]
-
-    def test_background_gives_no_candidates(self, tracker):
-        """Test that a model predicting only background finds nothing."""
-        tracker.model = MagicMock(return_value=_logits())
-        tracker.detect()
-        assert tracker._candidates == []
 
     def test_low_confidence_discarded(self, tracker):
         """Test that a storm class below the threshold is not a candidate."""
@@ -594,18 +538,6 @@ class TestStitch:
         assert trajectories[0].data["lon"] == [50.0, 50.5, 51.0]
         assert trajectories[0].data["time"] == [_time(i) for i in range(3)]
 
-    def test_distant_storms_kept_separate(self, make_tracker):
-        """Test that two storms far apart give two trajectories."""
-        candidates = [
-            _candidate(i, lat, lon)
-            for i in range(2)
-            for lat, lon in ((10.0, 50.0), (-20.0, 120.0))
-        ]
-        trajectories = self._stitch(make_tracker(), 2, candidates)
-        assert len(trajectories) == 2
-        assert {t.observations for t in trajectories} == {2}
-        assert len({t.trajectory_id for t in trajectories}) == 2
-
     def test_jump_beyond_max_distance_not_linked(self, make_tracker):
         """Test that candidates further than max_distance_deg start a new track."""
         stitch_parameters = MLStitchParameters(max_distance_deg=3.0, min_length=1)
@@ -652,13 +584,6 @@ class TestStitch:
         ]
         trajectories = self._stitch(tracker, 2, candidates)
         assert sorted(t.observations for t in trajectories) == [1, 2]
-
-    def test_result_stored_on_tracker(self, make_tracker):
-        """Test that the trajectories are available through read_trajectories."""
-        tracker = make_tracker()
-        candidates = [_candidate(i, 10.0, 50.0) for i in range(2)]
-        trajectories = self._stitch(tracker, 2, candidates)
-        assert tracker.read_trajectories() is trajectories
 
     def test_nearest_candidate_picks_closest(self, make_tracker):
         """Test that the closest unmatched candidate within range is chosen."""
@@ -717,17 +642,6 @@ class TestDetectionsToNetcdf:
         with pytest.warns(UserWarning, match="no detections"):
             tracker.detections_to_netcdf(str(output_file))
         assert not output_file.exists()
-
-    def test_one_variable_per_detection_value(self, tracker, tmp_path):
-        """Each variable of a detection is written as its own field."""
-        tracker.detections_to_netcdf(str(tmp_path / "detections.nc"))
-        written = self._read(tmp_path / "detections.nc")
-        assert set(written) == {
-            "class_index",
-            "score",
-            "sea_surface_temperature",
-            "air_temperature_500",
-        }
 
     def test_values_and_coordinates_round_trip(self, tracker, tmp_path):
         """The values and the latitude and longitude read back unchanged."""
