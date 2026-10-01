@@ -41,6 +41,9 @@ dependencies = [
     "cf-python>=3.19.0; python_version > '3.10'",
     "cf-python<3.19.0; python_version <= '3.10'",
     "cftime",
+    "torch",
+    "huggingface_hub",
+    "scipy",
 ]
 
 [project.optional-dependencies]
