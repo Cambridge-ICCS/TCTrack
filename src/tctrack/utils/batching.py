@@ -67,31 +67,31 @@ def _store_fields(
     if isinstance(store_names, str):
         store_names = [store_names]
 
-    # Store all fields if the lengths are the same
-    if len(store_names) == len(result):
+    if len(store_names) > len(result):
+        msg = f"Number of fields to store exceeds the number provided by {fn_name}."
+        raise ValueError(msg)
+
+    # Prefer storing fields by netcdf variable name
+    store_keys = cast(list[str], [name for name in store_names if name is not None])
+    result_names = [field.nc_get_variable() for field in result]
+    missing_names = [name for name in store_keys if name not in result_names]
+    if not missing_names:
+        for key in store_keys:
+            fields[key] = result[result_names.index(key)]
+
+    # Otherwise, if the number of keys matches the number of fields, store
+    # positionally
+    elif len(store_names) == len(result):
         for name, field in zip(store_names, result, strict=True):
             if name is None:
                 continue
             fields[name] = field
 
-    # If not all output fields are to be stored then match by netcdf variable name
-    elif len(store_names) < len(result):
-        store_names = cast(
-            list[str], [name for name in store_names if name is not None]
-        )
-        result_names = [field.nc_get_variable() for field in result]
-        missing_names = [name for name in store_names if name not in result_names]
-        if missing_names:
-            msg = (
-                f"Fields with the following names are not provided by {fn_name}: "
-                + ", ".join(missing_names)
-            )
-            raise ValueError(msg)
-        for name in store_names:
-            fields[name] = result[result_names.index(name)]
-
     else:
-        msg = f"Number of fields to store exceeds the number provided by {fn_name}."
+        msg = (
+            f"Fields with the following names are not provided by {fn_name}: "
+            + ", ".join(missing_names)
+        )
         raise ValueError(msg)
 
 
@@ -233,8 +233,9 @@ def batching(
         - ``batch_file``: The filename for the file in the batch directory. Use ``None``
           to not do so. By default it will use the same file name.
         - ``store``: Keys for storing the fields in-memory for use in the preprocessing.
-          If there are multiple fields this must either match the full number of fields
-          or match the netcdf variable names.
+          If there are multiple fields these will be matched by netcdf variable name if
+          possible, otherwise they must match the full number of fields, in which case
+          they are matched positionally.
     preprocessing : Sequence[PreprocessStep] | None
         (optional) The list of preprocessing steps. These are each specified by a tuple.
 
