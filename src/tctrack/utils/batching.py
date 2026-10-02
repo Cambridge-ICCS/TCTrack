@@ -2,6 +2,7 @@
 
 import glob
 import shutil
+import warnings
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import Any, TypeAlias, TypedDict, cast
@@ -80,8 +81,15 @@ def _store_fields(
             fields[key] = result[result_names.index(key)]
 
     # Otherwise, if the number of keys matches the number of fields, store
-    # positionally
+    # positionally. Warn if any keys match netcdf variable names but not all do.
     elif len(store_names) == len(result):
+        if len(missing_names) < len(store_keys):
+            msg = (
+                f"Some fields to store from {fn_name} match netcdf variable names but "
+                f"others do not ({', '.join(missing_names)}), so the fields are "
+                "being stored positionally. Check this is intentional."
+            )
+            warnings.warn(msg, category=UserWarning, stacklevel=3)
         for name, field in zip(store_names, result, strict=True):
             if name is None:
                 continue
