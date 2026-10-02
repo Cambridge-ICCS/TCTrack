@@ -285,7 +285,7 @@ class TestPreprocessing:
         field_u = make_field("u")
         field_v = make_field("v")
 
-        vorticity = calculate_vorticity(field_u, field_v)
+        vorticity = calculate_vorticity([field_u, field_v])
 
         assert vorticity.nc_get_variable() == "vorticity"
         assert (
@@ -299,7 +299,7 @@ class TestPreprocessing:
         field_u = make_field("u")
         field_v = make_field("v")
 
-        wind_speed = calculate_wind_speed(field_u, field_v)
+        wind_speed = calculate_wind_speed([field_u, field_v])
 
         assert wind_speed.nc_get_variable() == "wind_speed"
         assert wind_speed.get_property("standard_name") == "wind_speed"
