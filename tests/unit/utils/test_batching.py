@@ -11,9 +11,10 @@ from unittest.mock import call
 import cf
 import pytest
 
-from tctrack.core import TCTracker
+from tctrack.core import TCTracker, TCTrackerMetadata, Trajectory
 from tctrack.utils.batching import (
     _batch_time_ranges,
+    _combine_trajectories,
     _expand_batch_time_range,
     _get_calendar,
     _store_fields,
@@ -88,11 +89,26 @@ class DummyTracker(TCTracker):
         return []
 
     def run_tracker(self, input_files: str | Iterable[str], output_file: str) -> None:
-        """Write a minimal trajectory NetCDF file for combination tests."""
+        """Mock the run_tracker function. Record the input and output files."""
         if isinstance(input_files, str):
             input_files = [input_files]
         self.inputs.append(list(input_files))
         self.outputs.append(output_file)
+
+
+def make_trajectories(start_times: list[str]) -> list[Trajectory]:
+    """Create two-point trajectories for testing _combine_trajectories."""
+    trajectories = []
+    for i, start_time in enumerate(start_times):
+        date = cf.dt(start_time, calendar="standard")
+        trajectory = Trajectory(
+            i + 1, [date.year, date.month, date.day, date.hour], calendar="standard"
+        )
+        for hour in (0, 6):
+            variables = {"lat": 10.0, "lon": 20.0, "wind_speed": 15.0}
+            trajectory.add_point([date.year, date.month, date.day, hour], variables)
+        trajectories.append(trajectory)
+    return trajectories
 
 
 ### Tests for the batching function
@@ -627,3 +643,44 @@ class TestBatching:
             ]
             for i in range(2)
         ]
+
+    def test_combine_trajectories(self, tmp_path: Path) -> None:
+        """Test batch outputs with multiple trajectories are combined."""
+        tracker = DummyTracker()
+        tracker._time_metadata = {
+            "calendar": "standard",
+            "units": "days since 2000-01-01",
+            "start_time": cf.dt("2000-01-01", calendar="standard"),
+            "end_time": cf.dt("2000-01-03", calendar="standard"),
+        }
+        tracker._global_metadata = {}
+        tracker._variable_metadata = {
+            "wind_speed": TCTrackerMetadata(
+                {"long_name": "wind_speed", "units": "m s-1"}
+            )
+        }
+
+        batch_files = [tmp_path / "tracks_0.nc", tmp_path / "tracks_1.nc"]
+        tracker.to_netcdf(
+            str(batch_files[0]),
+            make_trajectories(["2000-01-01", "2000-01-01 12:00"]),
+        )
+        tracker.to_netcdf(str(batch_files[1]), make_trajectories(["2000-01-02"]))
+
+        _combine_trajectories(
+            batch_files,
+            tmp_path / "tracks.nc",
+            [
+                (
+                    cf.dt("2000-01-01", calendar="standard"),
+                    cf.dt("2000-01-02", calendar="standard"),
+                ),
+                (
+                    cf.dt("2000-01-02", calendar="standard"),
+                    cf.dt("2000-01-03", calendar="standard"),
+                ),
+            ],
+        )
+
+        combined = cf.read(str(tmp_path / "tracks.nc"))  # type: ignore[operator]
+        assert combined[0].coordinate("trajectory").size == 3
