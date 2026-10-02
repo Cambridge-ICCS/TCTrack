@@ -43,12 +43,12 @@
     --text-muted:     var(--grey-500);
 
     /* Accent */
-    --accent:       var(--blue-500);
-    --accent-hover: var(--blue-400);
-    --accent-strong: var(--blue-700);
-    --link:         var(--blue-700);
-    --link-hover:   var(--blue-800);
-    --focus-ring:   rgba(33, 150, 243, 0.25);
+    --accent:        var(--blue-300);
+    --accent-hover:  var(--blue-500);
+    --accent-strong: var(--blue-400);
+    --link:          var(--blue-700);
+    --link-hover:    var(--blue-800);
+    --focus-ring:    var(--blue-100);
 
     /* Typography */
     --font-sans: sans-serif;
@@ -122,7 +122,7 @@ footer.ft {
     background: #FFFFFF;
     color: var(--text-secondary);
     border-bottom: 1px solid var(--border);
-    box-shadow: 0 1px 0 var(--accent);
+    box-shadow: none;
 }
 footer.ft {
     border-bottom: none;
@@ -145,7 +145,7 @@ header.hd button.button-as-link:hover {
 details .nav-menu-inner {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
     overflow: hidden;
 }
@@ -190,17 +190,17 @@ form.nav-menu-logout {
 .actions-menu-links .dropdown-menu {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
 }
 .dropdown-menu a:hover {
-    background: rgba(33, 150, 243, 0.1);
+    background: var(--grey-100);
 }
 
 /* Tables ------------------------------------------------------------------ */
 .table-wrapper {
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     background: var(--surface);
 }
 
@@ -287,7 +287,7 @@ form.sql textarea:focus,
 .filters input.filter-value:focus,
 .filters #_search:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--focus-ring);
+    box-shadow: 0 0 0 1px var(--focus-ring);
     outline: none;
 }
 
@@ -334,6 +334,32 @@ form.sql textarea {
     line-height: 1.5;
 }
 
+.select-wrapper select {
+    cursor: pointer;
+}
+
+select,
+::picker(select) {
+  appearance: base-select;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+}
+
+select option:hover,
+select option:focus-visible {
+  background-color: var(--grey-100);
+}
+
+
+/* CodeMirror 6 SQL editor ------------------------------------------------- */
+form.sql .cm-editor {
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+}
+
 /* Filter builder (uses Datasette's own CSS variables) --------------------- */
 .filters {
     --filter-ink: var(--text);
@@ -343,7 +369,7 @@ form.sql textarea {
     --filter-accent: var(--accent);
     --filter-control-border: var(--border-strong);
 
-    border-radius: 8px;
+    border-radius: 6px;
     background: var(--filter-paper);
     color: var(--filter-ink);
 }
@@ -368,15 +394,11 @@ form.sql textarea {
     border-color: var(--accent);
 }
 
-.select-wrapper select {
-    cursor: pointer;
-}
-
 /* Facets and cards -------------------------------------------------------- */
 .facet-info {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     padding: 0.75rem 1rem;
     margin-bottom: 1rem;
     width: fit-content;
@@ -402,14 +424,14 @@ form.sql textarea {
 .advanced-export {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     box-shadow: none;
 }
 
 p.zero-results {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     color: var(--text-secondary);
 }
 
@@ -421,7 +443,7 @@ code, pre {
 code {
     background: var(--grey-100);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: 6px;
     padding: 0.1em 0.35em;
     color: var(--blue-800);
     font-size: 0.9em;
@@ -431,7 +453,7 @@ pre#sql-query,
 .wrapped-sql {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     padding: 0.75rem 1rem;
     color: var(--grey-800);
     font-size: 0.9rem;
@@ -442,7 +464,7 @@ pre#sql-query,
 .message-info,
 .message-warning,
 .message-error {
-    border-radius: 8px;
+    border-radius: 6px;
     padding: 0.75rem 1rem;
     color: var(--text);
 }
@@ -459,14 +481,18 @@ pre#sql-query,
     border: 1px solid rgba(244, 67, 54, 0.3);
 }
 
-/* Mobile column actions dialog -------------------------------------------- */
-dialog.mobile-column-actions-dialog {
+/* Modal dialogs (Datasette web components) -------------------------------- */
+dialog.datasette-modal {
     --ink: var(--text);
     --paper: var(--surface);
     --muted: var(--text-muted);
     --rule: var(--border);
-    --accent: var(--accent);
+    --accent: var(--blue-500);
     --card: var(--grey-100);
+}
+
+column-chooser {
+    --accent-light: var(--blue-50);
 }
 
 /* Scrollbars -------------------------------------------------------------- */

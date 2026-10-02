@@ -26,6 +26,16 @@
     --orange-500: #FF9800;
     --orange-600: #FB8C00;
     --orange-700: #F57C00;
+    --orange-800: #EF6C00;
+    --orange-900: #E65100;
+
+    --teal-200: #80CBC4;
+    --teal-300: #4DB6AC;
+    --teal-400: #26A69A;
+    --teal-500: #009688;
+    --teal-600: #00897B;
+    --teal-700: #00796B;
+    --teal-800: #00695C;
 
     /* Semantic surfaces */
     --bg:             var(--blue-grey-900);
@@ -40,12 +50,12 @@
     --text-muted:     var(--blue-grey-400);
 
     /* Accent */
-    --accent:       var(--orange-500);
-    --accent-hover: var(--orange-300);
-    --accent-strong: var(--orange-700);
-    --link:         var(--orange-300);
-    --link-hover:   var(--orange-200);
-    --focus-ring:   rgba(255, 152, 0, 0.35);
+    --accent:        var(--teal-600);
+    --accent-hover:  var(--teal-500);
+    --accent-strong: var(--teal-700);
+    --link:          var(--orange-300);
+    --link-hover:    var(--orange-200);
+    --focus-ring:    var(--teal-600);
 
     /* Typography */
     --font-sans: sans-serif;
@@ -119,7 +129,7 @@ footer.ft {
     background: #2A363E;
     color: var(--text-secondary);
     border-bottom: 1px solid var(--border-strong);
-    box-shadow: 0 1px 0 var(--accent);
+    box-shadow: none;
 }
 footer.ft {
     border-bottom: none;
@@ -142,7 +152,7 @@ header.hd button.button-as-link:hover {
 details .nav-menu-inner {
     background: var(--surface-raised);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
     overflow: hidden;
 }
@@ -154,7 +164,7 @@ form.nav-menu-logout {
     border-top: none;
 }
 .nav-menu-inner a:hover {
-    background: rgba(255, 152, 0, 0.1);
+    background: var(--blue-grey-700);
 }
 .nav-menu-inner .keyboard-shortcut {
     border-color: var(--border-strong);
@@ -184,20 +194,40 @@ form.nav-menu-logout {
     background: var(--accent);
 }
 
-.actions-menu-links .dropdown-menu {
+.dropdown-menu {
     background: var(--surface-raised);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+    color: var(--text);
 }
-.dropdown-menu a:hover {
-    background: rgba(255, 152, 0, 0.1);
+.dropdown-menu a:link,
+.dropdown-menu a:visited,
+.dropdown-menu button.action-menu-button {
+    color: var(--text);
+}
+.dropdown-menu a:hover,
+.dropdown-menu a:focus,
+.dropdown-menu button.action-menu-button:hover,
+.dropdown-menu button.action-menu-button:focus {
+    background: var(--blue-grey-700);
+}
+.dropdown-menu li {
+    border-bottom-color: var(--border);
+}
+.dropdown-menu .dropdown-description,
+.dropdown-menu .dropdown-column-type,
+.dropdown-menu .dropdown-column-description {
+    color: var(--text-muted);
+}
+.dropdown-menu .hook {
+    border-bottom-color: var(--text-muted);
 }
 
 /* Tables ------------------------------------------------------------------ */
 .table-wrapper {
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     background: var(--surface);
 }
 
@@ -268,6 +298,7 @@ input.core[type=search],
 .core input[type=number],
 form.sql textarea,
 .select-wrapper select,
+select,
 .filters input.filter-value,
 .filters #_search {
     background: #2A363E;
@@ -281,10 +312,11 @@ form.sql textarea,
 .core input:focus,
 form.sql textarea:focus,
 .select-wrapper select:focus,
+select:focus,
 .filters input.filter-value:focus,
 .filters #_search:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--focus-ring);
+    box-shadow: 0 0 0 1px var(--focus-ring);
     outline: none;
 }
 
@@ -297,7 +329,7 @@ form.sql textarea:focus,
 input.core[type=submit],
 .filters input[type=submit] {
     background: var(--accent-strong);
-    border: 1px solid var(--accent-strong);
+    border: 1px solid var(--accent);
     border-radius: 6px;
     color: #fff;
     font-weight: 500;
@@ -331,6 +363,68 @@ form.sql textarea {
     line-height: 1.5;
 }
 
+.select-wrapper select {
+    cursor: pointer;
+}
+
+select,
+::picker(select) {
+  appearance: base-select;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+}
+
+select option:hover,
+select option:focus-visible {
+  background-color: var(--blue-grey-700);
+}
+
+
+/* CodeMirror 6 SQL editor
+   CodeMirror injects a light-theme style at runtime (after this
+   stylesheet), so these rules need the form.sql prefix to take.
+   The escaped classes (.\37C b etc.) are CodeMirror-generated
+   syntax token classes: keyword, atom, number, string, type, comment. */
+form.sql .cm-editor {
+    background: #2A363E;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    color: var(--text);
+}
+form.sql .cm-editor .cm-gutters {
+    background: var(--surface-raised);
+    color: var(--text-muted);
+    border-right: 1px solid var(--border);
+}
+form.sql .cm-editor .cm-activeLine,
+form.sql .cm-editor .cm-activeLineGutter {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+form.sql .cm-editor .cm-cursor {
+    border-left-color: var(--accent);
+}
+form.sql .cm-editor .cm-selectionBackground {
+    background: rgba(255, 152, 0, 0.3);
+}
+form.sql .cm-editor .\37C b,
+form.sql .cm-editor .\37C c {
+    color: var(--text);
+}
+form.sql .cm-editor .\37C d {
+    color: var(--text);
+}
+form.sql .cm-editor .\37C f {
+    color: var(--teal-300);
+}
+form.sql .cm-editor .\37C i {
+    color: var(--text);
+}
+form.sql .cm-editor .\37C m {
+    color: var(--text-secondary);
+}
+
 /* Filter builder (uses Datasette's own CSS variables) --------------------- */
 .filters {
     --filter-ink: var(--text);
@@ -340,7 +434,7 @@ form.sql textarea {
     --filter-accent: var(--accent);
     --filter-control-border: var(--border-strong);
 
-    border-radius: 8px;
+    border-radius: 6px;
     background: var(--filter-paper);
     color: var(--filter-ink);
 }
@@ -365,15 +459,11 @@ form.sql textarea {
     border-color: var(--accent);
 }
 
-.select-wrapper select {
-    cursor: pointer;
-}
-
 /* Facets and cards -------------------------------------------------------- */
 .facet-info {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     padding: 0.75rem 1rem;
     margin-bottom: 1rem;
     width: fit-content;
@@ -399,14 +489,14 @@ form.sql textarea {
 .advanced-export {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     box-shadow: none;
 }
 
 p.zero-results {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     color: var(--text-secondary);
 }
 
@@ -418,9 +508,9 @@ code, pre {
 code {
     background: var(--surface-raised);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: 6px;
     padding: 0.1em 0.35em;
-    color: var(--orange-200);
+    color: var(--text);
     font-size: 0.9em;
 }
 
@@ -428,7 +518,7 @@ pre#sql-query,
 .wrapped-sql {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     padding: 0.75rem 1rem;
     color: var(--orange-100);
     font-size: 0.9rem;
@@ -439,31 +529,88 @@ pre#sql-query,
 .message-info,
 .message-warning,
 .message-error {
-    border-radius: 8px;
+    border-radius: 6px;
     padding: 0.75rem 1rem;
     color: var(--text);
 }
 .message-info {
-    background: rgba(255, 152, 0, 0.12);
-    border: 1px solid rgba(255, 152, 0, 0.35);
+    background: var(--surface);
+    border: 2px solid var(--teal-600);
 }
 .message-warning {
-    background: rgba(255, 111, 0, 0.16);
-    border: 1px solid rgba(255, 111, 0, 0.4);
+    background: var(--surface);
+    border: 2px solid var(--orange-600);
 }
 .message-error {
-    background: rgba(207, 102, 121, 0.14);
-    border: 1px solid rgba(207, 102, 121, 0.45);
+    background: var(--surface);
+    border: 2px solid var(--orange-900);
 }
 
-/* Mobile column actions dialog -------------------------------------------- */
-dialog.mobile-column-actions-dialog {
+/* Modal dialogs (Datasette web components) -------------------------------- */
+dialog.datasette-modal {
     --ink: var(--text);
     --paper: var(--surface);
     --muted: var(--text-muted);
     --rule: var(--border);
-    --accent: var(--accent);
+    --accent: var(--orange-500);
     --card: var(--blue-grey-900);
+}
+
+column-chooser {
+    --accent-light: var(--teal-800);
+}
+
+/* Jump-to dialog content -------------------------------------------------- */
+navigation-search .search-input-wrapper,
+navigation-search .jump-start-content,
+navigation-search .hint-text {
+    border-color: var(--border);
+}
+navigation-search .search-input {
+    border-color: var(--border-strong);
+}
+navigation-search .search-input:focus {
+    border-color: var(--accent);
+}
+navigation-search .close-search {
+    color: var(--text-secondary);
+}
+navigation-search .close-search:hover,
+navigation-search .close-search:focus {
+    background: var(--surface);
+    border-color: var(--border);
+}
+navigation-search .result-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+navigation-search .result-item.selected {
+    background: var(--blue-grey-800);
+}
+navigation-search .result-name {
+    color: var(--text);
+}
+navigation-search .result-label,
+navigation-search .result-description {
+    color: var(--text-secondary);
+}
+navigation-search .result-type,
+navigation-search .result-url,
+navigation-search .results-heading,
+navigation-search .no-results,
+navigation-search .hint-text {
+    color: var(--text-muted);
+}
+navigation-search .clear-recent {
+    color: var(--link);
+}
+navigation-search .hint-text kbd {
+    background: var(--surface);
+    border-color: var(--border);
+}
+
+/* Row mutation status banner ---------------------------------------------- */
+.row-mutation-status {
+    color: var(--text);
 }
 
 /* Scrollbars -------------------------------------------------------------- */
@@ -486,7 +633,7 @@ dialog.mobile-column-actions-dialog {
 	color: black;
 }
 
-/* Layer control */
+/* MapLibre Layer Control -------------------------------------------------- */
 .layer-control-panel {
 	background: var(--surface-raised);
 	color: var(--text);
@@ -515,7 +662,7 @@ dialog.mobile-column-actions-dialog {
     background: var(--surface-raised) !important;
     color: var(--text) !important;
     border: 1px solid var(--border);
-    border-radius: 8px !important;
+    border-radius: 6px !important;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55) !important;
 }
 

@@ -1,84 +1,13 @@
-# TCTrack Dashboard - Datasette configuration
+# TCTrack Dashboard - Datasette (v1) database metadata
 
 title: TCTrack Dashboard
 description: Explore and compare tropical cyclone trajectories from TCTrack.
 
-extra_css_urls:
-  - url: /static/light.css  # dark.css
-
-# Plugin settings
-
-plugins:
-  datasette-maplibre:
-    # basemap: https://tiles.openfreemap.org/styles/dark  # dark
-    basemap: https://tiles.openfreemap.org/styles/positron  # light
-    group_by:
-      column: trajectory_id
-      properties: [filename, year]
-    point:
-      radius: 4
-      radius_property:
-        column: wind_speed
-        min: [0, 2]
-        max: [30, 10]
-        exponential: 1.2
-      opacity_property:
-        column: wind_speed
-        min: [0, 0.1]
-        max: [30, 1.0]
-    line:
-      thickness: 2
-    heatmap:
-      weight_property:
-        column: wind_speed
-        min: [0, 0]
-        max: [30, 1]
-        exponential: 1.2
-      # dark map heatmap
-      # palette:
-      #   low: '#1a237e'
-      #   mid: '#ad1457'
-      #   high: '#ffeb3b'
-      # light map heatmap
-      palette:
-        low: '#81d4fa'
-        mid: '#ffeb3b'
-        high: '#ffa000'
-      max_zoom: 8
-      opacity: 0.8
-
-    # dark palette
-    # palette:
-    #   single: '#d0b100'
-    #   layers:
-    #     - '#ee7733'
-    #     - '#0077bb'
-    #     - '#33bbee'
-    #     - '#ee3377'
-    #     - '#cc3311'
-    #     - '#009988'
-    #     - '#bbbbbb'
-
-    # light palette
-    palette:
-      single: '#ffa726'
-      layers:
-        - '#ee7733'
-        - '#0077bb'
-        - '#33bbee'
-        - '#ee3377'
-        - '#cc3311'
-        - '#009988'
-        - '#bbbbbb'
-    max_layers: 7
-
-
 # Database and table metadata
-# Database name must match served database
-# This is most important for showing facets on views
+# Change <DATABASE_NAME> to the name of the served database (important for showing the best facets on views).
 
 databases:
-  database_name:
+  <DATABASE_NAME>:
     title: Cyclone Tracks
     description_html: >-
       <p>Cyclone trajectories imported from TCTrack NetCDF files.</p>

@@ -8,8 +8,8 @@ description = "MapLibre GL JS map plugin for Datasette, triggered by latitude an
 version = "0.2.0"
 readme = "README.md"
 authors = [{ name="Simon Sadler" }]
-requires-python = ">=3.10"
-dependencies = ["datasette>=0.65"]
+requires-python = ">=3.11"
+dependencies = ["datasette>=1.0a41"]
 
 [project.entry-points.datasette]
 maplibre = "datasette_maplibre"

@@ -23,12 +23,11 @@ A database of track files must be built for loading into the dashboard. See the 
 
 Dashboard configuration files for metadata and style are located in the `dashboard` directory. If run from the project root:
 
-	datasette serve <your_database.db> --metadata dashboard/metadata.yaml --static static:dashboard/static --setting max_returned_rows 6000 --setting sql_time_limit_ms 3000
+	datasette serve <your_database.db> --metadata dashboard/metadata.yaml --config .\dashboard\datasette.yaml --static static:dashboard/static
 
-- `metadata.yaml` applies the dashboard theme, metadata, table configuration and server settings.
-- `--static static:dashboard/static` serves the dashboard/static directory at location `/static/`, so that files linked in the metadata can be loaded.
-- `--setting max_returned_rows` [optional, default 1000] sets the maximum number of rows that can be loaded in one request. This should be set to accommodate the total number of observations in your dataset *if all data is needed to be seen on the map at any time*. If not, this can be set to a lower number to reduce load times.
-- `--setting sql_time_limit_ms 3000` [optional, default 1000] sets the timeout for SQL query execution. Increase this if complex queries on large datasets return HTTP 400 errors.
+- `metadata.yaml` applies the database and table metadata.
+- `datasette.yaml` applies the dashboard theme, map configuration and server settings.
+- `static:dashboard/static` serves the `dashboard/static` directory at location `/static/`, so that files linked in the metadata can be loaded.
 
 View a running dashboard at http://localhost:8001
 
@@ -86,7 +85,7 @@ The following settings are available:
 		- `column`: Column name to use as the linked property.
 		- `min`: Value/opacity pair for smallest value, e.g. [0, 0.1] when property = 0, opacity = 0.1.
 		- `max`: Value/opacity pair for largest value, e.g. [25, 1] when property >= 25, opacity = 1.0.
-- `heatmap` Heatmap configuration:
+- `heatmap` Configuration to create a density map layer:
 	- `weight_property`: Link a property value to heatmap weights (0.0–1.0):
 		- `column`: Column name to use as the linked property.
 		- `min`: Value/weight pair for lowest weight, e.g. [0, 0] when property = 0, weight = 0.

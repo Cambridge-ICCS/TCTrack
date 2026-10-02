@@ -30,7 +30,7 @@ async function fetchRows() {
 	// Facet and suggestion features are turned off for performance.
 	const url = location.pathname + ".json" + location.search
 		+ (location.search ? "&" : "?")
-		+ "_size=max&_shape=arrays&_nocount=on&_nofacet=on&_nosuggest=on";
+		+ "_size=max&_shape=arrays&_nocount=on&_nofacet=on&_nosuggest=on&_extra=columns";
 
 	const res = await fetch(url);
 	if (!res.ok) throw new Error("Fetch failed: " + res.status);
