@@ -4,7 +4,8 @@ title: TCTrack Dashboard
 description: Explore and compare tropical cyclone trajectories from TCTrack.
 
 # Database and table metadata
-# Change <DATABASE_NAME> to the name of the served database (important for showing the best facets on views).
+# Change <DATABASE_NAME> to the name of the served database (minus the extension).
+# This enables the quick filter facets to be shown for each view.
 
 databases:
   <DATABASE_NAME>:

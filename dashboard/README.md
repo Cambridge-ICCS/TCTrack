@@ -19,17 +19,24 @@ For plugin development only, install the plugin directly (the Datasette dependen
 
 ## Starting the Dashboard
 
-A database of track files must be built for loading into the dashboard. See the [build_db instructions](src\tctrack\build_db\README.md) for instructions.
+A database of track files must be built for loading into the dashboard. See the [build_db instructions](src/tctrack/build_db/README.md) for instructions.
 
 Dashboard configuration files for metadata and style are located in the `dashboard` directory. If run from the project root:
 
-	datasette serve <your_database.db> --metadata dashboard/metadata.yaml --config .\dashboard\datasette.yaml --static static:dashboard/static
+	datasette serve <database.db> --metadata dashboard/metadata.yaml --config dashboard/datasette.yaml --static static:dashboard/static
 
 - `metadata.yaml` applies the database and table metadata.
 - `datasette.yaml` applies the dashboard theme, map configuration and server settings.
 - `static:dashboard/static` serves the `dashboard/static` directory at location `/static/`, so that files linked in the metadata can be loaded.
 
 View a running dashboard at http://localhost:8001
+
+This opens the Datasette homepage. Selecting the database displays a list of tables and views that can be explored. The views contain the most useful data structures and also trigger the map view.
+
+
+### Linking the Metadata
+
+For now, the metadata must be manually linked to the database via the filename. In the `dashboard/metadata.yaml` file, change `<DATABASE_NAME>` to the name of the database (without the extension). This will enable the quick filter facets. They can be adjusted for each table or view by specifying column names under each `facets` key.
 
 
 ## General Usage
