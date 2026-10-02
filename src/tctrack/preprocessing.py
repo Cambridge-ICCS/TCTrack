@@ -382,8 +382,7 @@ def collapse_field(
 
 
 def calculate_curl_xy(
-    input_x: FieldSource,
-    input_y: FieldSource,
+    inputs: list[FieldSource],
     nc_name: str,
     properties: dict[str, str],
     *,
@@ -393,10 +392,8 @@ def calculate_curl_xy(
 
     Parameters
     ----------
-    input_x : FieldSource
-        Field for the x component.
-    input_y : FieldSource
-        Field for the y component.
+    inputs : list[FieldSource]
+        Fields for the x and y vector components.
     nc_name : str
         NetCDF variable name for the output field.
     properties : dict[str, str]
@@ -409,8 +406,11 @@ def calculate_curl_xy(
     cf.Field
         Curl field derived from the two inputs.
     """
-    field_x = _load_field(input_x)
-    field_y = _load_field(input_y)
+    if len(inputs) != 2:  # noqa: PLR2004 - Magic number
+        msg = "A list of two field inputs were expected."
+        raise ValueError(msg)
+    field_x = _load_field(inputs[0])
+    field_y = _load_field(inputs[1])
 
     curl = cf.curl_xy(field_x, field_y, radius="earth")
 
@@ -429,8 +429,7 @@ def calculate_curl_xy(
 
 
 def calculate_vorticity(
-    input_u: FieldSource,
-    input_v: FieldSource,
+    inputs: list[FieldSource],
     *,
     nc_name: str = "vorticity",
     output_file: str | None = None,
@@ -439,10 +438,8 @@ def calculate_vorticity(
 
     Parameters
     ----------
-    input_u : FieldSource
-        Field for the eastward velocity component.
-    input_v : FieldSource
-        Field for the northward velocity component.
+    inputs : list[FieldSource]
+        Fields for the eastward and northward velocity components.
     nc_name : str, optional
         NetCDF variable name for the output field.
     output_file : str | None, optional
@@ -454,8 +451,7 @@ def calculate_vorticity(
         Vorticity field.
     """
     return calculate_curl_xy(
-        input_u,
-        input_v,
+        inputs,
         nc_name=nc_name,
         properties={
             "standard_name": "atmosphere_upward_relative_vorticity",
@@ -466,8 +462,7 @@ def calculate_vorticity(
 
 
 def calculate_norm_xy(
-    input_x: FieldSource,
-    input_y: FieldSource,
+    inputs: list[FieldSource],
     nc_name: str,
     properties: dict[str, str] | None = None,
     *,
@@ -477,10 +472,8 @@ def calculate_norm_xy(
 
     Parameters
     ----------
-    input_x : FieldSource
-        Field for the x component.
-    input_y : FieldSource
-        Field for the y component.
+    inputs : list[FieldSource]
+        Fields for the x any y vector components.
     nc_name : str
         NetCDF variable name for the output field.
     properties : dict[str, str] | None, optional
@@ -494,8 +487,11 @@ def calculate_norm_xy(
     cf.Field
         Norm field derived from the two inputs.
     """
-    field_x = _load_field(input_x)
-    field_y = _load_field(input_y)
+    if len(inputs) != 2:  # noqa: PLR2004 - Magic number
+        msg = "A list of two field inputs were expected."
+        raise ValueError(msg)
+    field_x = _load_field(inputs[0])
+    field_y = _load_field(inputs[1])
 
     norm = (field_x**2 + field_y**2) ** 0.5
 
@@ -514,8 +510,7 @@ def calculate_norm_xy(
 
 
 def calculate_wind_speed(
-    input_u: FieldSource,
-    input_v: FieldSource,
+    inputs: list[FieldSource],
     *,
     nc_name: str = "wind_speed",
     output_file: str | None = None,
@@ -524,10 +519,8 @@ def calculate_wind_speed(
 
     Parameters
     ----------
-    input_u : FieldSource
-        Field for the eastward velocity component.
-    input_v : FieldSource
-        Field for the northward velocity component.
+    inputs : list[FieldSource]
+        Fields for the eastward and northward velocity components.
     nc_name : str, optional
         NetCDF variable name for the output field.
     output_file : str | None, optional
@@ -539,8 +532,7 @@ def calculate_wind_speed(
         Wind speed field.
     """
     return calculate_norm_xy(
-        input_u,
-        input_v,
+        inputs,
         nc_name=nc_name,
         properties={"standard_name": "wind_speed", "long_name": "Wind Speed"},
         output_file=output_file,
