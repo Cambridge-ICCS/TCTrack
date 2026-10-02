@@ -209,6 +209,13 @@ class TestBatchingPreprocessing:
             pytest.param("u", "u", "u", None, id="single var name"),
             pytest.param(["v", "u"], ["u", "v"], "u v", None, id="multiple var names"),
             pytest.param(
+                ["u", "p"],
+                ["p", "u"],
+                "p u",
+                None,
+                id="var names preferred over positional",
+            ),
+            pytest.param(
                 ["a", "b", "c", "d"],
                 None,
                 None,
