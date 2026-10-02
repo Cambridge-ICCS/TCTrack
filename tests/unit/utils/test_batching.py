@@ -10,7 +10,7 @@ import cf
 import pytest
 
 from tctrack.core import TCTracker
-from tctrack.utils.batching import batching
+from tctrack.utils.batching import _store_fields, batching
 
 ### Dummy functions for testing the preprocessing
 
@@ -256,6 +256,13 @@ class TestBatchingPreprocessing:
 
             # Check the fields were stored / loaded as expected
             assert log == ["loaded " + load_log]
+
+    def test_registry_partial_name_match_warning(self) -> None:
+        """Test a warning is raised when some, but not all, store keys match names."""
+        fields = make_fields(["p", "u"])
+
+        with pytest.warns(UserWarning, match="being stored positionally"):
+            _store_fields(fields, ["v", "p"], {}, "make_fields")
 
 
 class TestBatching:
