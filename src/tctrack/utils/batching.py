@@ -59,7 +59,9 @@ def _combine_trajectories(
         batch_fields = cf.read(str(file))  # type: ignore[operator]
 
         trajectory_times = batch_fields[0].coordinate("time").datetime_array[:, 0]
-        in_batch = batch_start_time <= trajectory_times < batch_end_time
+        in_batch = (batch_start_time <= trajectory_times) & (
+            trajectory_times < batch_end_time
+        )
 
         if any(in_batch):
             fields_by_batch.append(
