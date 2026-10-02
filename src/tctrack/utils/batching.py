@@ -366,6 +366,10 @@ def batching(
 ) -> None:
     """Perform tracking in batches with optional steps for retrieval and preprocessing.
 
+    NetCDF input files for each batch period are put inside ``batch_[i]`` directories
+    inside the output directory. After any preprocessing, these are then provided to the
+    tracker's :meth:`~tctrack.core.TCTracker.run_tracker` method.
+
     The outputs tracks are placed in the output directory with names ``tracks_[i].nc``.
     If ``combine_outputs`` is ``True`` then these will be combined into a single
     ``tracks.nc`` file.
@@ -407,7 +411,7 @@ def batching(
         - The optional third entry is a dictionary that can take ``store`` and/or
           ``use`` keys which allows fields to be stored and passed from memory to
           avoid unnecessary file IO. ``store`` behaves the same as in
-          :attr:`input_files`.
+          ``input_files``.
     retrieve_data : Callable[[int, Path], None] | None
         (optional) A user-defined function that is called each iteration to retrieve
         data and put it in the batch directory. E.g. to download the data if it will not
@@ -417,48 +421,58 @@ def batching(
         (optional) A list of filenames from the batch directory to pass to the tracker.
         By default it uses all the files (using ``["*"]``).
     config : BatchingConfig | None
-        (optional) A dictionary of additional arguments. Valid keys:
+        (optional) A dictionary of additional arguments.
 
-        - output_dir: The location to save the outputs. Default: ``"tctrack_outputs"``.
-        - combine_outputs: Whether to combine the outputs from each batch into a single
-          ``tracks.nc`` file. Default: ``True``.
-        - delete_batch_dirs: Whether to delete the ``batch_[i]/`` directories. Default:
-          ``True``.
-        - buffer_period: ``timedelta`` for extra time at the end of each batch so tracks
-          reaching a batch boundary are not cut off. Default: ``None``.
-        - start_buffer_period: ``timedelta`` for extra time included at the start of
-          each batch. This is to ensure that only tracks starting in the batch period
-          are retained. Defaults to one day, but is only used when ``buffer_period`` is
-          set.
+        .. list-table::
+           :header-rows: 1
+
+           * - Option
+             - Description
+           * - ``output_dir``
+             - The location to save the outputs. |br|
+               Default: ``"tctrack_outputs"``.
+           * - ``combine_outputs``
+             - Whether to combine the outputs from each batch |br|
+               into a single ``tracks.nc`` file. Default: ``True``.
+           * - ``delete_batch_dirs``
+             - Whether to delete the batch directories. |br|
+               Default: ``True``.
+           * - ``buffer_period``
+             - ``timedelta`` for extra time at the end of each batch |br|
+               so tracks reaching a batch boundary are not cut off. |br|
+               Default: ``None``.
+           * - ``start_buffer_period``
+             - ``timedelta`` for extra time included at the start |br|
+               of each batch. This ensures that any tracks starting |br|
+               before the batch period are removed. Defaults to |br|
+               one day, but is only used when ``buffer_period`` is set.
 
     Examples
     --------
-    Track monthly data from 1950. The input file is loaded, selected to each monthly
-    interval, and stored in memory. It is saved to the batch directory after
-    preprocessing, which halves the latitude resolution and renames the netCDF variable.
+    Get tracks for each month in 1950 using tempest extremes. The input files matching
+    "psl_*.nc" are loaded and then preprocessed to halve the latitude resolution and
+    rename the netCDF variable for each month before running the tracker.
 
     >>> from tctrack.utils import batching
     >>> from tctrack import tempest_extremes as te
     >>> from tctrack.preprocessing import subsample_field, set_nc_variable_name
-    >>> preprocessing = [
-    ...     (
-    ...         subsample_field,
-    ...         {"X": slice(0, None, 2)},
-    ...         {"use": "psl", "store": "psl"},
-    ...     ),
-    ...     (
-    ...         set_nc_variable_name,
-    ...         {"field_name": "p", "output_file": "%BATCH%/psl_processed.nc"},
-    ...         {"use": "psl"},
-    ...     ),
-    ... ]
-    >>> tracker = te.TETracker()
     >>> batching(
-    ...     tracker,
+    ...     te.TETracker(),
     ...     [("psl_*.nc", {"store": "psl", "batch_file": None})],
     ...     interval="month",
     ...     time_range=("1950-01-01", "1951-01-01"),
-    ...     preprocessing=preprocessing,
+    ...     preprocessing=[
+    ...         (
+    ...             subsample_field,
+    ...             {"X": slice(0, None, 2)},
+    ...             {"use": "psl", "store": "psl"},
+    ...         ),
+    ...         (
+    ...             set_nc_variable_name,
+    ...             {"field_name": "p", "output_file": "%BATCH%/p.nc"},
+    ...             {"use": "psl"},
+    ...         ),
+    ...     ],
     ... )
     """
     # Set the default config arguments
