@@ -45,7 +45,7 @@ databases:
         description: One row per cyclone track.
         columns:
           start_end: Start/end marker from the source file (S, E or SE).
-        facets: [file_id, start_end]
+        facets: [ocean_id, landfall, file_id, start_end]
 
       observations:
         description: One row per trajectory observation point.
@@ -56,21 +56,21 @@ databases:
           surface_altitude: Model surface altitude at the observation point.
           wind_speed: Wind speed at the observation point.
           atmosphere_relative_vorticity: Relative vorticity of the atmosphere at the observation point.
-        facets: []
+        facets: [ocean_id, landfall]
 
       points:
-        facets: [genesis]
+        facets: [ocean_id, landfall, genesis]
       points_layer_file:
-        facets: [genesis]
+        facets: [ocean_id, landfall, genesis]
       points_layer_year:
-        facets: [genesis]
+        facets: [ocean_id, landfall, genesis]
 
       tracks:
-        facets: [start_end]
+        facets: [ocean_id, landfall, start_end]
       tracks_layer_file:
-        facets: [start_end]
+        facets: [ocean_id, landfall, start_end]
       tracks_layer_year:
-        facets: [start_end]
+        facets: [ocean_id, landfall, start_end]
 
 
     # Useful queries

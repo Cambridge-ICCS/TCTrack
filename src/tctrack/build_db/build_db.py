@@ -11,6 +11,8 @@ from pathlib import Path
 import netCDF4
 import numpy as np
 
+from tctrack.geographic import classify_tracks
+
 logger = logging.getLogger(__name__)
 
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
@@ -95,6 +97,24 @@ def file_exists(db: sqlite3.Connection, filepath: str) -> bool:
     )
 
 
+def get_ocean_ids(db: sqlite3.Connection) -> dict[str, str]:
+    """
+    Get map of ocean basin names to their ocean_ids.
+
+    Parameters
+    ----------
+    db
+        Database connection.
+
+    Returns
+    -------
+    Dictionary of ocean table ids keyed by ocean basin name.
+    """
+    return {
+        name: ocean_id for ocean_id, name in db.execute("select id, name from oceans")
+    }
+
+
 def read_netcdf(netcdf_filepath: str) -> dict:
     """
     Read relevant data from a NetCDF trajectory file.
@@ -153,7 +173,8 @@ def extract_trajectory(netcdf_data: dict, traj_idx: int) -> dict:
     Parameters
     ----------
     netcdf_data
-        Dictionary from `read_netcdf`.
+        Dictionary from `read_netcdf`, optionally merged with a
+        `classification` entry from `classify_tracks` via `import_file`.
     traj_idx
         Index of trajectory to extract.
 
@@ -175,14 +196,38 @@ def extract_trajectory(netcdf_data: dict, traj_idx: int) -> dict:
     end = "end_flag" in netcdf_data and bool(netcdf_data["end_flag"][traj_idx])
     start_end = ("S" if start else "") + ("E" if end else "") or None
 
+    # Geographic classification of the observations, merged into netcdf data
+    classification = netcdf_data.get("classification", {}).get(traj_idx)
+
+    if classification is None:
+        landfall = None
+        distance_to_coast_km = None
+        ocean_basin = None
+        makes_landfall = None
+        genesis_ocean_basin = None
+    else:
+        landfall = classification["landfall"]
+        distance_to_coast_km = classification["distance_to_coast_km"]
+        ocean_basin = classification["ocean_basin"]
+
+        # A trajectory makes landfall if any observation is over land.
+        # A trajectory belongs to the ocean basin of its first observation (genesis).
+        makes_landfall = bool(landfall[indices].any())
+        genesis_ocean_basin = ocean_basin[indices[0]] if indices else None
+
     return {
         "traj_idx": traj_idx,
         "filepath": netcdf_data["filepath"],
         "start_end": start_end,
+        "makes_landfall": makes_landfall,
+        "genesis_ocean_basin": genesis_ocean_basin,
         "indices": indices,
         "times": times,
         "latitude": netcdf_data["latitude"][traj_idx],
         "longitude": netcdf_data["longitude"][traj_idx],
+        "landfall": landfall,
+        "distance_to_coast_km": distance_to_coast_km,
+        "ocean_basin": ocean_basin,
         "air_pressure_at_sea_level": v[traj_idx]
         if (v := netcdf_data["air_pressure_at_sea_level"]) is not None
         else None,
@@ -258,7 +303,12 @@ def insert_file(
     return cur.lastrowid
 
 
-def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
+def insert_trajectory(
+    db: sqlite3.Connection,
+    file_id: int,
+    traj: dict,
+    ocean_ids: dict[str, str],
+) -> int:
     """
     Insert a trajectory and its observations.
 
@@ -270,6 +320,8 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
         ID of file row in the database.
     traj
         Dictionary from `extract_trajectory`.
+    ocean_ids
+        Dictionary of ocean table ids keyed by ocean basin name (`get_ocean_ids`).
 
     Returns
     -------
@@ -277,15 +329,31 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
     """
     cur = db.execute(
         """insert into trajectories
-           (file_id, start_end)
-           values (?, ?)""",
-        (file_id, traj["start_end"]),
+           (file_id, start_end, ocean_id, landfall)
+           values (?, ?, ?, ?)""",
+        (
+            file_id,
+            traj["start_end"],
+            ocean_ids[basin]
+            if (basin := traj["genesis_ocean_basin"]) is not None else None,
+            traj["makes_landfall"],
+        ),
     )
     if cur.lastrowid is None:
         msg = "Insert into trajectories table failed"
         raise RuntimeError(msg)
 
     trajectory_id = cur.lastrowid
+
+    # Observation ocean basin names, resolved to oceans table ids
+    obs_ocean_ids = (
+        [
+            ocean_ids[basin] if basin is not None else None
+            for basin in traj["ocean_basin"]
+        ]
+        if traj["ocean_basin"] is not None
+        else None
+    )
 
     rows = [
         (
@@ -298,6 +366,9 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
             v[i] if (v := traj["surface_altitude"]) is not None else None,
             v[i] if (v := traj["wind_speed"]) is not None else None,
             v[i] if (v := traj["atmosphere_relative_vorticity"]) is not None else None,
+            v[i] if (v := obs_ocean_ids) is not None else None,
+            v[i] if (v := traj["distance_to_coast_km"]) is not None else None,
+            int(v[i]) if (v := traj["landfall"]) is not None else None,
         )
         for sequence, i in enumerate(traj["indices"])
     ]
@@ -307,8 +378,9 @@ def insert_trajectory(db: sqlite3.Connection, file_id: int, traj: dict) -> int:
             """insert into observations
                (trajectory_id, sequence, date, latitude, longitude,
                 air_pressure_at_sea_level, surface_altitude, wind_speed,
-                atmosphere_relative_vorticity)
-               values (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                atmosphere_relative_vorticity,
+                ocean_id, distance_to_coast_km, landfall)
+               values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             rows,
         )
         if cur.rowcount != len(rows):
@@ -327,6 +399,7 @@ def import_file(
     Import a single NetCDF file into the database.
 
     Files already imported are skipped.
+    Every observation is classified against the world map during import.
 
     Parameters
     ----------
@@ -347,12 +420,17 @@ def import_file(
     logger.info("Importing %s", filename)
     netcdf_data = read_netcdf(netcdf_filepath)
 
+    # Classify the observations against the world map
+    netcdf_data["classification"] = classify_tracks(netcdf_data)
+
+    ocean_ids = get_ocean_ids(db)
+
     with db:
         file_id = insert_file(db, collection_id, netcdf_data)
 
         for traj_idx in range(netcdf_data["n_trajectories"]):
             traj = extract_trajectory(netcdf_data, traj_idx)
-            insert_trajectory(db, file_id, traj)
+            insert_trajectory(db, file_id, traj, ocean_ids)
 
     logger.info(
         "Imported %d trajectories with %d observations each from %s",
