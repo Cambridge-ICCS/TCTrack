@@ -8,12 +8,15 @@ from itertools import groupby
 from pathlib import Path
 
 import netCDF4
+import numpy as np
 import pytest
 
 from tctrack.build_db import build_db
+from tctrack.geographic import geographic
 
 NETCDF_FILE = str(Path(__file__).parent / "test_tracks.nc")
 NETCDF_SE_FILE = str(Path(__file__).parent / "test_tracks_se.nc")
+NETCDF_NATL_FILE = str(Path(__file__).parent / "6hr_track_mm_2013_natl.nc")
 
 
 @pytest.fixture
@@ -226,6 +229,80 @@ class TestObservationImport:
         for _traj_id, group in groupby(rows, key=lambda r: r[0]):
             sequences = [r[1] for r in group]
             assert sequences == list(range(len(sequences)))
+
+
+class TestClassification:
+    """Test geographic classification of imported trajectories."""
+
+    def test_open_ocean_tracks(self, tmp_db):
+        """Test classification of tracks that stay over the open ocean."""
+        build_db.build(tmp_db, NETCDF_FILE)
+        db = open_db(tmp_db)
+
+        north_pacific = db.execute(
+            "select id from oceans where name = 'North Pacific Ocean'"
+        ).fetchone()[0]
+
+        # Every observation is at sea, far from land, in the North Pacific
+        rows = db.execute(
+            "select landfall, distance_to_coast_km, ocean_id from observations"
+        ).fetchall()
+        for landfall, distance_to_coast_km, ocean_id in rows:
+            assert landfall == 0
+            assert distance_to_coast_km > 400
+            assert ocean_id == north_pacific
+
+        # No trajectory makes landfall, all form in the North Pacific
+        rows = db.execute("select landfall, ocean_id from trajectories").fetchall()
+        for landfall, ocean_id in rows:
+            assert landfall == 0
+            assert ocean_id == north_pacific
+
+    def test_landfalling_tracks(self, tmp_db):
+        """Test classification of tracks that cross land."""
+        build_db.build(tmp_db, NETCDF_NATL_FILE)
+        db = open_db(tmp_db)
+
+        oceans = {
+            name: ocean_id
+            for ocean_id, name in db.execute("select id, name from oceans")
+        }
+        atlantic = oceans["North Atlantic Ocean"]
+        pacific = oceans["North Pacific Ocean"]
+
+        trajectories = db.execute(
+            "select landfall, ocean_id from trajectories"
+        ).fetchall()
+        observations = db.execute(
+            "select landfall, ocean_id from observations"
+        ).fetchall()
+
+        # Some but not all tracks make landfall (Central America, Yucatan,
+        # the US East Coast and Nova Scotia in 2013), and only some
+        # observations are over land
+        assert {row[0] for row in trajectories} == {0, 1}
+        assert {row[0] for row in observations} == {0, 1}
+
+        # Tracks form in the North Atlantic and, on the Pacific side of
+        # Central America, the North Pacific
+        assert {row[1] for row in trajectories} == {atlantic, pacific}
+        assert {row[1] for row in observations} == {atlantic, pacific}
+
+
+class TestOceans:
+    """Test the seeded oceans type table."""
+
+    def test_oceans_seeded_from_world_map(self, tmp_db):
+        """Test that the oceans table holds the world map basin names."""
+        build_db.build(tmp_db, NETCDF_FILE)
+        db = open_db(tmp_db)
+
+        rows = {row[0] for row in db.execute("select name from oceans")}
+
+        with np.load(geographic.DATA_PATH) as data:
+            names = {str(name) for name in data["names"]}
+
+        assert rows == names
 
 
 class TestCollections:

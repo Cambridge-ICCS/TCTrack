@@ -58,6 +58,11 @@ doc = [
     "sphinx_rtd_theme",
     "sphinx_autodoc_typehints",
 ]
+# Required for regeneration of geographic world map data (generate_map.py)
+mapdata = [
+    "matplotlib",
+    "scipy",
+]
 dashboard = [
     "datasette>=0.65",
     "datasette-maplibre @ file:dashboard/plugins/datasette_maplibre",

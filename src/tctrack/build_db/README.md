@@ -18,8 +18,8 @@ build-db [--help] --output OUTPUT [--collection COLLECTION] files...
 To use the tool without installation, bypassing the need for all other TCTrack dependencies:
 
 ```bash
-cd /src/tctrack/build_db
-python -m build_db --output OUTPUT files...
+cd /src
+python -m tctrack.build_db.build_db --output OUTPUT files...
 ```
 
 ### Arguments
@@ -54,6 +54,8 @@ collections              Named groups of track files.
 └─ files                 Individual NetCDF files with metadata.
    └─ trajectories       Cyclone tracks.
       └─ observations    Individual observation rows.
+
+oceans                   Ocean basins.
 ```
 
 See [`schema.sql`](schema.sql) for the full schema definition.
@@ -62,5 +64,7 @@ See [`schema.sql`](schema.sql) for the full schema definition.
 ## Notes
 
 - The database is SQLite with foreign keys enabled.
-- Trajectories in NetCDF files may be padded with `NaN` values. Only valid observations are imported.
+- Trajectories in NetCDF files may be padded with NaN values. Only valid observations are imported.
 - Duplicate files are skipped (by filename) on attempted re-import.
+- Every observation is classified using the geographic module: whether it is over land, its distance to the nearest coastline and its ocean basin.
+- Trajectories record the ocean basin of their first (genesis) observation and whether any observation made landfall.
