@@ -131,7 +131,7 @@ class MLParameters(TCMLParameters):
     """
 
     t2m_variable: str = "ncvar%t2m"
-    """CF identity of the 2-metre temperature variable, used to gap-fill SST over land."""
+    """CF identity of the 2-metre temperature, used to gap-fill SST over land."""
 
     normalisation_stats_path: str | None = None
     """Path to a ``.nc`` file with per-channel ``mean`` and ``range`` variables
@@ -521,13 +521,16 @@ class MLTracker(TCMLTracker):
         self._scores = []
         self._candidates = []
         with torch.no_grad():
-            for t in range(n_time): #Loop runs once per timestep until all timesteps have been processed 
+            # Loop runs once per timestep until all timesteps have been processed
+            for t in range(n_time):
                 frame = data[:, t, :, :].unsqueeze(0)  # (1, channel, lat, lon)
-                output = self.model(frame)  # (1, 5, lat', lon') #Inference to get the predicted class probabilities for each pixel in the input frame.
+                # Inference to get the predicted class probabilities for each pixel in
+                # the input frame, shape (1, 5, lat', lon').
+                output = self.model(frame)
                 probs = torch.softmax(output, dim=1)[0].numpy()  # (5, lat', lon')
 
-                #Check if the output grid matches input grid
-                if probs.shape[1:] != (len(self._lats), len(self._lons)): 
+                # Check if the output grid matches input grid
+                if probs.shape[1:] != (len(self._lats), len(self._lons)):
                     msg = (
                         f"Model output shape {probs.shape[1:]} does not match "
                         f"the input grid {(len(self._lats), len(self._lons))}."
@@ -536,7 +539,9 @@ class MLTracker(TCMLTracker):
 
                 for i, lat in enumerate(self._lats):
                     for j, lon in enumerate(self._lons):
-                        self._scores.append( #scores list collects the time, lat, lon and the predicted class probabilities for each pixel in the input frame.
+                        # Collect the time, lat, lon and predicted class probabilities
+                        # for each pixel in the input frame.
+                        self._scores.append(
                             {
                                 "time": self._times[t],
                                 "lat": float(lat),
@@ -545,10 +550,10 @@ class MLTracker(TCMLTracker):
                             }
                         )
                 # Pick the winning class and confidence for each pixel
-                class_idx = probs.argmax(axis=0) #WHICH class won: 0-4
-                class_prob = probs.max(axis=0) #HOW high it was: 0.0-1.0
-                
-                #check if the winning class is a storm
+                class_idx = probs.argmax(axis=0)  # WHICH class won: 0-4
+                class_prob = probs.max(axis=0)  # HOW high it was: 0.0-1.0
+
+                # check if the winning class is a storm
                 is_storm = (class_idx != 0) & (class_prob >= self.parameters.threshold)
 
                 candidates = self._cluster_candidates(is_storm, class_idx, class_prob)
@@ -605,13 +610,15 @@ class MLTracker(TCMLTracker):
         """
         # Indices of storm-classified pixels that are still unclaimed by any blob.
         unvisited = {(y, x) for y, x in np.argwhere(is_storm)}
-        candidates: list[Candidate] = [] #list to carry details of candidate storms (centroid lat-lon) for each timestep
+        # List to carry details of candidate storms (centroid lat-lon) for each timestep
+        candidates: list[Candidate] = []
 
         # Run the loop until no pixels are left unchecked.
         while unvisited:
             # Start with an arbitrary unclaimed storm pixel.
             start = unvisited.pop()
-            queue = deque([start]) #collection of pixels whose neigbours are yet to be checked
+            # Collection of pixels whose neigbours are yet to be checked
+            queue = deque([start])
             pixels = [start]
 
             # Run the loop until no neighbouring pixel is left unchecked for a blob.
@@ -626,13 +633,18 @@ class MLTracker(TCMLTracker):
 
             ys, xs = zip(*pixels, strict=False)
             ys_arr, xs_arr = np.array(ys), np.array(xs)
-            weights = class_prob[ys_arr, xs_arr] #Use class confidence as weights for the centroid calculation
+            # Use class confidence as weights for the centroid calculation
+            weights = class_prob[ys_arr, xs_arr]
             # Index, within this blob, of its most confident pixel.
             peak = int(np.argmax(weights))
             candidates.append(
                 {
-                    "lat": float(np.average(self._lats[ys_arr], weights=weights)), #averaged pixel specific-latitudes to get centroid latitude of the storm
-                    "lon": float(np.average(self._lons[xs_arr], weights=weights)), #averaged pixel specific-longitudes to get centroid longitude of the storm
+                    # Averaged pixel specific-latitudes to get centroid latitude of the
+                    # storm
+                    "lat": float(np.average(self._lats[ys_arr], weights=weights)),
+                    # Averaged pixel specific-longitudes to get centroid longitude of
+                    # the storm
+                    "lon": float(np.average(self._lons[xs_arr], weights=weights)),
                     # Winning class and confidence at the blob's peak pixel.
                     "class_index": float(class_idx[ys_arr[peak], xs_arr[peak]]),
                     "score": float(weights[peak]),
@@ -657,13 +669,19 @@ class MLTracker(TCMLTracker):
         if self.parameters.merge_distance_deg <= 0:
             return candidates
 
-        kept: list[Candidate] = [] #list that will hold the strongest candidates after eliminating the weaker ones that are too close to each other.
-        for candidate in sorted(candidates, key=lambda c: c["score"], reverse=True): # Prioritise candidates with higher confidence
+        # List that will hold the strongest candidates after eliminating the weaker ones
+        # that are too close to each other.
+        kept: list[Candidate] = []
+        # Prioritise candidates with higher confidence
+        for candidate in sorted(candidates, key=lambda c: c["score"], reverse=True):
             if all(
                 _angular_distance_deg(
                     candidate["lat"], candidate["lon"], other["lat"], other["lon"]
                 )
-                >= self.parameters.merge_distance_deg #compare the centroid distance with the merge distance threshold to decide if the candidate is too close to any of the already kept candidates.
+                # Compare the centroid distance with the merge distance threshold to
+                # decide if the candidate is too close to any of the already kept
+                # candidates.
+                >= self.parameters.merge_distance_deg
                 for other in kept
             ):
                 kept.append(candidate)
@@ -695,7 +713,8 @@ class MLTracker(TCMLTracker):
             :attr:`stitch_parameters.max_distance_deg`, or ``None`` if
             none qualify.
         """
-        best_index, best_distance = None, self.stitch_parameters.max_distance_deg #best distance is closest distance found so far
+        # Best distance is closest distance found so far
+        best_index, best_distance = None, self.stitch_parameters.max_distance_deg
         for i in unmatched:
             candidate = candidates[i]
             distance = _angular_distance_deg(
@@ -704,10 +723,12 @@ class MLTracker(TCMLTracker):
                 track["last"]["lat"],
                 track["last"]["lon"],
             )
-            if distance < best_distance: #condition to check if the distance is less than the best distance found so far
+            # Condition to check if the distance is less than the best distance found so
+            # far
+            if distance < best_distance:
                 best_index, best_distance = i, distance
         return best_index
-    
+
     def stitch(self) -> list[Trajectory]:
         """Link the TC locations found by :meth:`detect` into trajectories.
 
@@ -732,18 +753,23 @@ class MLTracker(TCMLTracker):
         for candidate in self._candidates:
             by_timestep[candidate["time"]].append(candidate)
 
-        active_tracks: list[dict] = [] #list of dictionaries with trajectories, location of last storm point, missed timesteps
-        finished: list[Trajectory] = [] #list of dictionaries with trajectories that have been completed and no longer active
+        # List of dictionaries with trajectories, location of last storm point, missed
+        # timesteps
+        active_tracks: list[dict] = []
+        # List of dictionaries with trajectories that have been completed and no longer
+        # active
+        finished: list[Trajectory] = []
         next_id = 0
-
 
         for time in self._times:
             candidates = by_timestep[time]
 
-            #set of candidates that are not yet matched to a track, used to avoid double-counting them
+            # Set of candidates that are not yet matched to a track, used to avoid
+            # double-counting them.
             unmatched = set(range(len(candidates)))
             for track in active_tracks:
-                match = self._nearest_candidate(track, candidates, unmatched) #calls nearest candidate check function.
+                # Calls nearest candidate check function.
+                match = self._nearest_candidate(track, candidates, unmatched)
                 if match is None:
                     track["missed"] += 1
                     continue
@@ -753,7 +779,6 @@ class MLTracker(TCMLTracker):
                 track["missed"] = 0
                 unmatched.discard(match)
 
-
             still_active = []
             for track in active_tracks:
                 if track["missed"] > self.stitch_parameters.max_gap:
@@ -762,16 +787,12 @@ class MLTracker(TCMLTracker):
                     still_active.append(track)
             active_tracks = still_active
 
-
             for i in unmatched:
                 point = candidates[i]
                 trajectory = Trajectory(next_id, time)
                 trajectory.add_point(time, _point_variables(point))
-                active_tracks.append(
-                    {"traj": trajectory, "last": point, "missed": 0}
-                )
+                active_tracks.append({"traj": trajectory, "last": point, "missed": 0})
                 next_id += 1
-
 
         finished.extend(track["traj"] for track in active_tracks)
         self._trajectories = [
