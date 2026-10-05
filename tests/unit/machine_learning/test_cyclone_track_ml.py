@@ -9,8 +9,8 @@ inputs are small hand-built grids and candidate lists. The tests of reading the 
 file use the small ERA5 sample in ``data/machine_learning``. The tests therefore check
 the tracker's logic.
 
-The data used for tests is sample subset of ERA5 data in the directory /data/machine_learning, 
-and is licensed under the Open Government Licence v3.0 (OGL). 
+The data used for tests is sample subset of ERA5 data in the directory
+/data/machine_learning, and is licensed under the Open Government Licence v3.0 (OGL).
 """
 
 # The tests inspect module-private helpers on purpose.
@@ -28,17 +28,16 @@ import numpy as np
 import pytest
 import torch
 from cftime import datetime
+from tctrack.machine_learning.cyclone_track_ml import (
+    _angular_distance_deg,
+    _point_variables,
+)
 
 from tctrack.machine_learning import (
     MLParameters,
     MLStitchParameters,
     MLTracker,
 )
-from tctrack.machine_learning.cyclone_track_ml import (
-    _angular_distance_deg,
-    _point_variables,
-)
-
 
 SAMPLE_FILE = (
     Path(__file__).parents[3]
@@ -46,15 +45,15 @@ SAMPLE_FILE = (
     / "machine_learning"
     / "era5_dikeledi_2025-01-10.nc"
 )
+FAKE_TOKEN = "fake-token"  # noqa: S105 - not a real credential
+FAKE_ENV_TOKEN = "fake-env-token"  # noqa: S105 - not a real credential
 N_CHANNELS = 17  # 5 pressure variables x 3 levels, land mask, sea surface temperature
 
 
 @pytest.fixture
 def make_tracker(monkeypatch):
     """Create an MLTracker without loading a model."""
-    monkeypatch.setattr(
-        MLTracker, "_load_model", lambda self, parameters, hf_token=None: None
-    )
+    monkeypatch.setattr(MLTracker, "_load_model", lambda *_args, **_kwargs: None)
 
     def _make(parameters=None, stitch_parameters=None):
         return MLTracker(parameters or MLParameters(), stitch_parameters)
@@ -67,7 +66,9 @@ def _time(hour: int) -> datetime:
     return datetime(2025, 1, 1, calendar="gregorian") + timedelta(hours=6 * hour)
 
 
-def _candidate(hour: int, lat: float, lon: float, score: float = 0.9) -> dict:
+def _candidate(
+    hour: int, lat: float, lon: float, score: float = 0.9, data: dict | None = None
+) -> dict:
     """Return a candidate detection at the given timestep and location."""
     return {
         "time": _time(hour),
@@ -75,6 +76,7 @@ def _candidate(hour: int, lat: float, lon: float, score: float = 0.9) -> dict:
         "lon": lon,
         "class_index": 2.0,
         "score": score,
+        "data": data or {},
     }
 
 
@@ -116,14 +118,14 @@ class TestPointVariables:
     """Tests for the _point_variables helper."""
 
     def test_keeps_other_keys(self):
-        """Test that every non-time key is kept, including extra channels."""
+        """Test that time and data are dropped and the data values are merged in."""
         candidate = {
             "time": "2025-01-01",
             "lat": 1.0,
             "lon": 2.0,
             "class_index": 3.0,
             "score": 0.9,
-            "sea_surface_temperature": 300.0,
+            "data": {"sea_surface_temperature": 300.0},
         }
         assert _point_variables(candidate) == {
             "lat": 1.0,
@@ -159,31 +161,33 @@ class TestMLTrackerInit:
         monkeypatch.delenv("HF_TOKEN", raising=False)
         return download, load, model_file
 
-    def test_token_cleared_from_parameters(self, fake_hf):
+    @pytest.mark.usefixtures("fake_hf")
+    def test_token_cleared_from_parameters(self):
         """Test that the token is kept privately and removed from parameters."""
-        parameters = MLParameters(hf_token="secret")
+        parameters = MLParameters(hf_token=FAKE_TOKEN)
         tracker = MLTracker(parameters)
         assert parameters.hf_token is None
-        assert tracker._hf_token == "secret"
+        assert tracker._hf_token == FAKE_TOKEN
 
     def test_token_passed_to_download(self, fake_hf):
         """Test that the token given in the parameters is used to download."""
         download, _, _ = fake_hf
-        MLTracker(MLParameters(hf_token="secret"))
-        assert download.call_args.kwargs["token"] == "secret"
+        MLTracker(MLParameters(hf_token=FAKE_TOKEN))
+        assert download.call_args.kwargs["token"] == FAKE_TOKEN
 
-    def test_token_not_in_serialised_parameters(self, fake_hf):
+    @pytest.mark.usefixtures("fake_hf")
+    def test_token_not_in_serialised_parameters(self):
         """Test that the token cannot end up in the output metadata."""
-        tracker = MLTracker(MLParameters(hf_token="secret"))
+        tracker = MLTracker(MLParameters(hf_token=FAKE_TOKEN))
         serialised = json.dumps([asdict(p) for p in tracker._parameters])
-        assert "secret" not in serialised
+        assert FAKE_TOKEN not in serialised
 
     def test_env_token_fallback(self, fake_hf, monkeypatch):
         """Test that fake HF_TOKEN is used when no token is given."""
         download, _, _ = fake_hf
-        monkeypatch.setenv("HF_TOKEN", "from-env")
+        monkeypatch.setenv("HF_TOKEN", FAKE_ENV_TOKEN)
         MLTracker(MLParameters())
-        assert download.call_args.kwargs["token"] == "from-env"
+        assert download.call_args.kwargs["token"] == FAKE_ENV_TOKEN
 
     def test_local_model_path_skips_download(self, fake_hf, tmp_path):
         """Test that a local model file is loaded without downloading."""
@@ -194,7 +198,8 @@ class TestMLTrackerInit:
         download.assert_not_called()
         load.assert_called_once_with(str(model_path), map_location="cuda")
 
-    def test_missing_model_path_raises(self, fake_hf, tmp_path):
+    @pytest.mark.usefixtures("fake_hf")
+    def test_missing_model_path_raises(self, tmp_path):
         """Test that a model_path that does not exist raises an OSError."""
         parameters = MLParameters(model_path=str(tmp_path / "missing.pt"))
         with pytest.raises(OSError, match="Model file not found"):
@@ -222,6 +227,7 @@ class TestNormalisationStats:
         mean, value_range = tracker._load_normalisation_stats()
         assert np.array_equal(mean, np.arange(N_CHANNELS))
         assert np.array_equal(value_range, np.arange(1, N_CHANNELS + 1))
+
 
 class TestSetMetadata:
     """Tests for MLTracker._set_metadata, run on the ERA5 sample file."""
@@ -274,7 +280,7 @@ class TestPreprocess:
 
     @pytest.fixture
     def tracker(self, make_tracker, monkeypatch):
-        """Tracker on the sample file, with normalisation switched off (mean 0, range 1)."""
+        """Tracker on the sample file with normalisation switched off."""
         tracker = make_tracker(MLParameters(input_file=str(SAMPLE_FILE)))
         monkeypatch.setattr(
             tracker,
@@ -285,7 +291,7 @@ class TestPreprocess:
 
     @pytest.fixture(scope="class")
     def fields(self):
-        """The fields in the sample file, for comparison with the tensor."""
+        """Return the fields in the sample file, for comparison with the tensor."""
         return cf.read(str(SAMPLE_FILE))
 
     def test_tensor_shape(self, tracker):
@@ -310,7 +316,7 @@ class TestPreprocess:
         """Channels run through each variable's levels in turn: 1000, 750, 500 hPa."""
         data = tracker.preprocess().numpy()
         temperature = fields.select_field("air_temperature")
-        for channel, level in zip((3, 4, 5), (1000, 750, 500)):
+        for channel, level in zip((3, 4, 5), (1000, 750, 500), strict=True):
             expected = temperature.subspace(Z=level).squeeze("Z").array
             assert np.allclose(data[channel], expected)
 
@@ -344,6 +350,7 @@ class TestPreprocess:
         assert np.allclose(data[16][land], np.asarray(t2m)[land])
         assert np.allclose(data[16][~land], np.ma.getdata(sst)[~land])
 
+
 class TestDetect:
     """Tests for MLTracker.detect, using a fake model and a synthetic input grid."""
 
@@ -374,9 +381,7 @@ class TestDetect:
 
     def test_storm_pixel_becomes_candidate(self, tracker):
         """Test that a confident storm pixel is reported with its location and class."""
-        tracker.model = MagicMock(
-            side_effect=[_logits({(2, 3): (2, 10.0)}), _logits()]
-        )
+        tracker.model = MagicMock(side_effect=[_logits({(2, 3): (2, 10.0)}), _logits()])
         tracker.detect()
         assert len(tracker._candidates) == 1
         candidate = tracker._candidates[0]
@@ -384,6 +389,7 @@ class TestDetect:
         assert candidate["class_index"] == 2.0
         assert candidate["score"] > 0.99
         assert candidate["time"] == tracker._times[0]
+        assert set(candidate) == {"time", "lat", "lon", "class_index", "score", "data"}
 
     def test_low_confidence_discarded(self, tracker):
         """Test that a storm class below the threshold is not a candidate."""
@@ -403,14 +409,12 @@ class TestDetect:
 
     def test_colocated_variables_in_physical_units(self, tracker):
         """Test that input variables at the storm are reported un-normalised."""
-        tracker.model = MagicMock(
-            side_effect=[_logits({(2, 3): (2, 10.0)}), _logits()]
-        )
+        tracker.model = MagicMock(side_effect=[_logits({(2, 3): (2, 10.0)}), _logits()])
         tracker.detect()
         candidate = tracker._candidates[0]
-        assert set(tracker._channel_names) <= set(candidate)
+        assert set(candidate["data"]) == set(tracker._channel_names)
         # Last channel (sea surface temperature) is 16 -> 16 * 2 + 10.
-        assert candidate["sea_surface_temperature"] == pytest.approx(42.0)
+        assert candidate["data"]["sea_surface_temperature"] == pytest.approx(42.0)
 
     def test_grid_mismatch_raises(self, tracker):
         """Test that a model output on a different grid is rejected."""
@@ -446,24 +450,26 @@ class TestClusterCandidates:
         """Test that non-adjacent pixels give separate candidates."""
         tracker = self._grid_tracker(make_tracker)
         pixels = {(0, 0): (1, 0.7), (5, 5): (2, 0.9)}
-        candidates = tracker._cluster_candidates(*self._arrays(pixels))
+        candidates = tracker._cluster_candidates(*self._arrays(pixels), _time(0))
         assert len(candidates) == 2
         by_lat = sorted(candidates, key=lambda c: c["lat"])
         assert (by_lat[0]["lat"], by_lat[0]["lon"]) == (0.0, 10.0)
         assert (by_lat[1]["lat"], by_lat[1]["lon"]) == (5.0, 15.0)
+        # Every candidate carries the frame time and an empty data dictionary.
+        assert all(c["time"] == _time(0) and c["data"] == {} for c in candidates)
 
     def test_class_boundary_gives_one_cluster(self, make_tracker):
         """Test that adjacent pixels of different classes form one cluster."""
         tracker = self._grid_tracker(make_tracker)
         pixels = {(2, 2): (1, 0.6), (2, 3): (3, 0.9)}
-        candidates = tracker._cluster_candidates(*self._arrays(pixels))
+        candidates = tracker._cluster_candidates(*self._arrays(pixels), _time(0))
         assert len(candidates) == 1
 
     def test_class_and_score_from_peak_pixel(self, make_tracker):
         """Test that class and score are read off the most confident pixel."""
         tracker = self._grid_tracker(make_tracker)
         pixels = {(2, 2): (1, 0.6), (2, 3): (3, 0.9), (2, 4): (2, 0.7)}
-        candidate = tracker._cluster_candidates(*self._arrays(pixels))[0]
+        candidate = tracker._cluster_candidates(*self._arrays(pixels), _time(0))[0]
         assert candidate["class_index"] == 3.0
         assert candidate["score"] == pytest.approx(0.9)
 
@@ -471,7 +477,7 @@ class TestClusterCandidates:
         """Test that the centroid is pulled towards the more confident pixel."""
         tracker = self._grid_tracker(make_tracker)
         pixels = {(2, 2): (1, 0.9), (2, 3): (1, 0.3)}
-        candidate = tracker._cluster_candidates(*self._arrays(pixels))[0]
+        candidate = tracker._cluster_candidates(*self._arrays(pixels), _time(0))[0]
         assert candidate["lat"] == pytest.approx(2.0)
         assert candidate["lon"] == pytest.approx((12 * 0.9 + 13 * 0.3) / 1.2)
 
@@ -530,13 +536,23 @@ class TestStitch:
 
     def test_single_storm_linked(self, make_tracker):
         """Test that a slowly moving storm becomes a single trajectory."""
-        candidates = [_candidate(i, 10.0 + 0.5 * i, 50.0 + 0.5 * i) for i in range(3)]
+        candidates = [
+            _candidate(
+                i,
+                10.0 + 0.5 * i,
+                50.0 + 0.5 * i,
+                data={"sea_surface_temperature": 300.0 + i},
+            )
+            for i in range(3)
+        ]
         trajectories = self._stitch(make_tracker(), 3, candidates)
         assert len(trajectories) == 1
         assert trajectories[0].observations == 3
         assert trajectories[0].data["lat"] == [10.0, 10.5, 11.0]
         assert trajectories[0].data["lon"] == [50.0, 50.5, 51.0]
         assert trajectories[0].data["time"] == [_time(i) for i in range(3)]
+        # The values sampled from the input are carried into the trajectory points.
+        assert trajectories[0].data["sea_surface_temperature"] == [300.0, 301.0, 302.0]
 
     def test_jump_beyond_max_distance_not_linked(self, make_tracker):
         """Test that candidates further than max_distance_deg start a new track."""
@@ -615,8 +631,10 @@ class TestDetectionsToNetcdf:
                 "lon": 55.0,
                 "class_index": 3.0,
                 "score": 0.6,
-                "sea_surface_temperature": 301.0,
-                "air_temperature_500": 265.0,
+                "data": {
+                    "sea_surface_temperature": 301.0,
+                    "air_temperature_500": 265.0,
+                },
             },
             {
                 "time": start + timedelta(hours=6),
@@ -624,8 +642,10 @@ class TestDetectionsToNetcdf:
                 "lon": 54.0,
                 "class_index": 4.0,
                 "score": 0.7,
-                "sea_surface_temperature": 302.0,
-                "air_temperature_500": 266.0,
+                "data": {
+                    "sea_surface_temperature": 302.0,
+                    "air_temperature_500": 266.0,
+                },
             },
         ]
         return tracker
