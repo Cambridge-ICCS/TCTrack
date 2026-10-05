@@ -114,3 +114,8 @@ convention = "numpy"
 [[tool.mypy.overrides]]
 module = ["cftime.*", "cf.*"]
 follow_untyped_imports = true
+
+[[tool.mypy.overrides]]
+# No type stubs are available for these.
+module = ["h5py.*", "scipy.*"]
+ignore_missing_imports = true

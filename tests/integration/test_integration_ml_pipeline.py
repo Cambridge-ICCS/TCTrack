@@ -100,7 +100,7 @@ def test_output_writers(tracker: MLTracker, tmp_path: Path) -> None:
     # -- detections: CF point layout ---------------------------------------
     detections_file = tmp_path / "detections.nc"
     tracker.detections_to_netcdf(str(detections_file))
-    fields = cf.read(str(detections_file))
+    fields = cf.read(str(detections_file))  # type: ignore[operator]
     written = {field.nc_get_variable("?"): field for field in fields}
 
     assert len(written) == len(fields), "netCDF variable names collided"
@@ -124,6 +124,6 @@ def test_output_writers(tracker: MLTracker, tmp_path: Path) -> None:
     assert np.allclose(sst.array.tolist(), in_memory), "values changed on write/read"
 
     # -- trajectories: CF trajectory layout, written by run_tracker() ------
-    track_fields = cf.read(str(tracks_file))
+    track_fields = cf.read(str(tracks_file))  # type: ignore[operator]
     assert track_fields, "trajectory file has no variables"
     assert track_fields[0].get_property("featureType") == "trajectory"
