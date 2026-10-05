@@ -1,4 +1,4 @@
-import * as maplibregl from "https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.mjs";
+import * as maplibregl from "https://unpkg.com/maplibre-gl@6.12.0/dist/maplibre-gl.mjs";
 import { LayerControl } from "https://unpkg.com/maplibre-gl-layer-control@0.17.5/dist/index.mjs";
 
 // Pick up config passed from Python __init__ layer
@@ -80,6 +80,7 @@ function buildGeoJSON({ columns, rows }) {
 	const groups = new Map();
 	let lines = 0;
 	const group_idx = GROUP_BY?.column ? columns.indexOf(GROUP_BY.column) : -1;
+	let previous_lon;
 
 	if (group_idx != -1) {
 		// Pair the group property columns with their indexes
@@ -92,7 +93,7 @@ function buildGeoJSON({ columns, rows }) {
 
 		// Build group map
 		// Iterate rows to find groups and accumulate coordinates
-		// Points are chained together in row order so group rows must be contiguous
+		// Points are chained together in row order so group rows must be contiguous and in sequence
 		for (const row of rows) {
 			const key = row[group_idx];
 
@@ -108,9 +109,18 @@ function buildGeoJSON({ columns, rows }) {
 				// Create new group
 				group = { coordinates: [], properties };
 				groups.set(key, group);
+				previous_lon = row[lon_idx];  // Use the first value as previous to avoid triggering wrap behaviour
 			}
 
-			group.coordinates.push([row[lon_idx], row[lat_idx]]);
+			// Wrap longitudes across the antimeridian to keep adjacent points within 180°
+			// This ensures that lines are drawn correctly, even when adjacent points cross the antimeridian
+			// (rather than drawing across the whole map)
+			let longitude = row[lon_idx];
+			if (longitude < previous_lon - 180) longitude += 360;
+			else if (longitude > previous_lon + 180) longitude -= 360;
+			previous_lon = longitude;
+
+			group.coordinates.push([longitude, row[lat_idx]]);
 		}
 
 		// Create a LineString for each group entry

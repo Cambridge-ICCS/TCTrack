@@ -112,4 +112,6 @@ The following settings are available:
 
 ### Ideas for the Future
 
-If the quantity or complexity of track data increases, it might be better served via the [MapLibre Tile Specification](https://maplibre.org/maplibre-tile-spec/) (MLT) instead of through standard Datasette delivery. This would increase performance and allow for much larger datasets. However, for this first version, leaning on the flexibility of Datasette gave the most immediate opportunities. Using MLT as the data source would require new map filtering capabilities.
+The next logical step is a dedicated map view with full client‑side filtering and configuration. This would eliminate data reloading and provide a smoother experience without requiring changes to configuration files.
+
+Track data would be better served via the [MapLibre Tile Specification](https://maplibre.org/maplibre-tile-spec/) (MLT) rather than through standard Datasette delivery. This would increase performance and allow for much larger datasets. However, for this first version, relying on the foundation and flexibility of Datasette offered the most immediate opportunities. Using MLT as the data source would require client‑side map filtering capabilities.
