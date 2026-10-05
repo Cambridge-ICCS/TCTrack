@@ -98,11 +98,12 @@ The following settings are available:
 		- `min`: Value/weight pair for lowest weight, e.g. [0, 0] when property = 0, weight = 0.
 		- `max`: Value/weight pair for strongest weight, e.g. [30, 1] when property >= 30, weight = 1.
 		- `exponential`: Exponential base for weight scaling.
+	- `influence_radius`: How far each observation spreads its influence.
+	- `max_zoom`: Maximum zoom level. The heatmap will be faded out by this level of zoom.
 	- `palette` Colour ramp for heatmap density (`#rrggbb` hex format, no alpha).
 		- `low`: Starting colour.
 		- `mid`: Colour at midpoint.
 		- `high`: Colour at maximum weight.
-	- `max_zoom`: Maximum zoom level. The heatmap will be faded out by this level of zoom.
 	- `opacity`: Heatmap opacity.
 - `palette` Colours for rendering features (`#rrggbb[aa]` hex format). The default accessible set is taken from [Qualitative Colour Schemes](https://sronpersonalpages.nl/~pault/):
 	- `single` Feature colour when there is only one layer.

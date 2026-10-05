@@ -345,7 +345,7 @@ function init() {
 						["linear"],
 						["zoom"],
 						0, 1,
-						HEATMAP.max_zoom, 50,
+						HEATMAP.max_zoom, HEATMAP.influence_radius,
 					],
 					// Fade out heatmap as it reaches maximum zoom
 					"heatmap-opacity": [
