@@ -120,7 +120,7 @@ def test_output_writers(tracker: MLTracker, tmp_path: Path) -> None:
     for coordinate in ("time", "latitude", "longitude"):
         assert sst.coordinate(coordinate) is not None, f"missing {coordinate}"
 
-    in_memory = [c["sea_surface_temperature"] for c in tracker._candidates]
+    in_memory = [c["data"]["sea_surface_temperature"] for c in tracker._candidates]
     assert np.allclose(sst.array.tolist(), in_memory), "values changed on write/read"
 
     # -- trajectories: CF trajectory layout, written by run_tracker() ------
