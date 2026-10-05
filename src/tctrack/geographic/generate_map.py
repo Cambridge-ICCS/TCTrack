@@ -57,7 +57,7 @@ MAX_BASINS = 256
 #: Spot checks used to sanity check the generated map: (lat, lon, on land).
 SPOT_CHECKS = [
     (39.7, -105.0, True),  # Denver
-    (51.5, -0.1, True),    # London
+    (51.5, -0.1, True),  # London
     (30.0, -40.0, False),  # mid-Atlantic
     (0.0, -140.0, False),  # mid-Pacific
 ]

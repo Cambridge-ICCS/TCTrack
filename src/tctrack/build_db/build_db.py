@@ -335,7 +335,8 @@ def insert_trajectory(
             file_id,
             traj["start_end"],
             ocean_ids[basin]
-            if (basin := traj["genesis_ocean_basin"]) is not None else None,
+            if (basin := traj["genesis_ocean_basin"]) is not None
+            else None,
             traj["makes_landfall"],
         ),
     )
