@@ -167,11 +167,14 @@ Thus, good style is a requirement for submitting code to *TCTrack*.
 - `mypy <http://mypy-lang.org/>`_ for static type checking of
   `type hints <https://docs.python.org/3/library/typing.html>`_.
 
-These will be checked on all pull requests and commits to main, so it is suggested you
-run them on your code before committing.
+These will be checked on all pull requests and commits to main, but it is suggested that you install the ``pre-commit`` hooks so that any changes will be checked each time you commit:
 
-This can be done with a development install by running the following bash commands from
-the root directory:
+.. code-block:: shell
+
+    pre-commit install
+
+To manually run the checks instead, run the following bash commands from the root
+directory with a development installation:
 
 .. code-block:: shell
 

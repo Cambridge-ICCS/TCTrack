@@ -125,7 +125,7 @@ class TestTrackTracker:
         assert file_path.read_text() == expected_result
         file_path.unlink()  # cleanup
 
-    def test_export_inputs_no_directory(self, mocker, tmp_path):
+    def test_export_inputs_no_directory(self, mocker, tmp_path: Path):
         """Check a directory is created when it doesn't exist."""
         tracker = self._setup_tracker(mocker)
 
@@ -138,7 +138,7 @@ class TestTrackTracker:
         file_path = tmp_path / "a" / "b" / f"{command_name}.in"
         assert file_path.exists()
 
-    def test_read_inputs(self, mocker, tmp_path):
+    def test_read_inputs(self, mocker, tmp_path: Path):
         """Check reading of exported command line inputs is correct."""
         tracker = self._setup_tracker(mocker)
         tracker.parameters.read_inputs = True
@@ -195,6 +195,8 @@ class TestTrackTracker:
             check=True,
             capture_output=True,
             text=True,
+            stdin=None,
+            cwd=None,
         )
 
         # Check call to shutil.copy is as expected
@@ -223,6 +225,8 @@ class TestTrackTracker:
             check=True,
             capture_output=True,
             text=True,
+            stdin=None,
+            cwd=None,
         )
 
         # Check call to shutil.copy is as expected
@@ -262,6 +266,8 @@ class TestTrackTracker:
             check=True,
             capture_output=True,
             text=True,
+            stdin=None,
+            cwd=None,
         )
 
     def test_filter_trajectories(self, mocker):
@@ -288,9 +294,11 @@ class TestTrackTracker:
             check=True,
             capture_output=True,
             text=True,
+            stdin=None,
+            cwd=None,
         )
 
-    def _create_nc_output_file(self, tmp_path):
+    def _create_nc_output_file(self, tmp_path: Path):
         """Create a minimal TRACK NetCDF output file with 2 tracks."""
         directory = tmp_path / "outdat"
         directory.mkdir()
@@ -322,7 +330,7 @@ class TestTrackTracker:
             lat[:] = [0, -1, -2, -3, -4]
             intensity[:] = [0, 10, 20, 30, 40]
 
-    def _create_nc_input_file(self, tmp_path):
+    def _create_nc_input_file(self, tmp_path: Path):
         """Create a minimal NetCDF input file with defined times."""
         file_path = tmp_path / "input.nc"
 
@@ -343,7 +351,7 @@ class TestTrackTracker:
 
         return str(file_path)
 
-    def test_read_trajectories(self, mocker, tmp_path):
+    def test_read_trajectories(self, mocker, tmp_path: Path):
         """Check read_trajectories correctly reads in the output netcdf file."""
         # Create the temporary input and output files
         self._create_nc_output_file(tmp_path)
@@ -390,7 +398,7 @@ class TestTrackTracker:
         ):
             tracker.read_trajectories()
 
-    def test_variable_metadata(self, mocker, tmp_path):
+    def test_variable_metadata(self, mocker, tmp_path: Path):
         """Test variable_metadata is defined correctly by set_metadata."""
         input_file = self._create_nc_input_file(tmp_path)
         params = {"base_dir": str(tmp_path), "input_file": input_file}
@@ -419,7 +427,7 @@ class TestTrackTracker:
         assert metadata["intensity"].constructs == expected_constructs
         assert metadata["intensity"].construct_kwargs == expected_construct_kwargs
 
-    def test_time_metadata(self, mocker, tmp_path):
+    def test_time_metadata(self, mocker, tmp_path: Path):
         """Test time_metadata is defined correctly by set_metadata."""
         input_file = self._create_nc_input_file(tmp_path)
         params = {"base_dir": str(tmp_path), "input_file": input_file}
@@ -435,7 +443,7 @@ class TestTrackTracker:
             "end_time": cftime.datetime(1950, 1, 3, 0, calendar="360_day"),
         }
 
-    def test_global_metadata(self, mocker, tmp_path):
+    def test_global_metadata(self, mocker, tmp_path: Path):
         """Test global_metadata is defined correctly by set_metadata."""
         input_file = self._create_nc_input_file(tmp_path)
         params = {"base_dir": str(tmp_path), "input_file": input_file}

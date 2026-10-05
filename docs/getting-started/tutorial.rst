@@ -23,9 +23,6 @@ you may choose to follow just one.
 Installation
 ------------
 
-.. warning::
-   The tutorial currently only works for python 3.11 and above.
-
 First, follow the :ref:`installation instructions <getting-started/index:installation>`.
 Make sure to use a conda environment and install TCTrack from source (not from PyPI) so
 that the tutorial scripts are downloaded.
@@ -90,9 +87,9 @@ before running.
 Pre-processing of Data
 ----------------------
 
-From inside the conda environment run the regridding script to pre-process the data::
+From inside the conda environment run the script to pre-process the data::
 
-    python regrid.py
+    python preprocess_data.py
 
 This will pre-process the downloaded data as required for our codes and place it in
 ``data_processed/``.

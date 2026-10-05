@@ -2,9 +2,10 @@
 
 import importlib.metadata
 import json
-import pathlib
 import re
+import tempfile
 from dataclasses import asdict, dataclass
+from pathlib import Path
 
 import cf
 import numpy as np
@@ -244,11 +245,7 @@ class TestTCTracker:
         }
         assert tracker.global_metadata == expected_metadata
 
-    def make_netcdf_file(
-        self,
-        tmp_path: pathlib.Path,
-        delete_std_name: bool = False,
-    ) -> pathlib.Path:
+    def make_netcdf_file(self, tmp_path: Path, delete_std_name: bool = False) -> Path:
         """Output a trajectories netcdf file with to_netcdf.
 
         We will take some predefined Trajectories (matching the variable_metadata and
@@ -318,12 +315,12 @@ class TestTCTracker:
 
         return output_file
 
-    def test_to_netcdf(self, tmp_path):
+    def test_to_netcdf(self, tmp_path: Path):
         """Test to_netcdf writes trajectories to a file in the netcdf_file fixture."""
         netcdf_file = self.make_netcdf_file(tmp_path)
         assert netcdf_file.exists()
 
-    def test_to_netcdf_no_trajectories(self, tmp_path):
+    def test_to_netcdf_no_trajectories(self, tmp_path: Path):
         """Test to_netcdf raises warning and exits gracefully when no trajectories."""
         # Instantiate the dummy tracker with empty trajectories
         tracker = self.ExampleTracker([])
@@ -337,12 +334,12 @@ class TestTCTracker:
             tracker.to_netcdf(str(netcdf_file))
         assert not netcdf_file.exists()
 
-    def test_to_netcdf_data(self, tmp_path):
+    def test_to_netcdf_data(self, tmp_path: Path):
         """Check to_netcdf writes trajectories with the correct data and dimensions."""
         netcdf_file = self.make_netcdf_file(tmp_path)
 
         # Read back with cf.read
-        fields = cf.read(str(netcdf_file))
+        fields = cf.read(str(netcdf_file))  # type: ignore[operator]
 
         # Validate the structure and content - one variable field
         assert len(fields) == 1
@@ -368,12 +365,12 @@ class TestTCTracker:
         assert np.allclose(var_data[1, :], [15.0, 20.0, 15.0])
 
     @pytest.mark.parametrize("delete_std_name", [False, True])
-    def test_to_netcdf_variable_metadata(self, tmp_path, delete_std_name):
+    def test_to_netcdf_variable_metadata(self, tmp_path: Path, delete_std_name):
         """Check to_netcdf writes trajectories with the correct variable metadata."""
         netcdf_file = self.make_netcdf_file(tmp_path, delete_std_name)
 
         # Read back with cf.read
-        field = cf.read(str(netcdf_file))[0]
+        field = cf.read(str(netcdf_file))[0]  # type: ignore[operator]
 
         # Check the fields (variables) - just one in this test
         variable = "test_var"
@@ -423,12 +420,12 @@ class TestTCTracker:
                     f"Metadata mismatch for {variable}: {key}"
                 )
 
-    def test_to_netcdf_track_flag(self, tmp_path):
+    def test_to_netcdf_track_flag(self, tmp_path: Path):
         """Check to_netcdf correctly flags tracks at start and end of file."""
         netcdf_file = self.make_netcdf_file(tmp_path)
 
         # Read back with cf.read
-        fields = cf.read(str(netcdf_file))
+        fields = cf.read(str(netcdf_file))  # type: ignore[operator]
 
         # Check the fields (variables) - just one in this test
         variable = fields.select_by_identity("test_standard_name")[0]
@@ -443,12 +440,12 @@ class TestTCTracker:
         assert np.array_equal(start_flag.value().array, [True, False, False])
         assert np.array_equal(end_flag.value().array, [False, False, True])
 
-    def test_to_netcdf_global_metadata(self, tmp_path):
+    def test_to_netcdf_global_metadata(self, tmp_path: Path):
         """Check to_netcdf writes trajectories with the correct global metadata."""
         netcdf_file = self.make_netcdf_file(tmp_path)
 
         # Read back with cf.read
-        field = cf.read(str(netcdf_file))[0]
+        field = cf.read(str(netcdf_file))[0]  # type: ignore[operator]
 
         # Check the global metadata is written correctly
         global_metadata = field.nc_global_attributes(values=True)
@@ -460,3 +457,50 @@ class TestTCTracker:
         }
         for key, expected_value in expected_global_metadata.items():
             assert global_metadata[key] == expected_value
+
+    @pytest.mark.parametrize("verbosity", [0, 1, 2])
+    def test_run_tracker_subprocess_returns_dict(self, verbosity):
+        """Test that function returns correct dict with all keys."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("test line\n")
+            temp_file = f.name
+
+        try:
+            result = self.ExampleTracker([]).run_tracker_subprocess(
+                command_name="TestCommand",
+                command_list=["cat"],
+                input_file=temp_file,
+                verbosity=verbosity,
+            )
+
+            assert isinstance(result, dict), "Should return a dict"
+            assert "stdout" in result, "Dict should have stdout key"
+            assert "stderr" in result, "Dict should have stderr key"
+            assert "returncode" in result, "Dict should have returncode key"
+            assert result["returncode"] == 0, "Command should succeed"
+            assert "test line" in result["stdout"], "stdout should contain input"
+
+        finally:
+            Path(temp_file).unlink()
+
+    def test_run_tracker_subprocess_invalid_verbosity(self):
+        """Test that invalid verbosity raises ValueError."""
+        with pytest.raises(ValueError):
+            self.ExampleTracker([]).run_tracker_subprocess(
+                command_name="TestCommand",
+                command_list=["cat"],
+                verbosity=5,
+            )
+
+    @pytest.mark.parametrize("verbosity", [0, 1, 2])
+    def test_run_tracker_subprocess_returns_stderr(self, verbosity):
+        """Test that function returns correct stderr."""
+        result = self.ExampleTracker([]).run_tracker_subprocess(
+            command_name="TestCommand",
+            command_list=["sh", "-c", 'echo "test error" >&2'],
+            verbosity=verbosity,
+        )
+
+        assert isinstance(result, dict), "Should return a dict"
+        assert "stderr" in result, "Dict should have stderr key"
+        assert "test error" in result["stderr"], "stderr should contain input"

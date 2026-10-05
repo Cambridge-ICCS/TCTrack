@@ -41,5 +41,5 @@ stitch_params = tstorms.TSTORMSStitchParameters(
 tstorms_tracker = tstorms.TSTORMSTracker(tstorms_params, detect_params, stitch_params)
 tstorms_tracker.run_tracker("tracks_tstorms.nc")
 
-# tstorms_tracker.stitch(verbose=True)
+# tstorms_tracker.stitch(verbosity=2)
 # tstorms_tracker.to_netcdf("tracks_tstorms.nc")

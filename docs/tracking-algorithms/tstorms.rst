@@ -32,23 +32,22 @@ number of fixes for hard-coded filepaths etc. over the original to aid usability
 
 TSTORMS comprises two codes, one for storm detection (``tstorms_driver``) and another
 for generating trajectories (``trajectory_analysis``).
-The code is built using Make and requires a Fortran compiler (ifort default recommended)
-and an installation of NetCDF.
+The code is built using Make and requires a Fortran compiler and an installation of
+NetCDF.
 The steps are summarised here::
 
     git clone https://github.com/Cambridge-ICCS/TSTORMS.git
     cd TSTORMS/
     cd tstorms_driver/
-    make
+    make FC=gfortran
     cd ../trajectory_analysis/
-    make
+    make FC=gfortran
 
 This will clone the TSTORMS code and then then build the two TSTORMS executables using
 Make.
-Using a different compiler requires modification to both
-``tstorms_driver/mkmf_template`` and ``trajectory_analysis/mkmf_template``
-to set ``FC``, ``LD``, and any associated flags appropriately.
-This will be required if building with gfortran or Intel oneAPI compilers >= 2025 (ifx).
+``ifort`` or ``ifx`` can also be used for the compilation. Any other compilers will
+require modification to both ``tstorms_driver/mkmf_template`` and
+``trajectory_analysis/mkmf_template``.
 
 Once this is complete the TSTORMS executables can then be found at
 ``/path/to/TSTORMS_installation/tstorms_driver/tstorms_driver.exe`` and
@@ -115,7 +114,7 @@ documentation:
     # Initialize the tracker
     tracker = TSTORMSTracker(tstorms_params, detect_params)
 
-    detect_call = tracker.detect(verbose=True)
+    detect_call = tracker.detect(verbosity=2)
 
 The result of this will be a ``cyclones`` file in the prescribed output directory with
 candidate storms organised by date in the format described in :meth:`~TSTORMSTracker.detect`.
@@ -145,7 +144,7 @@ Full details of each input are given in the :class:`TSTORMSStitchParameters` doc
         lat_bound_s=-70.0,
     )
     tracker = TSTORMSTracker(tstorms_params, detect_params, stitch_params)
-    stitching_call = tracker.stitch(verbose=True)
+    stitching_call = tracker.stitch(verbosity=2)
 
 The result of this will be the following set of files at the output location
 provided in :class:`TSTORMSStitchParameters`:
