@@ -17,6 +17,10 @@ from tctrack.geographic import geographic
 NETCDF_FILE = str(Path(__file__).parent / "test_tracks.nc")
 NETCDF_SE_FILE = str(Path(__file__).parent / "test_tracks_se.nc")
 NETCDF_NATL_FILE = str(Path(__file__).parent / "6hr_track_mm_2013_natl.nc")
+NETCDF_360_DAY_FILE = str(
+    Path(__file__).parent / "HadGEM3-GC31-HH_r1i1p1f1_tracks_2000.nc"
+)
+HADSST_2000_FILE = str(Path(__file__).parent / "HadSST.4.2.0.0_median_2000.nc")
 
 
 @pytest.fixture
@@ -63,6 +67,13 @@ class TestFileImport:
         db = open_db(tmp_db)
         count = db.execute("select count(*) from files").fetchone()[0]
         assert count == 1
+
+    def test_invalid_hadsst_fails_before_database_creation(self, tmp_db):
+        """Test an unusable HadSST path fails before importing any files."""
+        with pytest.raises(ValueError, match="HadSST dataset does not exist"):
+            build_db.build(tmp_db, NETCDF_FILE, hadsst_filepath="missing-hadsst.nc")
+
+        assert not Path(tmp_db).exists()
 
     def test_file_metadata(self, tmp_db):
         """Test file metadata (tracker, version, time units)."""
@@ -230,6 +241,75 @@ class TestObservationImport:
             sequences = [r[1] for r in group]
             assert sequences == list(range(len(sequences)))
 
+    def test_sea_surface_temp_anomaly_without_hadsst_is_null(self, tmp_db):
+        """Test the anomaly remains null when a HadSST dataset is not supplied."""
+        build_db.build(tmp_db, NETCDF_FILE)
+        db = open_db(tmp_db)
+
+        values = db.execute(
+            "select distinct sea_surface_temp_anomaly from observations"
+        ).fetchall()
+
+        assert values == [(None,)]
+
+    def test_sea_surface_temp_anomaly_from_hadsst(self, tmp_db):
+        """Test observations receive an anomaly from the supplied HadSST dataset."""
+        build_db.build(
+            tmp_db,
+            NETCDF_360_DAY_FILE,
+            hadsst_filepath=HADSST_2000_FILE,
+        )
+        db = open_db(tmp_db)
+
+        ssta = db.execute(
+            "select sea_surface_temp_anomaly from observations "
+            "where trajectory_id = 1 and sequence = 0"
+        ).fetchone()[0]
+
+        assert ssta is not None
+
+    def test_360_day_observations_match_hadsst_month(self, tmp_db):
+        """Test 360_day dates, including February 30, use February HadSST."""
+        build_db.build(
+            tmp_db,
+            NETCDF_360_DAY_FILE,
+            hadsst_filepath=HADSST_2000_FILE,
+        )
+        db = open_db(tmp_db)
+
+        rows = db.execute(
+            "select sea_surface_temp_anomaly from observations "
+            "where trajectory_id = 16 and sequence between 102 and 104 "
+            "order by sequence"
+        ).fetchall()
+
+        assert len(rows) == 3
+        assert all(value is not None for (value,) in rows)
+
+    def test_missing_hadsst_grid_cell_remains_null(self, tmp_db):
+        """Test missing HadSST source data is imported as null anomalies."""
+        with netCDF4.Dataset(HADSST_2000_FILE) as dataset:
+            # February 2000, latitude -17.5, longitude 142.5. The observations
+            # below all resolve to this 5-degree HadSST cell.
+            source_ssta = dataset.variables["tos"][1, 14, 64]
+
+        assert np.ma.is_masked(source_ssta)
+
+        build_db.build(
+            tmp_db,
+            NETCDF_360_DAY_FILE,
+            hadsst_filepath=HADSST_2000_FILE,
+        )
+        db = open_db(tmp_db)
+
+        values = db.execute(
+            "select sea_surface_temp_anomaly from observations "
+            "where trajectory_id = 16 and sequence between 27 and 34 "
+            "order by sequence"
+        ).fetchall()
+
+        assert values == [(None,)] * 8
+
 
 class TestClassification:
     """Test geographic classification of imported trajectories."""
@@ -387,6 +467,26 @@ class TestCli:
         """Test that build_db.main creates a database file."""
         build_db.main(["--output", tmp_db, NETCDF_FILE])
         assert Path(tmp_db).exists()
+
+    def test_hadsst_option(self, tmp_db):
+        """Test that --hadsst passes the lookup dataset to the importer."""
+        build_db.main(
+            [
+                "--output",
+                tmp_db,
+                "--hadsst",
+                HADSST_2000_FILE,
+                NETCDF_360_DAY_FILE,
+            ]
+        )
+        db = open_db(tmp_db)
+
+        ssta = db.execute(
+            "select sea_surface_temp_anomaly from observations "
+            "where trajectory_id = 1 and sequence = 0"
+        ).fetchone()[0]
+
+        assert ssta is not None
 
     def test_named_collection(self, tmp_db):
         """Test that a named collection is created when --collection is specified."""

@@ -91,6 +91,8 @@ create table observations (
     wind_speed                     real,
     atmosphere_relative_vorticity  real,
 
+    sea_surface_temp_anomaly       real,
+
     ocean_id                       text    references oceans(id),
     distance_to_coast_km           real,
     landfall                       integer check (landfall in (0, 1)),
@@ -101,6 +103,7 @@ create table observations (
 create index obs_air_pressure_idx on observations(air_pressure_at_sea_level);
 create index obs_surface_altitude_idx on observations(surface_altitude);
 create index obs_wind_speed_idx on observations(wind_speed);
+create index obs_ssta_idx on observations(sea_surface_temp_anomaly);
 create index obs_ocean_idx on observations(ocean_id);
 create index obs_distance_to_coast_km_idx on observations(distance_to_coast_km);
 create index obs_landfall_idx on observations(landfall);
@@ -117,6 +120,7 @@ select
 	cast(substr(date, 1, 4) as integer) as year,
 	sequence, date, latitude, longitude,
 	air_pressure_at_sea_level, surface_altitude, wind_speed,
+	sea_surface_temp_anomaly,
 	ob.ocean_id, ob.landfall, cast(sequence = 0 as integer) as genesis
 from
 	observations ob
@@ -141,6 +145,7 @@ select
 	cast(substr(date, 1, 4) as integer) as year,
 	sequence, date, latitude, longitude,
 	air_pressure_at_sea_level, surface_altitude, wind_speed,
+	sea_surface_temp_anomaly,
 	tr.ocean_id, tr.landfall
 from
 	observations ob
