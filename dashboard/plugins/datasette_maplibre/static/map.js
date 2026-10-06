@@ -324,7 +324,7 @@ function init() {
 		// Add heatmap if configured
 		if (heatmap_weight)
 			map.addLayer({
-				id: "heatmap",
+				id: HEATMAP.weight_property.column,
 				type: "heatmap",
 				source: source_id,
 				maxzoom: HEATMAP.max_zoom,
