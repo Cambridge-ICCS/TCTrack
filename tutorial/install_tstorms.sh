@@ -11,9 +11,9 @@ cd TSTORMS/
 
 # Build using Make
 cd tstorms_driver/
-make
+make FC=gfortran
 cd ../trajectory_analysis/
-make
+make FC=gfortran
 
 # return to tutorial directory
 cd ../../

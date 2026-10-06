@@ -1,228 +1,106 @@
 """Integration test for the MLTracker pipeline.
 
-Runs a small crop of real ERA5 data through preprocess() -> detect() ->
-stitch(), then writes the results with both output writers and reads them
-back. Shapes and invariants are checked at each step; how *well* the model
+Runs the small ERA5 sample in ``data/machine_learning`` through preprocess() ->
+detect() -> stitch(), then writes the results with both output writers and reads
+them back. Shapes and invariants are checked at each step; how *well* the model
 detects storms is deliberately not asserted on, since it is trained on full
-721x1440 global fields and behaves unreliably on crops this small.
+721x1440 global fields and behaves unreliably on small crops.
 
-Everything is built fresh on every run - the ERA5 crop is re-cut from the
-source files and the statistics re-fetched from the reference repo, into a
-temporary directory that is discarded afterwards. Nothing is cached, so the
-test can never pass against stale inputs.
-
-Kept small deliberately: a 32x32 crop over 2 timesteps. Two timesteps is the
-minimum that exercises cross-timestep track linking, and 32x32 is the smallest
-safe size given the U-Net downsamples by 16.
+The sample is an 80x80 crop over 10 consecutive 6-hourly timesteps. The normalisation
+statistics bundled with the package are used. The model is downloaded from the
+HuggingFace Hub, and the tests are skipped if it cannot be obtained, for example
+without network access or without the ``HF_TOKEN`` environment variable if
+the repository requires a token.
 
 Run from the repo root with:
-    conda run -n tctrack-env python tests/integration/test_integration_ml_pipeline.py
+    pytest tests/integration
 """
 
 # The test inspects the tracker's internal state on purpose - that is what it
 # is verifying - so private-member access is expected throughout.
 # ruff: noqa: SLF001
 
-import subprocess
-import tempfile
-from dataclasses import fields
+from pathlib import Path
 
 import cf
 import numpy as np
+import pytest
+from huggingface_hub.errors import HfHubHTTPError
 
-from tctrack.machine_learning.cyclone_track_ml import (
-    MLParameters,
-    MLStitchParameters,
-    MLTracker,
+from tctrack.machine_learning import MLParameters, MLTracker
+
+SAMPLE_FILE = (
+    Path(__file__).parents[2]
+    / "data"
+    / "machine_learning"
+    / "era5_dikeledi_2025-01-10.nc"
 )
 
-RDS_DIR = "/home/sg2147/rds/rds-inspire-tc-TqEGHMWTn8A/sg2147"
-PRESSURE_FILE = f"{RDS_DIR}/era5_pressure_2025_1.nc"
-SURFACE_FILE = f"{RDS_DIR}/era5_surface_2025_1.nc"
-
-REFERENCE_REPO = "/home/sg2147/tc-track/cyclone-track-ml"
-REFERENCE_STATS_REF = "origin/main:data/normalisation_parameters.nc"
-
-MODEL_PATH = (
-    "/home/sg2147/.cache/huggingface/hub/models--surbhigoel456--cyclone-TC-ML/"
-    "snapshots/529eccbf13ee27056e2f01ec6bd06163133e8923/cyclone-detect-ml-scripted.pt"
-)
-
-# Small and cheap: 32x32 grid points over 2 consecutive 6-hourly timesteps.
-CENTRE_LAT, CENTRE_LON = -12.6, 51.0
-HALF_BOX = 16
-TIME_START, N_TIME = 40, 2
-
+N_TIME = 10
 N_CHANNELS = 17
 N_CLASSES = 5
 
-# The default threshold of 0.5 finds nothing in this window - with five classes
-# a winning probability can be as low as ~0.21 - so the output writers are
-# exercised at a lower threshold, purely so that there is something to write.
-LOW_THRESHOLD = 0.2
 
-RULE = "-" * 66
+@pytest.fixture
+def tracker() -> MLTracker:
+    """Build a tracker on the sample file, skipping the test if the model is missing.
 
-
-def section(title: str) -> None:
-    """Print a titled section header."""
-    print(f"\n{RULE}\n{title}\n{RULE}")
-
-
-def make_tracker(input_file: str, stats_file: str, **overrides) -> MLTracker:
-    """Build a tracker against the prepared inputs, overriding any parameter."""
-    stitch_field_names = {field.name for field in fields(MLStitchParameters)}
-    stitch_overrides = {
-        name: value for name, value in overrides.items() if name in stitch_field_names
-    }
-    param_overrides = {
-        name: value
-        for name, value in overrides.items()
-        if name not in stitch_field_names
-    }
-    return MLTracker(
-        MLParameters(
-            input_file=input_file,
-            model_path=MODEL_PATH,
-            normalisation_stats_path=stats_file,
-            **param_overrides,
-        ),
-        MLStitchParameters(**stitch_overrides),
-    )
-
-
-def build_era5_input(input_file: str) -> None:
-    """Build the tracker's input file from the real ERA5 source files.
-
-    Cuts a small window out of the pressure and surface files and merges them
-    into one file, since MLTracker expects a single input containing every
-    variable it needs, while the ERA5 downloads keep them separate.
+    The tracker downloads the model from the HuggingFace Hub when it is constructed.
     """
-    print("  reading real ERA5 files...")
-    params = MLParameters()
-
-    # One read of each source file, reused for both the coordinate lookup and
-    # the field extraction - these files are several GB each.
-    pressure_fields = cf.read(PRESSURE_FILE)
-    surface_fields = cf.read(SURFACE_FILE)
-
-    reference = pressure_fields.select_field(params.pressure_variables[0])
-    lats = reference.coordinate("latitude").array
-    lons = reference.coordinate("longitude").array
-    lat_idx = int(np.argmin(np.abs(lats - CENTRE_LAT)))
-    lon_idx = int(np.argmin(np.abs(lons - CENTRE_LON)))
-
-    lat_slice = slice(lat_idx - HALF_BOX, lat_idx + HALF_BOX)
-    lon_slice = slice(lon_idx - HALF_BOX, lon_idx + HALF_BOX)
-    time_slice = slice(TIME_START, TIME_START + N_TIME)
-
-    fields = [
-        pressure_fields.select_field(variable)[time_slice, :, lat_slice, lon_slice]
-        for variable in params.pressure_variables
-    ]
-    fields += [
-        surface_fields.select_field(variable)[time_slice, lat_slice, lon_slice]
-        for variable in (params.sst_variable, params.t2m_variable)
-    ]
-
-    cf.write(fields, input_file)
-    print(f"  cut {N_TIME}x{2 * HALF_BOX}x{2 * HALF_BOX} window from real ERA5 data")
+    try:
+        return MLTracker(MLParameters(input_file=str(SAMPLE_FILE)))
+    except (OSError, HfHubHTTPError) as error:
+        pytest.skip(f"Requires the model from the HuggingFace Hub: {error}")
 
 
-def fetch_norm_stats(stats_file: str) -> None:
-    """Pull the real normalisation statistics from the reference repo."""
-    git = ["git", "-C", REFERENCE_REPO]
-    subprocess.run([*git, "fetch", "origin"], check=True)  # noqa: S603
-    with open(stats_file, "wb") as handle:
-        subprocess.run(  # noqa: S603
-            [*git, "show", REFERENCE_STATS_REF], stdout=handle, check=True
-        )
-    print(f"  fetched statistics from {REFERENCE_STATS_REF}")
-
-
-def test_pipeline(input_file: str, stats_file: str) -> None:
+def test_pipeline(tracker: MLTracker) -> None:
     """Run the pipeline at default settings and check each step's output."""
-    section("real ERA5 data through preprocess -> detect -> stitch")
-
-    tracker = make_tracker(input_file, stats_file)
-
     tensor = tracker.preprocess()
     n_lat, n_lon = len(tracker._lats), len(tracker._lons)
-    assert tuple(tensor.shape) == (N_CHANNELS, N_TIME, n_lat, n_lon), (
-        f"unexpected tensor shape {tuple(tensor.shape)}"
-    )
+    assert tuple(tensor.shape) == (N_CHANNELS, N_TIME, n_lat, n_lon)
     assert not np.isnan(tensor.numpy()).any(), "input tensor contains NaNs"
     assert len(tracker._times) == N_TIME, "wrong number of timesteps read"
-    print(f"  preprocess(): {tuple(tensor.shape)}, no NaNs                    OK")
 
     tracker.detect()
-    expected = N_TIME * n_lat * n_lon
-    assert len(tracker._scores) == expected, (
-        f"expected {expected} scores, got {len(tracker._scores)}"
-    )
+    assert len(tracker._scores) == N_TIME * n_lat * n_lon
     # detect() builds every score in one loop, so checking one covers the shape.
     assert set(tracker._scores[0]) == {"time", "lat", "lon", "probs"}
     assert len(tracker._scores[0]["probs"]) == N_CLASSES
     sums = np.array([sum(score["probs"]) for score in tracker._scores])
     assert np.abs(sums - 1.0).max() < 1e-4, "softmax outputs must sum to 1"
-    detected = sum(
-        1 for score in tracker._scores if int(np.argmax(score["probs"])) != 0
-    )
-    print(f"  detect():     {len(tracker._scores)} scores, softmax valid       OK")
-    print(f"                {detected} non-background pixels (not asserted on)")
 
     trajectories = tracker.stitch()
+    assert trajectories, "stitch() found no trajectories in the sample"
     assert tracker.read_trajectories() == trajectories, (
         "read_trajectories() must return what stitch() produced, else to_netcdf() "
         "would write nothing"
     )
     for trajectory in trajectories:
-        assert trajectory.observations >= tracker.stitch_parameters.stitch_min_length
+        assert trajectory.observations >= tracker.stitch_parameters.min_length
         for key in ("time", "lat", "lon"):
             assert key in trajectory.data, f"trajectory missing '{key}'"
-    print(f"  stitch():     {len(trajectories)} trajectories, all well-formed   OK")
-    if not trajectories:
-        print("                (none found - fine, model quality is not under test)")
 
 
-def test_output_writers(work_dir: str, input_file: str, stats_file: str) -> None:
+def test_output_writers(tracker: MLTracker, tmp_path: Path) -> None:
     """Check run_tracker() and both writers produce readable CF-NetCDF files.
 
     Drives the pipeline through run_tracker(), the public entry point, rather
     than calling the steps by hand, so that is covered too.
-
-    Uses a lowered threshold so that detections actually exist: at the default
-    the model finds nothing in this small window, and the writers would take
-    their empty-input path without the file-writing code ever running.
     """
-    section("run_tracker() and the output writers")
-
-    tracker = make_tracker(
-        input_file,
-        stats_file,
-        threshold=LOW_THRESHOLD,
-        stitch_min_length=1,  # keep single-timestep tracks, so tracks exist
-    )
-
     # run_tracker() runs detect() and stitch() and writes the trajectories.
-    tracks_file = f"{work_dir}/tracks.nc"
-    tracker.run_tracker(tracks_file)
+    tracks_file = tmp_path / "tracks.nc"
+    tracker.run_tracker(str(tracks_file))
 
     trajectories = tracker.read_trajectories()
     assert tracker._candidates, (
-        f"no detections even at threshold={LOW_THRESHOLD}, so the writers "
-        "below cannot be exercised"
+        "no detections in the sample, so the writers below cannot be exercised"
     )
     assert trajectories, "run_tracker() produced no trajectories"
-    print(
-        f"  run_tracker(): {len(tracker._candidates)} detections, "
-        f"{len(trajectories)} trajectories                OK"
-    )
 
     # -- detections: CF point layout ---------------------------------------
-    detections_file = f"{work_dir}/detections.nc"
-    tracker.detections_to_netcdf(detections_file)
-    fields = cf.read(detections_file)
+    detections_file = tmp_path / "detections.nc"
+    tracker.detections_to_netcdf(str(detections_file))
+    fields = cf.read(str(detections_file))  # type: ignore[operator]
     written = {field.nc_get_variable("?"): field for field in fields}
 
     assert len(written) == len(fields), "netCDF variable names collided"
@@ -242,38 +120,10 @@ def test_output_writers(work_dir: str, input_file: str, stats_file: str) -> None
     for coordinate in ("time", "latitude", "longitude"):
         assert sst.coordinate(coordinate) is not None, f"missing {coordinate}"
 
-    in_memory = [c["sea_surface_temperature"] for c in tracker._candidates]
+    in_memory = [c["data"]["sea_surface_temperature"] for c in tracker._candidates]
     assert np.allclose(sst.array.tolist(), in_memory), "values changed on write/read"
-    print(f"  detections_to_netcdf(): {len(fields)} variables, point layout    OK")
 
     # -- trajectories: CF trajectory layout, written by run_tracker() ------
-    track_fields = cf.read(tracks_file)
+    track_fields = cf.read(str(tracks_file))  # type: ignore[operator]
     assert track_fields, "trajectory file has no variables"
     assert track_fields[0].get_property("featureType") == "trajectory"
-    print(
-        f"  to_netcdf():            {len(track_fields)} variables, "
-        "trajectory layout OK"
-    )
-
-
-def main() -> None:
-    """Run the integration test against freshly prepared real data."""
-    banner = "=" * 66
-    print(f"{banner}\nMLTracker pipeline integration test")
-    print(f"(checks the code works; does NOT judge model accuracy)\n{banner}")
-
-    # Fresh temporary directory per run, removed on exit.
-    with tempfile.TemporaryDirectory(prefix="tctrack_ml_test_") as work_dir:
-        input_file = f"{work_dir}/era5_window.nc"
-        stats_file = f"{work_dir}/normalisation_parameters.nc"
-        build_era5_input(input_file)
-        fetch_norm_stats(stats_file)
-
-        test_pipeline(input_file, stats_file)
-        test_output_writers(work_dir, input_file, stats_file)
-
-    print(f"\n{banner}\nALL CHECKS PASSED\n{banner}")
-
-
-if __name__ == "__main__":
-    main()

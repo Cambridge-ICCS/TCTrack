@@ -2,11 +2,14 @@
 
 import importlib.metadata
 import json
+import subprocess
+import tempfile
 import warnings
 from abc import ABC, abstractmethod
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import asdict, dataclass, fields
 from datetime import timedelta
-from typing import TypedDict
+from typing import IO, TypedDict, Union
 
 import cf
 from cftime import date2num, datetime
@@ -261,9 +264,148 @@ class TCTracker(ABC):
             "tctrack_tracker": type(self).__name__,
             "tctrack_parameters": json.dumps(parameters),
         }
-
-        # Store the subclass-specific metadata, including time and variable metadata
         self._set_metadata()
+
+    def run_tracker_subprocess(  # noqa: PLR0912, PLR0913
+        self,
+        command_name: str,
+        command_list: list[str],
+        input_file: str | None = None,
+        input_str: str | None = None,
+        cwd: str | None = None,
+        verbosity: int = 1,
+    ) -> dict:
+        """Run a subprocess command for a cyclone tracking algorithm.
+
+        Parameters
+        ----------
+        command_name : str
+            The name of the command, used in logging and error messages.
+        command_list : list[str]
+            The command and its arguments to execute.
+        input_file : str | None
+            Path to a file to pass to the process via stdin (e.g. a namelist).
+            Cannot be used together with input_str. Defaults to None.
+        input_str : str | None
+            A string to pass to the process via stdin (e.g. interactive inputs).
+            Cannot be used together with input_file. Defaults to None.
+        cwd : str | None
+            Working directory in which to execute the command. Defaults to None.
+        verbosity : int
+            Controls how much output is shown:
+            0 = No output gets printed.
+            1 = summary, first and last 12 lines printed (default).
+            2 = Entire output is streamed in real-time.
+            Defaults to 1.
+
+        Returns
+        -------
+        dict
+            Dictionary of subprocess output to 'stdout', 'stderr', and 'returncode'.
+
+        Raises
+        ------
+        ValueError
+            If both input_file and input_str are provided simultaneously.
+        ValueError
+            If verbosity is not 0, 1, or 2.
+        """
+        stdin_context: Union[IO, AbstractContextManager]
+
+        if input_file and input_str:
+            msg = "Please provide either input_file or input_str, not both."
+            raise ValueError(msg)
+        if not command_list:
+            msg = "command_list cannot be empty"
+            raise ValueError(msg)
+        if verbosity not in (0, 1, 2):
+            msg = "Verbosity must be 0, 1, or 2."
+            raise ValueError(msg)
+        if verbosity != 0:
+            print(f"Executing {command_name}...")
+        if input_file is not None:
+            stdin_context = open(input_file, "r")  # noqa: SIM115
+        elif verbosity == 2 and input_str is not None:  # noqa: PLR2004
+            stdin_context = tempfile.TemporaryFile(mode="w+")  # noqa: SIM115
+        else:
+            stdin_context = nullcontext(None)
+
+        stdin_file = None
+
+        try:
+            with stdin_context as stdin_file:
+                if verbosity == 2 and input_str is not None and stdin_file is not None:  # noqa: PLR2004
+                    stdin_file.write(input_str)
+                    stdin_file.seek(0)
+
+                if verbosity == 2:  # noqa: PLR2004
+                    process = subprocess.Popen(  # noqa: S603
+                        command_list,
+                        stdin=stdin_file,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        shell=False,
+                        bufsize=1,
+                        cwd=cwd,
+                    )
+
+                    stdout_lines = []
+                    for line in iter(process.stdout.readline, ""):  # type: ignore[union-attr]
+                        print(line, end="")
+                        stdout_lines.append(line)
+
+                    stdout = "".join(stdout_lines)
+                    _, stderr = process.communicate()
+                    returncode = process.returncode
+
+                    if returncode != 0:
+                        msg = (
+                            f"{command_name} failed with a non-zero exit code: "
+                            f"{returncode}:\n{stderr}"
+                        )
+                        raise RuntimeError(msg)
+
+                else:
+                    result = subprocess.run(  # noqa: S603
+                        command_list,
+                        stdin=stdin_file,
+                        input=input_str,
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                        cwd=cwd,
+                    )
+
+                    stdout, stderr, returncode = (
+                        result.stdout,
+                        result.stderr,
+                        result.returncode,
+                    )
+
+                    if verbosity == 1:
+                        print(f"{command_name} completed successfully.")
+                        print(
+                            f"First 12 lines of output:\n"
+                            f"{''.join(stdout.splitlines(True)[:12])}"
+                            f"\n...\n\n"
+                            f"Last 12 lines of output:\n"
+                            f"{''.join(stdout.splitlines(True)[-12:])}"
+                        )
+
+                return {"stdout": stdout, "stderr": stderr, "returncode": returncode}
+        except FileNotFoundError as exc:
+            msg = (
+                f"{command_name} failed because the executable could not be found.\n"
+                "Did you provide the full executable path or add it to $PATH?\n"
+            )
+            raise FileNotFoundError(msg) from exc
+        except subprocess.CalledProcessError as exc:
+            msg = (
+                f"{command_name} failed with a non-zero exit code: "
+                f"({exc.returncode}):\n{exc.stderr}"
+            )
+            raise RuntimeError(msg) from exc
 
     @abstractmethod
     def read_trajectories(self) -> list[Trajectory]:
@@ -274,13 +416,21 @@ class TCTracker(ABC):
         For compatibility elsewhere in TCTrack trajectories are assumed to contain as
         a minimum data for ``lat``, ``lon``, and ``timestep``.
 
+        This can be left empty if the tracking algorithm creates the list rather than
+        writing an intermediate output file. In this case, the list should be passed to
+        the `trajectories` argument of :meth:`to_netcdf`.
+
         Returns
         -------
         list[Trajectory]
             A list of :class:`tctrack.core.Trajectory` objects.
         """
 
-    def to_netcdf(self, output_file: str) -> None:  # noqa: PLR0915, PLR0912
+    def to_netcdf(  # noqa: PLR0915, PLR0912
+        self,
+        output_file: str,
+        trajectories: list[Trajectory] | None = None,
+    ) -> None:
         """
         Write track trajectories to CF-compliant NetCDF trajectory file.
 
@@ -298,6 +448,10 @@ class TCTracker(ABC):
         output_file: str
             filename for the output netCDF file
             Note: This will be placed in the local directory unless a full path is given
+        trajectories: list[Trajectory] | None
+            An optional list of trajectories to write. If the tracking algorithm
+            produces an intermediate output file then this can be skipped as it will
+            instead read from there.
 
         Warnings
         --------
@@ -330,7 +484,8 @@ class TCTracker(ABC):
 
         # Read in the trajectories generated by the tracker implementation
         # Ensure they contain assumed variables lon, lat, time
-        trajectories = self.read_trajectories()
+        if trajectories is None:
+            trajectories = self.read_trajectories()
 
         if len(trajectories) == 0:
             msg = (
@@ -540,8 +695,11 @@ class TCTracker(ABC):
 
         This should first run any relevant methods for generating cyclone trajectories
         from the input data files.
+
         The trajectories output is then saved as a CF-compliant trajectory netCDF file
-        by calling the :meth:`to_netcdf()` method of this class.
+        by calling the :meth:`to_netcdf()` method of this class. If the tracking
+        algorithm doesn't produce an intermediate output file then the `trajectories`
+        argument should be provided.
 
         Arguments
         ---------

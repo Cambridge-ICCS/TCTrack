@@ -20,7 +20,7 @@ Installation
 Environment
 ~~~~~~~~~~~
 
-TCTrack is a Python package and requires Python version 3.10 or later.
+TCTrack is a Python package and requires Python version 3.11 or later.
 
 Before installing TCTrack ensure that any external :ref:`dependencies
 <getting-started/index:dependencies>` are installed. This can be done manually as
@@ -67,9 +67,10 @@ pip can then be run to install the code from the source into the environment::
     pip install .
 
 If you are developing TCTrack you should install as an editable package with the
-additional developer dependencies::
+additional developer dependencies and the pre-commit hooks installed::
 
     pip install --editable .[dev]
+    pre-commit install
 
 The `dev` optional dependencies include the `test`, `lint`, and `doc` subgroups.
 
@@ -101,11 +102,10 @@ noting that we may need to add the library to the dynamic path e.g.::
 esmpy
 ~~~~~
 
-Any regridding of data with cf-python requires `esmpy
-<https://earthsystemmodeling.org/esmpy/>`_ and `ESMF
+Any preprocessing that involves regridding of data using :mod:`tctrack.preprocessing` or
+cf-python requires `esmpy <https://earthsystemmodeling.org/esmpy/>`_ and `ESMF
 <https://earthsystemmodeling.org/>`_ as dependencies. This is not needed directly in the
-TCTrack package but may be needed for initial pre-processing of data, such as in the
-tutorial and described in the :doc:`../data/preprocessing_data` page.
+tracking algorithms.
 
 These are not pip-installable but can be installed in a conda environment::
 

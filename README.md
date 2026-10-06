@@ -8,7 +8,8 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Cambridge-ICCS/TCTrack/unit-tests.yaml?label=unit-tests)
 [![Documentation Status](https://readthedocs.org/projects/TCTrack/badge/?version=latest)](https://tctrack.readthedocs.io/en/latest/?badge=latest)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![status](https://joss.theoj.org/papers/5bfc7127397fb0fd3583de541eab4c49/status.svg)](https://joss.theoj.org/papers/5bfc7127397fb0fd3583de541eab4c49)
 
 
 TCTrack is a Python library providing bindings to tracking algorithms for tropical
@@ -22,7 +23,7 @@ the output of different algorithms for a variety of data sources.
 ## Installation
 
 ### Dependencies
-The package requires Python 3 (>=3.10).
+The package requires Python 3 (>=3.11).
 
 ### Package Installation
 We recommend using a Conda virtual environment for TCTrack in order to simplify the
@@ -72,6 +73,7 @@ pull request.
 Additional dependencies for development can be installed as follows:
 ```sh
 pip install --editable .[dev]
+pre-commit install
 ```
 
 Full details for contribution and developers can be found in the
