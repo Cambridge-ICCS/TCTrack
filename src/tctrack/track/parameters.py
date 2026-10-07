@@ -62,8 +62,14 @@ def parameter_set(name: str, base_dir: str) -> TRACKParameters:
     name : str
         The parameter set to return. Valid values are:
 
-        - ``"default"`` or ``"Hodges2017"`` for the basic TRACK algorithm presented in
-          [Hodges2017]_.
+        .. list-table::
+           :header-rows: 1
+
+           * - Name
+             - Description
+           * - ``"default"`` |br| ``"Hodges2017"``
+             - The basic TRACK algorithm [Hodges2017]_
+
     base_dir : str
         Path to the TRACK installation.
 
