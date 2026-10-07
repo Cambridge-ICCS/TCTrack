@@ -259,8 +259,14 @@ def parameter_set(
     name : str
         The parameter set to return. Valid values are:
 
-        - ``"default"`` or ``"Vitart2001"`` for the original TSTORMS algorithm presented
-          in [Vitart2001]_.
+        .. list-table::
+           :header-rows: 1
+
+           * - Name
+             - Description
+           * - ``"default"`` |br| ``"Vitart2001"``
+             - The original TSTORMS algorithm [Vitart2001]_
+
     tstorms_dir : str
         Path to the TSTORMS installation.
     output_dir : str
