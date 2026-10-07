@@ -4,6 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
 
+[tool.setuptools.package-data]
+"tctrack.machine_learning" = ["data/*.nc"]
+
 [project]
 name = "tctrack"
 dynamic = ["version"]
@@ -37,6 +40,9 @@ dependencies = [
     "cf-python>=3.19.0; platform_system != 'Windows'",
     "cf-python>=3.19.0,<=3.20.1; platform_system == 'Windows'",
     "cftime",
+    "torch",
+    "huggingface_hub",
+    "scipy",
 ]
 
 [project.optional-dependencies]
@@ -108,3 +114,8 @@ convention = "numpy"
 [[tool.mypy.overrides]]
 module = ["cftime.*", "cf.*"]
 follow_untyped_imports = true
+
+[[tool.mypy.overrides]]
+# No type stubs are available for these.
+module = ["h5py.*", "scipy.*"]
+ignore_missing_imports = true
