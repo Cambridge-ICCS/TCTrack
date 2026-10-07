@@ -687,19 +687,22 @@ class TestRunTracker:
     """Tests for MLTracker.run_tracker, with a mocked model on the ERA5 sample."""
 
     def test_storm_becomes_trajectory_in_file(self, make_tracker, tmp_path):
-        """A storm in the first 3 timesteps becomes one trajectory, written to file."""
+        """A storm in the first 4 timesteps becomes one trajectory, written to file."""
         tracker = make_tracker(MLParameters(input_file=str(SAMPLE_FILE)))
         storm = _logits({(40, 40): (4, 10.0)}, 80, 80)
         quiet = _logits(None, 80, 80)
-        tracker.model = MagicMock(side_effect=[storm] * 3 + [quiet] * 7)
+        # The storm lasts four timesteps, not three: cfdm 1.13.3 fails to read a
+        # two-dimensional variable with exactly three values, which is what the
+        # trajectory file would contain for a single trajectory of three points.
+        tracker.model = MagicMock(side_effect=[storm] * 4 + [quiet] * 6)
         output_file = tmp_path / "tracks.nc"
 
         tracker.run_tracker(str(output_file))
 
         trajectories = tracker.read_trajectories()
         assert len(trajectories) == 1
-        assert trajectories[0].observations == 3
-        assert trajectories[0].data["lat"] == [float(tracker._lats[40])] * 3
+        assert trajectories[0].observations == 4
+        assert trajectories[0].data["lat"] == [float(tracker._lats[40])] * 4
         written = cf.read(str(output_file))
         assert written
         assert written[0].get_property("featureType") == "trajectory"
