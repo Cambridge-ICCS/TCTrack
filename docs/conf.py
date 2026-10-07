@@ -33,6 +33,8 @@ extensions = [
     "sphinx.ext.autodoc",  # pull in documentation from docstrings
     "sphinx_autodoc_typehints",  # use type hints from code/docstrings
     "sphinx.ext.autosectionlabel",  # Auto-generate reference labels for sections
+    "nbsphinx",  # render the tutorial notebooks
+    "nbsphinx_link",  # link to notebooks outside the docs directory
 ]
 
 templates_path = ["_templates"]
@@ -48,3 +50,4 @@ html_static_path = ["_static"]
 autodoc_member_order = "bysource"
 napoleon_preprocess_types = True
 autosectionlabel_prefix_document = True
+rst_prolog = ".. |br| raw:: html\n\n   <br>" # linebreaks with |br|
