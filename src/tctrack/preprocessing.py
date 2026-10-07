@@ -124,7 +124,7 @@ def read_files(
     """
     fields = list(
         cf.read(  # type: ignore[operator]
-            _expand_input_paths(input_files), select=select, netcdf_backend="netCDF4"
+            _expand_input_paths(input_files), select=select, backend="netCDF4"
         )
     )
     return _write_output(fields, output_file, squeeze=False)
