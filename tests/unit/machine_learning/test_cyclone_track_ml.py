@@ -28,15 +28,15 @@ import numpy as np
 import pytest
 import torch
 from cftime import datetime
-from tctrack.machine_learning.cyclone_track_ml import (
-    _angular_distance_deg,
-    _point_variables,
-)
 
 from tctrack.machine_learning import (
     MLParameters,
     MLStitchParameters,
     MLTracker,
+)
+from tctrack.machine_learning.cyclone_track_ml import (
+    _angular_distance_deg,
+    _point_variables,
 )
 
 SAMPLE_FILE = (
