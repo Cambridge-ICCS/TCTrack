@@ -747,8 +747,19 @@ def parameter_set(
     name : str
         The parameter set to return. Valid values are:
 
-        - ``"default"`` or ``"UZ"`` for :func:`parameter_set_uz`.
-        - ``"OWZ"`` for :func:`parameter_set_owz`.
+        .. list-table::
+           :header-rows: 1
+
+           * - Name
+             - Parameter source
+             - Sub-function
+           * - ``"default"`` |br| ``"UZ"`` |br| ``"Ullrich2017"``
+             - [Ullrich2017]_
+             - :func:`parameter_set_uz`
+           * - ``"OWZ"`` |br| ``"Bourdin2022"``
+             - [Bourdin2022]_
+             - :func:`parameter_set_owz`
+
     nc_names : dict[str, str]
         An optional dictionary of netcdf variable names to use instead of the defaults.
         The defaults typically correspond to ECMWF/ERA5 names or CMIP names where these
@@ -763,8 +774,8 @@ def parameter_set(
         nc_names = {}
 
     parameter_sets = [
-        (["default", "UZ"], parameter_set_uz),
-        (["OWZ"], parameter_set_owz),
+        (["default", "UZ", "Ullrich2017"], parameter_set_uz),
+        (["OWZ", "Bourdin2022"], parameter_set_owz),
     ]
     for aliases, parameter_set in parameter_sets:
         if name in aliases:
