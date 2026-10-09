@@ -2,7 +2,8 @@
 
 A web-based dashboard for viewing and comparing cyclone trajectories. Tracks and observations are viewed on a map along with other environmental data for context.
 
-The dashboard runs on the [Datasette platform](https://datasette.io/).
+The dashboard runs on the [Datasette platform](https://datasette.io/), specifically, the v1 releases.
+
 
 ## Installation
 
@@ -77,6 +78,7 @@ The following settings are available:
 	- `properties` An array of column names that will be used as properties for each group if they exist in the dataset. These are linked to the group and displayed when selected. The columns are presumed to contain unique values across each group.
 - `point` Point rendering options:
 	- `radius` Standard point radius.
+	- `opacity` Standard point opacity.
 	- `radius_property` Link radius size to a property value:
 		- `column`: Column name to use as the linked property.
 		- `min`: Value/radius pair for smallest point, e.g. [0, 2] when property = 0, radius = 2.
@@ -88,6 +90,7 @@ The following settings are available:
 		- `max`: Value/opacity pair for largest value, e.g. [25, 1] when property >= 25, opacity = 1.0.
 - `line` Line rendering options:
 	- `thickness`: Line thickness.
+	- `opacity` Standard line opacity.
 	- `opacity_property`: Link opacity (0.0–1.0) to a property value.
 		- `column`: Column name to use as the linked property.
 		- `min`: Value/opacity pair for smallest value, e.g. [0, 0.1] when property = 0, opacity = 0.1.
@@ -115,4 +118,4 @@ The following settings are available:
 
 The next logical step is a dedicated map view with full client‑side filtering and configuration. This would eliminate data reloading and provide a smoother experience without requiring changes to configuration files.
 
-Track data would be better served via the [MapLibre Tile Specification](https://maplibre.org/maplibre-tile-spec/) (MLT) rather than through standard Datasette delivery. This would increase performance and allow for much larger datasets. However, for this first version, relying on the foundation and flexibility of Datasette offered the most immediate opportunities. Using MLT as the data source would require client‑side map filtering capabilities.
+For this first version, relying on the foundation and flexibility of Datasette offered the most immediate opportunities. However, track data would be better served via the [MapLibre Tile Specification](https://maplibre.org/maplibre-tile-spec/) rather than through standard Datasette delivery. This would reduce load times to near instant. It would require client‑side map filtering capabilities as mentioned above.

@@ -13,17 +13,15 @@ plugins:
       properties: [filename, year]
     point:
       radius: 4
+      opacity: 0.4
       radius_property:
         column: wind_speed
         min: [0, 2]
         max: [30, 10]
         exponential: 1.2
-      opacity_property:
-        column: wind_speed
-        min: [0, 0.1]
-        max: [30, 1.0]
     line:
       thickness: 2
+      opacity: 0.2
     heatmap:
       weight_property:
         column: wind_speed
@@ -46,11 +44,11 @@ plugins:
 
     # light palette
     palette:
-      single: '#ffa726'
+      single: '#33bbee'
       layers:
+        - '#33bbee'
         - '#ee7733'
         - '#0077bb'
-        - '#33bbee'
         - '#ee3377'
         - '#cc3311'
         - '#009988'
@@ -59,14 +57,13 @@ plugins:
     # palette:
     #   single: '#d0b100'
     #   layers:
-    #     - '#ee7733'
+    #     - '#d0b100'
     #     - '#0077bb'
     #     - '#33bbee'
     #     - '#ee3377'
-    #     - '#cc3311'
     #     - '#009988'
     #     - '#bbbbbb'
-    max_layers: 7
+    #     - '#cc3311'
 
 
 settings:

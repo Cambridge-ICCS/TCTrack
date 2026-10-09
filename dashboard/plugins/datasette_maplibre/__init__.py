@@ -67,6 +67,7 @@ def extra_body_script(
 
     # Pass configuration to map.js via the JavaScript window object
     return (
+        f"window.DATASETTE_MAPLIBRE_TABLE_NAME = {json.dumps(table)};\n"
         f"window.DATASETTE_MAPLIBRE_STYLE = {json.dumps(basemap_style)};\n"
         f"window.DATASETTE_MAPLIBRE_GROUP_BY = {json.dumps(group_by)};\n"
         f"window.DATASETTE_MAPLIBRE_POINT = {json.dumps(point)};\n"

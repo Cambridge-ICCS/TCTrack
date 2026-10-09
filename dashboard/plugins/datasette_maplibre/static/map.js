@@ -2,14 +2,15 @@ import * as maplibregl from "https://unpkg.com/maplibre-gl@6.12.0/dist/maplibre-
 import { LayerControl } from "https://unpkg.com/maplibre-gl-layer-control@0.17.5/dist/index.mjs";
 
 // Pick up config passed from Python __init__ layer
+const TABLE_NAME = window.DATASETTE_MAPLIBRE_TABLE_NAME || "Data";
 const BASEMAP_STYLE = window.DATASETTE_MAPLIBRE_STYLE || "https://demotiles.maplibre.org/style.json";
 const GROUP_BY = window.DATASETTE_MAPLIBRE_GROUP_BY || null;
-const POINT = window.DATASETTE_MAPLIBRE_POINT || { radius: 4 };
-const LINE = window.DATASETTE_MAPLIBRE_LINE || { thickness: 2 };
+const POINT = window.DATASETTE_MAPLIBRE_POINT || { radius: 4, opacity: 1 };
+const LINE = window.DATASETTE_MAPLIBRE_LINE || { thickness: 2, opacity: 1 };
 const HEATMAP = window.DATASETTE_MAPLIBRE_HEATMAP || null;
 const LAYER_COLUMN = window.DATASETTE_MAPLIBRE_LAYER_COLUMN || null;
 const PALETTE = window.DATASETTE_MAPLIBRE_PALETTE || { single: "#000000", layers: ["#ffffff"] };
-const MAX_LAYERS = window.DATASETTE_MAPLIBRE_MAX_LAYERS || 20;
+const MAX_LAYERS = window.DATASETTE_MAPLIBRE_MAX_LAYERS || 100;
 
 // Local storage key for persisting map view settings
 const STORAGE_KEY = "datasette-maplibre-view";
@@ -30,7 +31,7 @@ async function fetchRows() {
 	// Facet and suggestion features are turned off for performance.
 	const url = location.pathname + ".json" + location.search
 		+ (location.search ? "&" : "?")
-		+ "_size=max&_shape=arrays&_nocount=on&_nofacet=on&_nosuggest=on&_extra=columns";
+		+ "_shape=arrays&_extra=columns&_size=max&_nocount=on&_nofacet=on&_nosuggest=on";
 
 	const res = await fetch(url);
 	if (!res.ok) throw new Error("Fetch failed: " + res.status);
@@ -171,7 +172,7 @@ async function loadGeoJSON() {
 		}
 	} else {
 		// Set a single base layer when no dynamic layers are specified
-		collection.layers = ["geojson"];
+		collection.layers = [TABLE_NAME];
 	}
 
 	console.log(`Data load: ${Math.round(performance.now() - t0)}ms`);
@@ -273,7 +274,7 @@ function init() {
 	});
 	map.addControl(new maplibregl.NavigationControl({ showCompass: true }));
 	map.addControl(new maplibregl.GlobeControl(), 'top-right');
-	map.addControl(new LayerControl({ panelWidth: 300, showOpacitySlider: false }), 'top-right');
+	map.addControl(new LayerControl({ showOpacitySlider: true, basemapStyleUrl: BASEMAP_STYLE }), 'top-right');
 
 	// Restore the persisted view settings (globe and camera position)
 	const view = loadStored(STORAGE_KEY);
@@ -368,7 +369,7 @@ function init() {
 		let colour = geojson.layers.length > 1 ? PALETTE.layers[colour_idx] : PALETTE.single;
 
 		// Create opacity expressions for point and line layers
-		let circle_opacity = 1.0;
+		let circle_opacity = POINT.opacity;
 		if (POINT.opacity_property && POINT.opacity_property.column in geojson.features[0].properties)
 			circle_opacity = [
 				"interpolate",
@@ -377,7 +378,7 @@ function init() {
 				POINT.opacity_property.min[0], POINT.opacity_property.min[1],
 				POINT.opacity_property.max[0], POINT.opacity_property.max[1]
 			];
-		let line_opacity = 1.0;
+		let line_opacity = LINE.opacity;
 		if (LINE.opacity_property && LINE.opacity_property.column in geojson.features[0].properties)
 			line_opacity = [
 				"interpolate",
@@ -437,7 +438,7 @@ function init() {
 					"circle-radius": circle_radius,
 					"circle-color": colour,
 					"circle-opacity": circle_opacity,
-					"circle-stroke-color": "#00000040",
+					"circle-stroke-color": "#00000020",
 					"circle-stroke-width": 1,
 				},
 				filter: [
@@ -448,9 +449,9 @@ function init() {
 			});
 			layers_added.push(layer_id);
 
-			// Advance layer colour index until palette end, then use the final palette colour for remaining layers
-			if (++colour_idx < PALETTE.layers.length)
-				colour = PALETTE.layers[colour_idx];
+			// Advance layer colour index, reusing once exhausted
+			colour_idx = (colour_idx + 1) % PALETTE.layers.length;
+			colour = PALETTE.layers[colour_idx];
 		}
 
 		// Set on-click popups and pointer style for all added layers

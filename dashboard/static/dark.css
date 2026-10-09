@@ -647,6 +647,24 @@ navigation-search .hint-text kbd {
 	color: var(--text);
 }
 
+.layer-control-style-button, .layer-control-action-btn {
+	background: var(--accent-strong) !important;
+    border: 1px solid var(--accent) !important;
+    border-radius: 6px !important;
+    color: #ffffff !important;
+}
+
+.layer-control-style-button:hover, .layer-control-action-btn:hover {
+	background: var(--accent) !important;
+	border-color: var(--accent) !important;
+	color: #ffffff !important;
+}
+
+.layer-control-opacity {
+	background: linear-gradient(to right, transparent, #222 90%),
+	            repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 / 15px 15px
+}
+
 .maplibregl-ctrl-layer-control .layer-control-icon svg {
 	color: black;
 }
