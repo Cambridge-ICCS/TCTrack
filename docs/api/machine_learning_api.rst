@@ -33,6 +33,9 @@ For an overview of the functionalities, installation, and usage see the
    :show-inheritance:
    :inherited-members:
 
+The classes below are base classes for adding other machine learning tracking
+algorithms to TCTrack. They are not intended to be used directly.
+
 .. py:module:: tctrack.core.ml_tracker
    :no-index:
 

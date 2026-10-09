@@ -38,14 +38,14 @@ The model weights are downloaded from the HuggingFace Hub repository given by
 the first time a :class:`MLTracker` is constructed, and are cached locally by
 ``huggingface_hub`` for subsequent use. If the repository is private or gated, an
 access token must be supplied either through
-:attr:`~tctrack.core.ml_tracker.TCMLParameters.hf_token` or the ``HF_TOKEN``
+:attr:`~tctrack.machine_learning.MLParameters.hf_token` or the ``HF_TOKEN``
 environment variable. The token is removed from the parameters once the tracker is
 constructed, so that it is not written to any output file.
 
 Alternatively, a model file that is already available on disk can be used by setting
-:attr:`~tctrack.core.ml_tracker.TCMLParameters.model_path`, in which case nothing is
+:attr:`~tctrack.machine_learning.MLParameters.model_path`, in which case nothing is
 downloaded. The model is run on the CPU by default; set
-:attr:`~tctrack.core.ml_tracker.TCMLParameters.device` to use another PyTorch device,
+:attr:`~tctrack.machine_learning.MLParameters.device` to use another PyTorch device,
 such as ``"cuda"``.
 
 Algorithm
@@ -63,7 +63,7 @@ Tropical cyclone tracking then proceeds in two steps, which mirror the detection
 stitching steps of the other trackers in TCTrack.
 
 *Detection*: at each timestep, grid points whose most probable class is not background
-and whose probability is at least :attr:`~tctrack.core.ml_tracker.TCMLParameters.threshold`
+and whose probability is at least :attr:`~tctrack.machine_learning.MLParameters.threshold`
 are identified as storm points. Neighbouring storm points are grouped into a single
 candidate, regardless of their class, because a single storm can span two lifecycle
 stages. The location of a candidate is the centroid of its points weighted by their
@@ -112,7 +112,7 @@ CF-compliant NetCDF format.
 Creating the :class:`MLTracker` downloads or loads the model. The stitching
 parameters are optional, and the defaults are used if they are not provided. Further
 parameters can be set in :class:`MLParameters`, the most notable of which is
-:attr:`~tctrack.core.ml_tracker.TCMLParameters.threshold`, the minimum probability for
+:attr:`~tctrack.machine_learning.MLParameters.threshold`, the minimum probability for
 a point to be treated as part of a storm.
 
 The :meth:`~MLTracker.run_tracker` method performs several steps in succession. These
@@ -205,7 +205,7 @@ Modifying Parameters
 
 The following parameters can be changed to suit the data:
 
-* :attr:`~tctrack.core.ml_tracker.TCMLParameters.threshold` is the minimum probability
+* :attr:`~tctrack.machine_learning.MLParameters.threshold` is the minimum probability
   for a point to be considered part of a storm. Lowering it finds more of a storm, and
   can allow tracks to be followed for longer, but it also gives more spurious
   detections. The tutorial script uses ``0.25`` for the example data, as opposed to
