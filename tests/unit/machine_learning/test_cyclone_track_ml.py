@@ -93,8 +93,8 @@ def _logits(storms=None, n_lat=6, n_lon=6):
     return logits
 
 
-class TestAngularDistanceDeg:
-    """Tests for the _angular_distance_deg helper."""
+class TestHelpers:
+    """Tests for the _angular_distance_deg and _point_variables helpers."""
 
     def test_pure_latitude_difference(self):
         """Test that a latitude-only separation is returned unscaled."""
@@ -112,10 +112,6 @@ class TestAngularDistanceDeg:
     def test_wraps_across_antimeridian(self, lon1, lon2):
         """Test that points either side of the date line are close together."""
         assert _angular_distance_deg(0.0, lon1, 0.0, lon2) == pytest.approx(2.0)
-
-
-class TestPointVariables:
-    """Tests for the _point_variables helper."""
 
     def test_keeps_other_keys(self):
         """Test that time and data are dropped and the data values are merged in."""
@@ -136,8 +132,8 @@ class TestPointVariables:
         }
 
 
-class TestMLParametersThreshold:
-    """Tests for the validation of the confidence threshold."""
+class TestMLParameters:
+    """Tests for the MLParameters and MLStitchParameters dataclasses."""
 
     @pytest.mark.parametrize("threshold", [-0.1, 1.1])
     def test_invalid_threshold_raises(self, threshold):
@@ -205,10 +201,6 @@ class TestMLTrackerInit:
         with pytest.raises(OSError, match="Model file not found"):
             MLTracker(parameters)
 
-
-class TestNormalisationStats:
-    """Tests for MLTracker._load_normalisation_stats."""
-
     def test_bundled_stats_used_by_default(self, make_tracker):
         """The statistics shipped with the package cover every channel."""
         tracker = make_tracker()
@@ -227,52 +219,6 @@ class TestNormalisationStats:
         mean, value_range = tracker._load_normalisation_stats()
         assert np.array_equal(mean, np.arange(N_CHANNELS))
         assert np.array_equal(value_range, np.arange(1, N_CHANNELS + 1))
-
-
-class TestSetMetadata:
-    """Tests for MLTracker._set_metadata, run on the ERA5 sample file."""
-
-    @pytest.fixture
-    def tracker(self, make_tracker):
-        """Tracker on the sample file with its metadata set."""
-        tracker = make_tracker(MLParameters(input_file=str(SAMPLE_FILE)))
-        tracker._set_metadata()
-        return tracker
-
-    def test_time_metadata(self, tracker):
-        """The calendar, units and first and last times come from the file."""
-        metadata = tracker._time_metadata
-        assert metadata["calendar"] == "proleptic_gregorian"
-        assert metadata["units"] == "seconds since 1970-01-01"
-        assert (metadata["start_time"].month, metadata["start_time"].day) == (1, 10)
-        assert (metadata["end_time"].day, metadata["end_time"].hour) == (12, 6)
-
-    def test_variable_metadata_matches_channels(self, tracker):
-        """Every input channel and both model outputs have metadata."""
-        expected = {*tracker._channel_names, "class_index", "score"}
-        assert set(tracker._variable_metadata) == expected
-
-    def test_file_without_time_raises(self, make_tracker, tmp_path):
-        """An input file with no time coordinate raises a ValueError."""
-        field = cf.Field(properties={"standard_name": "air_temperature", "units": "K"})
-        lat_axis = field.set_construct(cf.DomainAxis(3))
-        lon_axis = field.set_construct(cf.DomainAxis(4))
-        for name, axis, size, units in (
-            ("latitude", lat_axis, 3, "degrees_north"),
-            ("longitude", lon_axis, 4, "degrees_east"),
-        ):
-            coordinate = cf.DimensionCoordinate(
-                data=cf.Data(np.arange(size, dtype=float), units=units),
-                properties={"standard_name": name},
-            )
-            field.set_construct(coordinate, axes=axis)
-        field.set_data(cf.Data(np.zeros((3, 4)), units="K"), axes=(lat_axis, lon_axis))
-        input_file = tmp_path / "no_time.nc"
-        cf.write(field, str(input_file))
-
-        tracker = make_tracker(MLParameters(input_file=str(input_file)))
-        with pytest.raises(ValueError, match="time"):
-            tracker._set_metadata()
 
 
 class TestPreprocess:
@@ -422,10 +368,6 @@ class TestDetect:
         with pytest.raises(ValueError, match="does not match"):
             tracker.detect()
 
-
-class TestClusterCandidates:
-    """Tests for MLTracker._cluster_candidates."""
-
     @staticmethod
     def _grid_tracker(make_tracker):
         """Build a tracker with an example 6x6 grid of lats 0-5 and lons 10-15."""
@@ -480,10 +422,6 @@ class TestClusterCandidates:
         candidate = tracker._cluster_candidates(*self._arrays(pixels), _time(0))[0]
         assert candidate["lat"] == pytest.approx(2.0)
         assert candidate["lon"] == pytest.approx((12 * 0.9 + 13 * 0.3) / 1.2)
-
-
-class TestMergeNearbyCandidates:
-    """Tests for MLTracker._merge_nearby_candidates."""
 
     @staticmethod
     def _cand(lat, lon, score):
@@ -616,11 +554,53 @@ class TestStitch:
         assert tracker._nearest_candidate(track, candidates, {0}) is None
 
 
-class TestDetectionsToNetcdf:
-    """Tests for MLTracker.detections_to_netcdf."""
+class TestOutput:
+    """Tests for the metadata, NetCDF output and run_tracker steps."""
 
     @pytest.fixture
-    def tracker(self, make_tracker):
+    def metadata_tracker(self, make_tracker):
+        """Tracker on the sample file with its metadata set."""
+        tracker = make_tracker(MLParameters(input_file=str(SAMPLE_FILE)))
+        tracker._set_metadata()
+        return tracker
+
+    def test_time_metadata(self, metadata_tracker):
+        """The calendar, units and first and last times come from the file."""
+        metadata = metadata_tracker._time_metadata
+        assert metadata["calendar"] == "proleptic_gregorian"
+        assert metadata["units"] == "seconds since 1970-01-01"
+        assert (metadata["start_time"].month, metadata["start_time"].day) == (1, 10)
+        assert (metadata["end_time"].day, metadata["end_time"].hour) == (12, 6)
+
+    def test_variable_metadata_matches_channels(self, metadata_tracker):
+        """Every input channel and both model outputs have metadata."""
+        expected = {*metadata_tracker._channel_names, "class_index", "score"}
+        assert set(metadata_tracker._variable_metadata) == expected
+
+    def test_file_without_time_raises(self, make_tracker, tmp_path):
+        """An input file with no time coordinate raises a ValueError."""
+        field = cf.Field(properties={"standard_name": "air_temperature", "units": "K"})
+        lat_axis = field.set_construct(cf.DomainAxis(3))
+        lon_axis = field.set_construct(cf.DomainAxis(4))
+        for name, axis, size, units in (
+            ("latitude", lat_axis, 3, "degrees_north"),
+            ("longitude", lon_axis, 4, "degrees_east"),
+        ):
+            coordinate = cf.DimensionCoordinate(
+                data=cf.Data(np.arange(size, dtype=float), units=units),
+                properties={"standard_name": name},
+            )
+            field.set_construct(coordinate, axes=axis)
+        field.set_data(cf.Data(np.zeros((3, 4)), units="K"), axes=(lat_axis, lon_axis))
+        input_file = tmp_path / "no_time.nc"
+        cf.write(field, str(input_file))
+
+        tracker = make_tracker(MLParameters(input_file=str(input_file)))
+        with pytest.raises(ValueError, match="time"):
+            tracker._set_metadata()
+
+    @pytest.fixture
+    def detections_tracker(self, make_tracker):
         """Tracker on the sample file holding two detections."""
         tracker = make_tracker(MLParameters(input_file=str(SAMPLE_FILE)))
         start = datetime(2025, 1, 10, calendar="proleptic_gregorian")
@@ -663,28 +643,24 @@ class TestDetectionsToNetcdf:
             tracker.detections_to_netcdf(str(output_file))
         assert not output_file.exists()
 
-    def test_values_and_coordinates_round_trip(self, tracker, tmp_path):
+    def test_values_and_coordinates_round_trip(self, detections_tracker, tmp_path):
         """The values and the latitude and longitude read back unchanged."""
-        tracker.detections_to_netcdf(str(tmp_path / "detections.nc"))
+        detections_tracker.detections_to_netcdf(str(tmp_path / "detections.nc"))
         score = self._read(tmp_path / "detections.nc")["score"]
         assert np.allclose(score.array, [0.6, 0.7])
         assert np.allclose(score.coordinate("latitude").array, [-13.0, -12.5])
         assert np.allclose(score.coordinate("longitude").array, [55.0, 54.0])
         assert score.coordinate("time").array.size == 2
 
-    def test_cf_attributes(self, tracker, tmp_path):
+    def test_cf_attributes(self, detections_tracker, tmp_path):
         """The fields are CF point data with the metadata of each variable."""
-        tracker.detections_to_netcdf(str(tmp_path / "detections.nc"))
+        detections_tracker.detections_to_netcdf(str(tmp_path / "detections.nc"))
         written = self._read(tmp_path / "detections.nc")
         assert all(f.get_property("featureType") == "point" for f in written.values())
         assert written["class_index"].get_property("flag_meanings")
         sst = written["sea_surface_temperature"]
         assert sst.get_property("standard_name") == "sea_surface_temperature"
         assert np.allclose(sst.array, [301.0, 302.0])
-
-
-class TestRunTracker:
-    """Tests for MLTracker.run_tracker, with a mocked model on the ERA5 sample."""
 
     def test_storm_becomes_trajectory_in_file(self, make_tracker, tmp_path):
         """A storm in the first 4 timesteps becomes one trajectory, written to file."""
