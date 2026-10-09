@@ -27,7 +27,7 @@ def extra_css_urls(template, database, table, columns, view_name, request, datas
     return [
         MAPLIBRE_CSS,
         LAYER_CONTROL_CSS,
-        datasette.urls.static_plugins(PLUGIN, "map.css"),
+        datasette.static("map.css", PLUGIN),
     ]
 
 
@@ -38,7 +38,7 @@ def extra_js_urls(template, database, table, columns, view_name, request, datase
         return []
 
     return [
-        {"url": datasette.urls.static_plugins(PLUGIN, "map.js"), "module": True},
+        {"url": datasette.static("map.js", PLUGIN), "module": True},
     ]
 
 
