@@ -6,8 +6,16 @@ extra_css_urls:
 
 plugins:
   datasette-maplibre:
-    basemap: https://tiles.openfreemap.org/styles/positron  # light
-    # basemap: https://tiles.openfreemap.org/styles/dark  # dark
+    basemap:
+      style: https://tiles.openfreemap.org/styles/positron  # light
+      # style: https://tiles.openfreemap.org/styles/dark  # dark
+      outline:
+        name: Coastline
+        tile_source: openmaptiles
+        tile_layer: water
+        tile_class: ocean
+        colour: '#000000'
+        opacity: 0.6
     group_by:
       column: trajectory_id
       properties: [filename, year]

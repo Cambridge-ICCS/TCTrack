@@ -72,7 +72,15 @@ The map can be configured in the `datasette-maplibre` section of the `metadata.y
 
 The following settings are available:
 
-- `basemap` URL of the MapLibre-compatible basemap to project onto the map. See the [basemap gallery](https://madewithmaplibre.com/basemaps/gallery) for alternatives. The MapTiler dataviz map ([light](https://www.maptiler.com/maps/#style=dataviz-v4)/[dark](https://www.maptiler.com/maps/#style=dataviz-v4-dark)) has proven effective (API key required).
+- `basemap` Basemap source and optional outline:
+	- `style` URL of the MapLibre-compatible map style. See the [basemap gallery](https://madewithmaplibre.com/basemaps/gallery) for alternatives. The MapTiler dataviz map ([light](https://www.maptiler.com/maps/#style=dataviz-v4)/[dark](https://www.maptiler.com/maps/#style=dataviz-v4-dark)) has proven effective (API key required).
+	- `outline` (optional) Project an outline from the map above all other layers:
+		- `name` Name for the outline layer.
+		- `tile_source` The name of the source vector from the map, e.g. `openmaptiles`. This can be found by inspecting the style URL.
+		- `tile_layer` Layer id that contains the required vectors, e.g. for a coastline, use `water`.
+		- `tile_class` (optional) Class name of features to render as lines, e.g. for a coastline, use `ocean`.
+		- `colour` Outline colour.
+		- `opacity` Outline opacity.
 - `group_by` A collection of settings for defining groups in the source data. This is primarily used to create map lines from the observation points of each track. Data is added to the group in the order given by the query so it should be in sequence, e.g. `order by trajectory_id, sequence`.
 	- `column` The column name to group by. Use `trajectory_id` to define a group for each track.
 	- `properties` An array of column names that will be used as properties for each group if they exist in the dataset. These are linked to the group and displayed when selected. The columns are presumed to contain unique values across each group.

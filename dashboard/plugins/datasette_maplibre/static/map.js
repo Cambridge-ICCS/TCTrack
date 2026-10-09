@@ -3,7 +3,7 @@ import { LayerControl } from "https://unpkg.com/maplibre-gl-layer-control@0.17.5
 
 // Pick up config passed from Python __init__ layer
 const TABLE_NAME = window.DATASETTE_MAPLIBRE_TABLE_NAME || "Data";
-const BASEMAP_STYLE = window.DATASETTE_MAPLIBRE_STYLE || "https://demotiles.maplibre.org/style.json";
+const BASEMAP = window.DATASETTE_MAPLIBRE_BASEMAP || { style: "https://demotiles.maplibre.org/style.json" };
 const GROUP_BY = window.DATASETTE_MAPLIBRE_GROUP_BY || null;
 const POINT = window.DATASETTE_MAPLIBRE_POINT || { radius: 4, opacity: 1 };
 const LINE = window.DATASETTE_MAPLIBRE_LINE || { thickness: 2, opacity: 1 };
@@ -265,7 +265,7 @@ function init() {
 
 	const map = new maplibregl.Map({
 		container: container,
-		style: BASEMAP_STYLE,
+		style: BASEMAP.style,
 		center: [0, 0],
 		zoom: 1,
 		cooperativeGestures: true,  // ctrl+scroll for zoom to allow page scrolling
@@ -274,7 +274,7 @@ function init() {
 	});
 	map.addControl(new maplibregl.NavigationControl({ showCompass: true }));
 	map.addControl(new maplibregl.GlobeControl(), 'top-right');
-	map.addControl(new LayerControl({ showOpacitySlider: true, basemapStyleUrl: BASEMAP_STYLE }), 'top-right');
+	map.addControl(new LayerControl({ basemapStyleUrl: BASEMAP.style }), 'top-right');
 
 	// Restore the persisted view settings (globe and camera position)
 	const view = loadStored(STORAGE_KEY);
@@ -298,6 +298,24 @@ function init() {
 		};
 		map.on("projectiontransition", saveView);
 		map.on("moveend", saveView);
+
+		// Map outline - added as soon as the basemap has loaded to avoid it popping in later
+		if (BASEMAP.outline) {
+			map.addLayer({
+				id: BASEMAP.outline.name,
+				type: "line",
+				source: BASEMAP.outline.tile_source,
+				"source-layer": BASEMAP.outline.tile_layer,
+				...(BASEMAP.outline.tile_class ? {
+					filter: ["==", ["get", "class"], BASEMAP.outline.tile_class]
+				} : {}),
+				paint: {
+					"line-color": BASEMAP.outline.colour,
+					"line-opacity": BASEMAP.outline.opacity,
+					"line-width": 1,
+				}
+			});
+		}
 	});
 
 	map.on("load", async () => {
@@ -409,7 +427,7 @@ function init() {
 			// Line layer - lines added first so that points can be rendered on top
 			// Only added if lines were made
 			if (geojson.lines > 0) {
-				layer_id = layer + "_lines";
+				layer_id = String(layer) + " lines";
 				map.addLayer({
 					id: layer_id,
 					source: "datasette-geojson",
@@ -453,6 +471,9 @@ function init() {
 			colour_idx = (colour_idx + 1) % PALETTE.layers.length;
 			colour = PALETTE.layers[colour_idx];
 		}
+
+		// Move map outline to top of the stack so it appears above all other layers
+		if (BASEMAP.outline) map.moveLayer(BASEMAP.outline.name);
 
 		// Set on-click popups and pointer style for all added layers
 		for (const layer of layers_added) {

@@ -8,7 +8,6 @@ PLUGIN = "datasette-maplibre"
 
 MAPLIBRE_CSS = "https://unpkg.com/maplibre-gl@6.12/dist/maplibre-gl.css"
 LAYER_CONTROL_CSS = "https://unpkg.com/maplibre-gl-layer-control@0.17.5/dist/maplibre-gl-layer-control.css"
-DEFAULT_BASEMAP = "https://demotiles.maplibre.org/style.json"
 
 
 def has_lat_lon_columns(columns):
@@ -57,7 +56,7 @@ def extra_body_script(
     )
 
     config = datasette.plugin_config(PLUGIN, database=database, table=table) or {}
-    basemap_style = config.get("basemap", DEFAULT_BASEMAP)
+    basemap = config.get("basemap")
     group_by = config.get("group_by")
     point = config.get("point")
     line = config.get("line")
@@ -68,7 +67,7 @@ def extra_body_script(
     # Pass configuration to map.js via the JavaScript window object
     return (
         f"window.DATASETTE_MAPLIBRE_TABLE_NAME = {json.dumps(table)};\n"
-        f"window.DATASETTE_MAPLIBRE_STYLE = {json.dumps(basemap_style)};\n"
+        f"window.DATASETTE_MAPLIBRE_BASEMAP = {json.dumps(basemap)};\n"
         f"window.DATASETTE_MAPLIBRE_GROUP_BY = {json.dumps(group_by)};\n"
         f"window.DATASETTE_MAPLIBRE_POINT = {json.dumps(point)};\n"
         f"window.DATASETTE_MAPLIBRE_LINE = {json.dumps(line)};\n"
