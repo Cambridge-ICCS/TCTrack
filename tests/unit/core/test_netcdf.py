@@ -1,5 +1,7 @@
 """Unit tests for netcdf utility functions in the TCTrack utils Python package."""
 
+from pathlib import Path
+
 import pytest
 from netCDF4 import Dataset
 
@@ -30,7 +32,9 @@ class TestNetCDF:
             pytest.param({"lon": 10}, {}, (20, 10), KeyError, id="missing dimension"),
         ],
     )
-    def test_lat_lon_sizes_valid(self, tmp_path, dims, lat_lon_names, expected, raises):
+    def test_lat_lon_sizes_valid(
+        self, tmp_path: Path, dims, lat_lon_names, expected, raises
+    ):
         """Test lat_lon_sizes returns the expected values / the expected error."""
         ncfile = tmp_path / "test.nc"
         self.create_netcdf_file(ncfile, dims)

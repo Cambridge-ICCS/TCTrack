@@ -76,13 +76,13 @@ def _write_output(
 
 
 @overload
-def _write_output(
+def _write_output(  # type: ignore[overload-cannot-match]
     result: list[cf.Field], output_file: str | None, squeeze: Literal[True] = True
 ) -> cf.Field | list[cf.Field]: ...
 
 
 @overload
-def _write_output(
+def _write_output(  # type: ignore[overload-cannot-match]
     result: list[cf.Field], output_file: str | None, squeeze: Literal[False]
 ) -> list[cf.Field]: ...
 
@@ -124,7 +124,7 @@ def read_files(
     """
     fields = list(
         cf.read(  # type: ignore[operator]
-            _expand_input_paths(input_files), select=select, netcdf_backend="netCDF4"
+            _expand_input_paths(input_files), select=select, backend="netCDF4"
         )
     )
     return _write_output(fields, output_file, squeeze=False)
