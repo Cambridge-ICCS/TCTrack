@@ -30,7 +30,7 @@ flowchart TD
         D4["Check output grid matches\ninput grid, else raise"]
         D5[("Record every pixel\n→ _scores")]
         D6["is_storm = winning class ≠ background\nAND prob ≥ threshold"]
-        D7["_cluster_candidates()\nflood-fill adjacent SAME-CLASS\npixels → weighted centroids"]
+        D7["_cluster_candidates()\nflood-fill adjacent storm pixels\n(any class) → weighted centroids"]
         D8["_merge_nearby_candidates()\ndrop weaker candidates within\nmerge_distance_deg (NMS)"]
         D9["_colocated_variables()\nsample the 17 inputs at each\nlocation, de-normalised"]
 
@@ -45,10 +45,10 @@ flowchart TD
     subgraph STITCH["stitch()  —  one timestep at a time, in strict order"]
         direction TB
         S0["Look up this timestep's\ncandidates"]
-        S1{{"PASS 1 - extend\nfor each ACTIVE track:\n_nearest_candidate() within\nstitch_max_distance_deg?"}}
+        S1{{"PASS 1 - extend\nfor each ACTIVE track:\n_nearest_candidate() within\nmax_distance_deg?"}}
         S2["Claim candidate, add point,\nreset missed = 0"]
         S3["missed += 1"]
-        S4{{"PASS 2 - retire\nmissed > stitch_max_gap?"}}
+        S4{{"PASS 2 - retire\nmissed > max_gap?"}}
         S5[/"Close track:\nmove trail to finished"/]
         S6["Stays in active_tracks"]
         S7["PASS 3 - recruit\nany candidate left unclaimed\n→ new track, missed = 0"]
@@ -64,20 +64,19 @@ flowchart TD
         S7 -.next timestep.-> S0
     end
 
-    FILTER["After the last timestep:\nany still-active tracks join finished,\nthen keep only those with\n≥ stitch_min_length observations\n→ stored on _trajectories"]
+    FILTER["After the last timestep:\nany still-active tracks join finished,\nthen keep only those with\n≥ min_length observations\n→ stored on _trajectories"]
 
     TRACKS[("list[Trajectory]\nalso via read_trajectories()")]
 
-    OUT_P["detections_to_netcdf()\nCF featureType = point\none record per detection"]
-    OUT_T["to_netcdf()\nCF featureType = trajectory\nragged array of tracks"]
+    OUT_P["detections_to_netcdf()\noptional, called separately\nCF featureType = point\none record per detection"]
+    OUT_T["to_netcdf(output_file)\nCF featureType = trajectory\nragged array of tracks"]
 
-    NEXT["run_tracker()\n— NOT YET WIRED UP"]
+    RUN["run_tracker(output_file)\ncalls detect() → stitch() → to_netcdf()"]
 
+    RUN --> IN
     IN --> PRE --> DET --> CANDS --> STITCH --> FILTER --> TRACKS
-    CANDS --> OUT_P
+    CANDS -.-> OUT_P
     TRACKS --> OUT_T
-    OUT_P -.should be called by.-> NEXT
-    OUT_T -.should be called by.-> NEXT
 
     style IN     fill:#d5f5e3,stroke:#1e8449
     style CANDS  fill:#fef9e7,stroke:#f39c12
@@ -88,5 +87,5 @@ flowchart TD
     style FILTER fill:#f4ecf7,stroke:#8e44ad
     style OUT_P  fill:#d6eaf8,stroke:#1a5276
     style OUT_T  fill:#d6eaf8,stroke:#1a5276
-    style NEXT   fill:#f9f9f9,stroke:#aaa,stroke-dasharray: 5 5
+    style RUN    fill:#fadbd8,stroke:#943126
 
