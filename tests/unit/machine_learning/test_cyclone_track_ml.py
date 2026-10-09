@@ -135,6 +135,37 @@ class TestHelpers:
 class TestMLParameters:
     """Tests for the MLParameters and MLStitchParameters dataclasses."""
 
+    def test_parameters_defaults(self) -> None:
+        """Check the default values for MLParameters."""
+        params = MLParameters()
+        # Check values of all defaults
+        assert params.model_path is None
+        assert params.hf_repo_id == "surbhigoel456/cyclone-TC-ML"
+        assert params.hf_token is None
+        assert params.device == "cpu"
+        assert params.threshold == 0.5
+        assert params.input_file == ""
+        assert params.pressure_variables == (
+            "relative_humidity",
+            "air_temperature",
+            "eastward_wind",
+            "northward_wind",
+            "atmosphere_relative_vorticity",
+        )
+        assert params.pressure_levels == (1000, 750, 500)
+        assert params.sst_variable == "ncvar%sst"
+        assert params.t2m_variable == "ncvar%t2m"
+        assert params.normalisation_stats_path is None
+        assert params.merge_distance_deg == 2.0
+
+    def test_stitch_parameters_defaults(self) -> None:
+        """Check the default values for MLStitchParameters."""
+        params = MLStitchParameters()
+        # Check values of all defaults
+        assert params.max_distance_deg == 3.0
+        assert params.max_gap == 1
+        assert params.min_length == 2
+
     @pytest.mark.parametrize("threshold", [-0.1, 1.1])
     def test_invalid_threshold_raises(self, threshold):
         """Thresholds outside 0 to 1 raise a ValueError."""
