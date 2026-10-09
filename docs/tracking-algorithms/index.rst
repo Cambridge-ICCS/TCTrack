@@ -16,3 +16,4 @@ For full details of the API for each of the components please see the
    TSTORMS <tstorms>
    Tempest Extremes <tempest_extremes>
    TRACK <track>
+   Machine Learning <machine_learning>
