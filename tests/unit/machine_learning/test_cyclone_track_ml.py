@@ -80,10 +80,15 @@ def _candidate(
     }
 
 
-def _logits(storms=None, n_lat=6, n_lon=6):
+def _logits(
+    storms: dict[tuple[int, int], tuple[int, float]] | None = None,
+    n_lat: int = 6,
+    n_lon: int = 6,
+) -> torch.Tensor:
     """Model output where every pixel is background except those in ``storms``.
 
-    ``storms`` maps ``(y, x)`` to ``(class_index, logit)``.
+    ``storms`` maps ``(y, x)`` to ``(class_index, logit)``. Returns logits of shape
+    ``(1, 5, n_lat, n_lon)``: batch, class, latitude, longitude.
     """
     logits = torch.zeros(1, 5, n_lat, n_lon)
     logits[0, 0] = 10.0
