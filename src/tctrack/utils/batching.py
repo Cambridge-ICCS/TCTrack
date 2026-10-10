@@ -1,5 +1,6 @@
 """Module providing functions for batching the tracking algorithms."""
 
+import functools
 import glob
 import shutil
 import warnings
@@ -19,16 +20,12 @@ class InputArgs(TypedDict, total=False):
     store: str | Sequence[str | None]
 
 
-class _PreprocessRegistryArgs(TypedDict, total=False):
-    use: str | Sequence[str]
-    store: str | Sequence[str | None]
-
-
 PreprocessResult: TypeAlias = cf.Field | Sequence[cf.Field] | None
-PreprocessFn: TypeAlias = Callable[..., PreprocessResult]
+PreprocessFn: TypeAlias = (
+    Callable[..., PreprocessResult] | functools.partial[PreprocessResult]
+)
 PreprocessStep: TypeAlias = (
-    tuple[PreprocessFn, dict[str, Any]]
-    | tuple[PreprocessFn, dict[str, Any], _PreprocessRegistryArgs]
+    PreprocessFn | tuple[PreprocessFn, str | Sequence[str | None]]
 )
 
 
@@ -36,23 +33,33 @@ def _combine_trajectories(output_file_list: list[Path], output_file: Path) -> No
     """Combine batched trajectory outputs into a single NetCDF file."""
 
 
-def _get_fields(
-    input_names: str | Sequence[str],
-    fields: dict[str, cf.Field],
-) -> list[cf.Field]:
-    """Return the input fields requested by preprocessing."""
-    if isinstance(input_names, str):
-        input_names = [input_names]
+def _get_fields(arg: Any, fields: dict[str, cf.Field]) -> Any:
+    """Return the argument with any registry field names replaced by fields.
 
-    missing_names = [name for name in input_names if name not in fields]
-    if missing_names:
-        msg = (
-            "The following fields are not available in the preprocessing registry: "
-            + ", ".join(missing_names)
-        )
-        raise KeyError(msg)
+    Any arguments that do not match the registry keys will be left unchanged.
+    """
+    if isinstance(arg, str):
+        return fields.get(arg, arg)
+    if isinstance(arg, (list, tuple)):
+        return [
+            fields.get(item, item) if isinstance(item, str) else item for item in arg
+        ]
+    return arg
 
-    return [fields[name] for name in input_names]
+
+def _substitute_tags(arg: Any, batch: tuple[int, Path]) -> Any:
+    """Substitute %BATCH% and %ITER% tags in a string argument.
+
+    Non-string arguments are returned unchanged. A bare "%ITER%" is replaced
+    with an integer rather than a string.
+    """
+    if not isinstance(arg, str):
+        return arg
+
+    i_iter, batch_dir = batch
+    if arg == "%ITER%":
+        return i_iter  # If just "%ITER%" use an integer instead
+    return arg.replace("%BATCH%", str(batch_dir)).replace("%ITER%", str(i_iter))
 
 
 def _store_fields(
@@ -105,42 +112,50 @@ def _store_fields(
 
 def _run_preprocessing(
     step: PreprocessStep, batch: tuple[int, Path], fields: dict[str, cf.Field]
-) -> PreprocessResult:
-    """Run a batching step with supported keyword arguments."""
-    fn = step[0]
-    kwargs = step[1].copy()
-    if len(step) == 2:  # noqa: PLR2004 - magic number
-        input_names = None
-        output_names = None
-    elif len(step) == 3:  # noqa: PLR2004 - magic number
-        input_names = step[2].get("use")
-        output_names = step[2].get("store")
+):
+    """Run a preprocessing step.
+
+    For partial functions, it first checks if the first argument should be replaced with
+    field(s) already in memory. Also replaces any %BATCH% or %ITER% tags in string
+    arguments.
+    """
+    if isinstance(step, tuple):
+        if len(step) != 2:  # noqa: PLR2004 - magic number
+            msg = (
+                "Invalid preprocessing step format. It must be a callable, or a "
+                "tuple of (callable, store)."
+            )
+            raise ValueError(msg)
+        fn, store_names = step
     else:
-        msg = "Invalid preprocessing step format. It must be a tuple of length 2 or 3."
+        fn, store_names = step, None
+
+    if not callable(fn):
+        msg = "Invalid preprocessing step. It must be callable."
         raise ValueError(msg)
 
-    # Replace any %BATCH% and %ITER% tags in string arguments
-    i_iter, batch_dir = batch
-    for k, v in kwargs.items():
-        if isinstance(v, str):
-            if v == "%ITER%":
-                kwargs[k] = i_iter  # If just "%ITER%" use an integer instead
-                continue
-            kwargs[k] = v.replace("%BATCH%", str(batch_dir))
-            kwargs[k] = kwargs[k].replace("%ITER%", str(i_iter))
+    if isinstance(fn, functools.partial):
+        args = list(fn.args)
+        # Replace the first argument with any fields from the registry
+        if len(args) > 0:
+            args[0] = _get_fields(args[0], fields)
+        # Substitute the batch tags in any string arguments
+        args = [_substitute_tags(arg, batch) for arg in args]
+        kwargs = {key: _substitute_tags(arg, batch) for key, arg in fn.keywords.items()}
+        # Run the function
+        result = fn.func(*args, **kwargs)
 
-    # Run the preprocessing function
-    if input_names is None:
-        result = fn(**kwargs)
+    # For a bare function simply run it
     else:
-        input_fields = _get_fields(input_names, fields)
-        result = fn(input_fields, **kwargs)
+        result = fn()
 
     # (Optionally) Store the output field(s)
-    if result is not None and output_names is not None:
-        _store_fields(result, output_names, fields, fn.__name__)
-
-    return result
+    if result is not None and store_names is not None:
+        if isinstance(fn, functools.partial):
+            fn_name = getattr(fn.func, "__name__", repr(fn.func))
+        else:
+            fn_name = fn.__name__
+        _store_fields(result, store_names, fields, fn_name)
 
 
 def _parse_files(input_files: str | Iterable[str], directory: Path) -> list[str]:
@@ -247,18 +262,19 @@ def batching(
           possible, otherwise they must match the full number of fields, in which case
           they are matched positionally.
     preprocessing : Sequence[PreprocessStep] | None
-        (optional) The list of preprocessing steps. These are each specified by a tuple.
+        (optional) The list of preprocessing functions. These can either be simple
+        functions or provided using :class:`functools.partial`. The functions in
+        :mod:`tctrack.preprocessing` can be used for this.
 
-        - The first entry in the tuple should be one of the preprocessing functions
-          defined in :mod:`tctrack.preprocessing`. Alternatively, it can be a function
-          that returns either a cf.Field, a list of cf.Field, or nothing. If it takes a
-          field / fields as input this should be the first argument.
-        - The second entry is a dictionary containing the arguments to pass to the
-          function. String arguments can refer to the batch directory with ``%BATCH%``.
-        - The optional third entry is a dictionary that can take ``store`` and/or
-          ``use`` keys which allows fields to be stored and passed from memory to
-          avoid unnecessary file IO. ``store`` behaves the same as in
-          :attr:`input_files`.
+        Each step can also be provided as a 2-tuple where the second value is
+        the key / list of keys for storing the output fields in memory to prevent
+        unnecessary file IO. This behaves the same as ``store`` in :attr:`input_files`.
+        To use this the function must return a cf.Field, a list of cf.Fields.
+
+        If using `partial`, the first function argument can specify the key(s) of the
+        stored fields and it will be replaced by the cf.Field object(s). Any ``%BATCH%``
+        or ``%ITER%`` tags in string arguments will also be replaced by the batch
+        directory and iteration number respectively.
     retrieve_data : Callable[[int, Path], None] | None
         (optional) A user-defined function that is called each iteration to retrieve
         data and put it in the batch directory. E.g. to download the data if it will not
@@ -284,26 +300,20 @@ def batching(
 
     >>> from tctrack.utils import batching
     >>> from tctrack import tempest_extremes as te
-    >>> from tctrack.preprocessing import subsample_field, set_nc_variable_name
+    >>> from tctrack.preprocessing import subsample_field, set_netcdf_info
+    >>> from functools import partial
+    >>> input_files = [("psl_*.nc", {"store": "psl"})]
     >>> preprocessing = [
-    ...     (
-    ...         subsample_field,
-    ...         {"X": slice(0, None, 2)},
-    ...         {"use": "psl", "store": "psl"},
-    ...     ),
-    ...     (
-    ...         set_nc_variable_name,
-    ...         {"field_name": "p", "output_file": "%BATCH%/psl_processed.nc"},
-    ...         {"use": "psl"},
+    ...     (partial(subsample_field, "psl", {"X": slice(0, None, 2)}), "psl"),
+    ...     partial(
+    ...         set_netcdf_info,
+    ...         "psl",
+    ...         nc_name="p",
+    ...         output_file="%BATCH%/psl_processed.nc",
     ...     ),
     ... ]
     >>> tracker = te.TETracker()
-    >>> batching(
-    ...     tracker,
-    ...     10,
-    ...     [("psl_*.nc", {"store": "psl"})],
-    ...     preprocessing=preprocessing,
-    ... )
+    >>> batching(tracker, 10, input_files, preprocessing=preprocessing)
     """
     # Set the default config arguments
     if config is None:
