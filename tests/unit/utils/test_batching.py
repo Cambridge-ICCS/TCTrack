@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+from functools import partial
 from pathlib import Path
 from typing import Iterable
 
@@ -42,12 +43,19 @@ def make_fields(names: list[str], log: list[str] | None = None) -> list[cf.Field
     return fields
 
 
-def load_field(fields: cf.Field | list[cf.Field], log: list[str] | None = None) -> None:
+def load_field(
+    fields: str | list[str] | cf.Field | list[cf.Field],
+    log: list[str] | None = None,
+) -> None:
     """Emulate a preprocessing step that takes a field / fields."""
     if not isinstance(fields, list):
         fields = [fields]
     if log is not None:
-        log.append("loaded " + " ".join([field.nc_get_variable() for field in fields]))
+        names = [
+            field.nc_get_variable() if isinstance(field, cf.Field) else field
+            for field in fields
+        ]
+        log.append("loaded " + " ".join(names))
 
 
 ### Dummy tracker to use in the batching
@@ -109,8 +117,8 @@ class TestBatchingPreprocessing:
             n_iter=1,
             input_files=[],
             preprocessing=[
-                (dummy_step, {"log": log}),
-                (make_field, {"name": "p", "log": log}),
+                partial(dummy_step, log=log),
+                partial(make_field, "p", log=log),
             ],
             tracker_inputs=[],
             config=config,
@@ -127,7 +135,7 @@ class TestBatchingPreprocessing:
             tracker,
             n_iter=2,
             input_files=[],
-            preprocessing=[(dummy_step, {"comment": "%ITER%%BATCH%", "log": log})],
+            preprocessing=[partial(dummy_step, "%ITER%%BATCH%", log=log)],
             tracker_inputs=[],
             config=config,
         )
@@ -144,7 +152,7 @@ class TestBatchingPreprocessing:
             tracker,
             n_iter=2,
             input_files=[],
-            preprocessing=[(dummy_step, {"comment": "%ITER%", "log": log})],
+            preprocessing=[partial(dummy_step, "%ITER%", log=log)],
             tracker_inputs=[],
             config=config,
         )
@@ -153,7 +161,7 @@ class TestBatchingPreprocessing:
         assert isinstance(log[0], int)
 
     def test_registry_single_field(self, config) -> None:
-        """Test a field can be loaded from memory with "store" and "use"."""
+        """Test a field can be loaded from memory with "store" and a key name."""
         tracker = DummyTracker()
         log: list[str] = []
 
@@ -162,8 +170,8 @@ class TestBatchingPreprocessing:
             n_iter=1,
             input_files=[],
             preprocessing=[
-                (make_field, {"name": "p"}, {"store": "field1"}),
-                (load_field, {"log": log}, {"use": "field1"}),
+                (partial(make_field, "p"), "field1"),
+                partial(load_field, "field1", log=log),
             ],
             tracker_inputs=[],
             config=config,
@@ -181,28 +189,15 @@ class TestBatchingPreprocessing:
             n_iter=1,
             input_files=[],
             preprocessing=[
-                (make_field, {"name": "p1"}, {"store": "field1"}),
-                (make_field, {"name": "p2"}, {"store": "field1"}),
-                (load_field, {"log": log}, {"use": "field1"}),
+                (partial(make_field, "p1"), "field1"),
+                (partial(make_field, "p2"), "field1"),
+                partial(load_field, "field1", log=log),
             ],
             tracker_inputs=[],
             config=config,
         )
 
         assert log == ["loaded p2"]
-
-    def test_registry_missing(self, config) -> None:
-        """Test an error is raised when trying to load a field that is missing."""
-        tracker = DummyTracker()
-
-        with pytest.raises(KeyError, match=r"fields are not available.*: field1"):
-            batching(
-                tracker,
-                n_iter=1,
-                input_files=[],
-                preprocessing=[(load_field, {}, {"use": "field1"})],
-                config=config,
-            )
 
     @pytest.mark.parametrize(
         "store, use, load_log, error",
@@ -217,6 +212,20 @@ class TestBatchingPreprocessing:
                 "p u",
                 None,
                 id="var names preferred over positional",
+            ),
+            pytest.param(
+                ["a", "b", "c"],
+                ["a", "not_a_key"],
+                "p not_a_key",
+                None,
+                id="mixed key and non-key list",
+            ),
+            pytest.param(
+                "p",
+                "not_a_key",
+                "not_a_key",
+                None,
+                id="non-key string",
             ),
             pytest.param(
                 ["a", "b", "c", "d"],
@@ -250,8 +259,8 @@ class TestBatchingPreprocessing:
                 n_iter=1,
                 input_files=[],
                 preprocessing=[
-                    (make_fields, {"names": ["p", "u", "v"]}, {"store": store}),
-                    (load_field, {"log": log}, {"use": use}),
+                    (partial(make_fields, ["p", "u", "v"]), store),
+                    partial(load_field, use, log=log),
                 ],
                 tracker_inputs=[],
                 config=config,
@@ -382,7 +391,7 @@ class TestBatching:
             tracker,
             n_iter=1,
             input_files=[(input_file, {"store": "input"})],
-            preprocessing=[(load_field, {"log": log}, {"use": "input"})],
+            preprocessing=[partial(load_field, "input", log=log)],
             tracker_inputs=[],
             config=config,
         )
