@@ -12,7 +12,7 @@ Imported files can be grouped together into collections, e.g. geographic areas o
 Presuming TCTrack has been installed via `pip install`:
 
 ```bash
-build-db [--help] --output OUTPUT [--collection COLLECTION] [--hadsst PATH] files...
+build-db [--help] --output OUTPUT [--collection COLLECTION] [--hadsst PATH] [--roni PATH] files...
 ```
 
 To use the tool without installation, bypassing the need for all other TCTrack dependencies:
@@ -29,6 +29,7 @@ python -m tctrack.build_db.build_db --output OUTPUT files...
 | `--output`, `-o`     | yes      | SQLite database path and name. Created if it doesn't exist, appended to if it does.                      |
 | `--collection`, `-c` | no       | Collection name. Creates or reuses an existing collection. Will use a default collection if unspecified. |
 | `--hadsst PATH`      | no       | HadSST median monthly NetCDF file used to add sea surface temperature anomaly values to observations. |
+| `--roni PATH`        | no       | Monthly NetCDF file used to add matching-month Relative Oceanic Niño Index values to observations. |
 | `files`              | yes      | One or more NetCDF files from TCTrack.                                                                   |
 
 ### Examples
@@ -53,6 +54,11 @@ Import tracks with sea surface temperature anomalies from the required HadSST me
 build-db --output tracks.db --hadsst HadSST.4.2.0.0_median.nc tracks.nc
 ```
 
+Import tracks with matching-month values from a monthly RONI dataset:
+```bash
+build-db --output tracks.db --roni roni.nc tracks.nc
+```
+
 ## Database Schema
 
 ```
@@ -74,4 +80,5 @@ See [`schema.sql`](schema.sql) for the full schema definition.
 - Duplicate files are skipped (by filename) on attempted re-import.
 - Every observation is classified using the geographic module: whether it is over land, its distance to the nearest coastline and its ocean basin.
 - Trajectories record the ocean basin of their first (genesis) observation and whether any observation made landfall.
-- `--hadsst` requires the HadSST median monthly anomalies NetCDF, e.g. [`HadSST.4.2.0.0_median.nc`](https://www.metoffice.gov.uk/hadobs/hadsst4/data/download.html). Values are selected by calendar year and month, so `360_day` model dates such as February 30 match their corresponding monthly HadSST field.
+- `--hadsst` requires the HadSST median monthly anomalies NetCDF, e.g. [`HadSST.4.2.0.0_median.nc`](https://www.metoffice.gov.uk/hadobs/hadsst4/data/download.html) via [Met Office Hadley Centre](https://www.metoffice.gov.uk/hadobs/hadsst4/). Values are selected by calendar year and month, so `360_day` model dates such as February 30 match their corresponding monthly HadSST field.
+- `--roni` requires a NetCDF file with one-dimensional `time` and `value` variables, e.g. [`roni.nc`](https://psl.noaa.gov/data/timeseries/month/data/roni.nc) via [NOAA Physical Sciences Laboratory](https://psl.noaa.gov/data/timeseries/month/DS/RONI/). Each observation receives the value for its calendar year and month; months without a value remain null.

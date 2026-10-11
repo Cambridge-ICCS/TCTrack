@@ -12,6 +12,7 @@ import netCDF4
 import numpy as np
 
 from tctrack.build_db.hadsst import HadSST
+from tctrack.build_db.roni import RONI
 from tctrack.geographic import classify_tracks
 
 logger = logging.getLogger(__name__)
@@ -304,12 +305,13 @@ def insert_file(
     return cur.lastrowid
 
 
-def insert_trajectory(
+def insert_trajectory(  # noqa: PLR0913, PLR0917
     db: sqlite3.Connection,
     file_id: int,
     traj: dict,
     ocean_ids: dict[str, str],
     hadsst: HadSST | None = None,
+    roni: RONI | None = None,
 ) -> int:
     """
     Insert a trajectory and its observations.
@@ -327,6 +329,10 @@ def insert_trajectory(
 
     hadsst
         Optional HadSST lookup used to add sea temperature anomaly to observations.
+
+    roni
+        Optional RONI lookup used to add Relative Oceanic Niño Index values to
+        observations.
 
     Returns
     -------
@@ -375,6 +381,7 @@ def insert_trajectory(
             hadsst.lookup(traj["times"][i], traj["latitude"][i], traj["longitude"][i])
             if hadsst is not None
             else None,
+            roni.lookup(traj["times"][i]) if roni is not None else None,
             v[i] if (v := obs_ocean_ids) is not None else None,
             v[i] if (v := traj["distance_to_coast_km"]) is not None else None,
             int(v[i]) if (v := traj["landfall"]) is not None else None,
@@ -387,9 +394,9 @@ def insert_trajectory(
             """insert into observations
                (trajectory_id, sequence, date, latitude, longitude,
                 air_pressure_at_sea_level, surface_altitude, wind_speed,
-                atmosphere_relative_vorticity, sea_surface_temp_anomaly,
+                atmosphere_relative_vorticity, sea_surface_temp_anomaly, roni,
                 ocean_id, distance_to_coast_km, landfall)
-               values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             rows,
         )
         if cur.rowcount != len(rows):
@@ -404,6 +411,7 @@ def import_file(
     collection_id: int,
     netcdf_filepath: str,
     hadsst: HadSST | None = None,
+    roni: RONI | None = None,
 ) -> None:
     """
     Import a single NetCDF file into the database.
@@ -422,6 +430,10 @@ def import_file(
 
     hadsst
         Optional HadSST lookup used to add sea temperature anomaly to observations.
+
+    roni
+        Optional RONI lookup used to add Relative Oceanic Niño Index values to
+        observations.
     """
     filepath = os.path.abspath(netcdf_filepath)
 
@@ -443,7 +455,7 @@ def import_file(
 
         for traj_idx in range(netcdf_data["n_trajectories"]):
             traj = extract_trajectory(netcdf_data, traj_idx)
-            insert_trajectory(db, file_id, traj, ocean_ids, hadsst)
+            insert_trajectory(db, file_id, traj, ocean_ids, hadsst, roni)
 
     logger.info(
         "Imported %d trajectories with %d observations each from %s",
@@ -458,6 +470,7 @@ def build(
     input_paths: str | list[str],
     collection_name: str = "default",
     hadsst_filepath: str | Path | None = None,
+    roni_filepath: str | Path | None = None,
 ) -> None:
     """
     Build a database from imported NetCDF file(s) - main worker entry point.
@@ -475,17 +488,22 @@ def build(
 
     hadsst_filepath
         Optional HadSST NetCDF file used to add SSTA to imported observations.
+
+    roni_filepath
+        Optional RONI NetCDF file used to add matching-month RONI values to imported
+        observations.
     """
     hadsst = HadSST(hadsst_filepath) if hadsst_filepath is not None else None
+    roni = RONI(roni_filepath) if roni_filepath is not None else None
 
     with init_db(db_path) as db:
         collection_id = get_collection(db, collection_name)
 
         if isinstance(input_paths, (str, Path)):
-            import_file(db, collection_id, input_paths, hadsst)
+            import_file(db, collection_id, input_paths, hadsst, roni)
         else:
             for nc_file in input_paths:
-                import_file(db, collection_id, nc_file, hadsst)
+                import_file(db, collection_id, nc_file, hadsst, roni)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -512,6 +530,11 @@ def main(argv: list[str] | None = None) -> int:
         help="HadSST NetCDF of median monthly anomalies to apply to observations",
     )
     parser.add_argument(
+        "--roni",
+        metavar="PATH",
+        help="RONI NetCDF of monthly values matched by observation year and month",
+    )
+    parser.add_argument(
         "files",
         nargs="+",
         help="NetCDF files to import",
@@ -523,7 +546,7 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.INFO, format="%(levelname)s: %(message)s", force=True
     )
 
-    build(args.output, args.files, args.collection, args.hadsst)
+    build(args.output, args.files, args.collection, args.hadsst, args.roni)
     return 0
 
 

@@ -21,6 +21,7 @@ NETCDF_360_DAY_FILE = str(
     Path(__file__).parent / "HadGEM3-GC31-HH_r1i1p1f1_tracks_2000.nc"
 )
 HADSST_2000_FILE = str(Path(__file__).parent / "HadSST.4.2.0.0_median_2000.nc")
+RONI_FILE = str(Path(__file__).parent / "roni.nc")
 
 
 @pytest.fixture
@@ -72,6 +73,13 @@ class TestFileImport:
         """Test an unusable HadSST path fails before importing any files."""
         with pytest.raises(ValueError, match="HadSST dataset does not exist"):
             build_db.build(tmp_db, NETCDF_FILE, hadsst_filepath="missing-hadsst.nc")
+
+        assert not Path(tmp_db).exists()
+
+    def test_invalid_roni_fails_before_database_creation(self, tmp_db):
+        """Test an unusable RONI path fails before importing any files."""
+        with pytest.raises(ValueError, match="RONI dataset does not exist"):
+            build_db.build(tmp_db, NETCDF_FILE, roni_filepath="missing-roni.nc")
 
         assert not Path(tmp_db).exists()
 
@@ -251,6 +259,30 @@ class TestObservationImport:
         ).fetchall()
 
         assert values == [(None,)]
+
+    def test_roni_without_dataset_is_null(self, tmp_db):
+        """Test RONI remains null when a RONI dataset is not supplied."""
+        build_db.build(tmp_db, NETCDF_FILE)
+        db = open_db(tmp_db)
+
+        values = db.execute("select distinct roni from observations").fetchall()
+
+        assert values == [(None,)]
+
+    def test_roni_from_dataset(self, tmp_db):
+        """Test observations receive values from the supplied RONI dataset."""
+        build_db.build(
+            tmp_db,
+            NETCDF_360_DAY_FILE,
+            roni_filepath=RONI_FILE,
+        )
+        db = open_db(tmp_db)
+
+        roni = db.execute(
+            "select roni from observations where trajectory_id = 1 and sequence = 0"
+        ).fetchone()[0]
+
+        assert roni == pytest.approx(-1.59)
 
     def test_sea_surface_temp_anomaly_from_hadsst(self, tmp_db):
         """Test observations receive an anomaly from the supplied HadSST dataset."""
@@ -487,6 +519,25 @@ class TestCli:
         ).fetchone()[0]
 
         assert ssta is not None
+
+    def test_roni_option(self, tmp_db):
+        """Test that --roni passes the lookup dataset to the importer."""
+        build_db.main(
+            [
+                "--output",
+                tmp_db,
+                "--roni",
+                RONI_FILE,
+                NETCDF_360_DAY_FILE,
+            ]
+        )
+        db = open_db(tmp_db)
+
+        roni = db.execute(
+            "select roni from observations where trajectory_id = 1 and sequence = 0"
+        ).fetchone()[0]
+
+        assert roni == pytest.approx(-1.59)
 
     def test_named_collection(self, tmp_db):
         """Test that a named collection is created when --collection is specified."""
