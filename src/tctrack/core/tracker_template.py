@@ -40,7 +40,7 @@ class NAMETracker(TCTracker):
         Class containing the parameters for the tracking algorithm.
     """
 
-    def __init__(self, parameters: NAMEParameters):
+    def __init__(self, parameters: NAMEParameters, verbosity: int = 1):
         """Construct the tracker.
 
         Multiple classes can be used to group the parameters.
@@ -50,7 +50,10 @@ class NAMETracker(TCTracker):
         parameters : NAMEParameters
             Class containing the parameters for the tracking algorithm(s).
             Defaults to the default values in NAMEParameters class.
+        verbosity : int
+            Controls tracker subprocess output. Defaults to 1.
         """
+        super().__init__(verbosity=verbosity)
         self.parameters: NAMEParameters = parameters
 
         # Set any private attributes, make changes to parameters, setup, etc

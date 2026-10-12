@@ -96,7 +96,7 @@ class TRACKTracker(TCTracker):
     _nx: int  # Length of the longitude dimension of the data
     _ny: int  # Length of the latitude dimension of the data
 
-    def __init__(self, parameters: TRACKParameters):
+    def __init__(self, parameters: TRACKParameters, verbosity: int = 1):
         """Construct the TRACK class.
 
         Parameters
@@ -104,12 +104,15 @@ class TRACKTracker(TCTracker):
         parameters : TRACKParameters
             Class containing the parameters for the TRACK algorithm(s)
             Defaults to the default values in TRACKParameters Class
+        verbosity : int
+            Controls tracker subprocess output. Defaults to 1.
 
         Raises
         ------
         FileNotFoundError
             If the input file does not exist.
         """
+        super().__init__(verbosity=verbosity)
         self.parameters: TRACKParameters = parameters
 
         # Get sizes from input file
