@@ -48,7 +48,7 @@ class RONI:
                         time[:], time.units, getattr(time, "calendar", "standard")
                     ),
                 )
-                self._values = {
+                self._values_by_month = {
                     (date.year, date.month): value
                     for date, value in zip(dates, values[:], strict=True)
                 }
@@ -56,13 +56,15 @@ class RONI:
             msg = f"Could not open RONI dataset {path}: {exc}"
             raise ValueError(msg) from exc
 
-        if not self._values:
+        if not self._values_by_month:
             msg = f"RONI dataset {path} has an empty time coordinate"
             raise ValueError(msg)
 
     def lookup(self, observation_date: datetime | cftime.datetime) -> float | None:
         """Return the observation month's RONI rounded to 3 decimals, or `None`."""
-        value = self._values.get((observation_date.year, observation_date.month))
+        value = self._values_by_month.get(
+            (observation_date.year, observation_date.month)
+        )
 
         if value is None or np.ma.is_masked(value) or not np.isfinite(value):
             return None

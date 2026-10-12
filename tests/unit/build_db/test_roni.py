@@ -8,7 +8,7 @@ import pytest
 from tctrack.build_db.roni import RONI
 
 RONI_FILE = Path(__file__).parent / "roni.nc"
-HADSST_FILE = Path(__file__).parent / "HadSST.4.2.0.0_median_2000.nc"
+INVALID_NC_FILE = Path(__file__).parent / "HadSST.4.2.0.0_median_2000.nc"
 
 
 class TestRONIValidation:
@@ -30,7 +30,7 @@ class TestRONIValidation:
     def test_missing_value_variable_raises_value_error(self):
         """Test a NetCDF dataset without the RONI value variable is rejected."""
         with pytest.raises(ValueError, match="missing required variable 'value'"):
-            RONI(HADSST_FILE)
+            RONI(INVALID_NC_FILE)
 
 
 class TestRONILookup:
