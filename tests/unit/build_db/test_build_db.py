@@ -16,6 +16,7 @@ from tctrack.geographic import geographic
 
 NETCDF_FILE = str(Path(__file__).parent / "test_tracks.nc")
 NETCDF_SE_FILE = str(Path(__file__).parent / "test_tracks_se.nc")
+NON_STANDARD_FILE = str(Path(__file__).parent / "test_non_standard.nc")
 NETCDF_NATL_FILE = str(Path(__file__).parent / "6hr_track_mm_2013_natl.nc")
 NETCDF_360_DAY_FILE = str(
     Path(__file__).parent / "HadGEM3-GC31-HH_r1i1p1f1_tracks_2000.nc"
@@ -181,6 +182,19 @@ class TestObservationImport:
         assert row[2] == pytest.approx(100472.1)
         assert row[3] == pytest.approx(0.0)
         assert row[4] == pytest.approx(10.42255)
+
+    def test_non_standard_data_types(self, tmp_db):
+        """Test that NumPy scalar values are stored as SQLite numbers."""
+        build_db.build(tmp_db, NON_STANDARD_FILE)
+        db = open_db(tmp_db)
+
+        row = db.execute(
+            "select latitude, longitude, wind_speed from observations "
+            "where wind_speed is not null limit 1"
+        ).fetchone()
+
+        assert row is not None
+        assert all(isinstance(value, (int, float)) for value in row)
 
     def test_observation_date(self, tmp_db):
         """Test that dates are in ISO format and monotonically increasing."""

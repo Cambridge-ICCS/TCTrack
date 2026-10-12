@@ -184,8 +184,9 @@ def extract_trajectory(netcdf_data: dict, traj_idx: int) -> dict:
     -------
     Dictionary of attributes for the specified trajectory.
     """
-    # Get indices of valid (non-NaN) observations for the trajectory
-    indices = list(np.where(~np.isnan(netcdf_data["latitude"][traj_idx]))[0])
+    # Get indices of valid observations for the trajectory (using latitude to test)
+    latitude = np.ma.masked_invalid(netcdf_data["latitude"][traj_idx])
+    indices = np.flatnonzero(~np.ma.getmaskarray(latitude)).tolist()
 
     times = netCDF4.num2date(
         netcdf_data["time"][traj_idx],
@@ -305,6 +306,14 @@ def insert_file(
     return cur.lastrowid
 
 
+def to_db_value(value):
+    """Convert a NumPy value to a type supported natively by SQLite."""
+    if np.ma.is_masked(value):
+        return None
+
+    return value.item() if isinstance(value, np.generic) else value
+
+
 def insert_trajectory(  # noqa: PLR0913, PLR0917
     db: sqlite3.Connection,
     file_id: int,
@@ -367,17 +376,22 @@ def insert_trajectory(  # noqa: PLR0913, PLR0917
         else None
     )
 
+    # NumPy values from the input file must be converted to valid database values
     rows = [
         (
             trajectory_id,
             sequence,
             traj["times"][i].isoformat(" "),
-            traj["latitude"][i],
-            traj["longitude"][i],
-            v[i] if (v := traj["air_pressure_at_sea_level"]) is not None else None,
-            v[i] if (v := traj["surface_altitude"]) is not None else None,
-            v[i] if (v := traj["wind_speed"]) is not None else None,
-            v[i] if (v := traj["atmosphere_relative_vorticity"]) is not None else None,
+            to_db_value(traj["latitude"][i]),
+            to_db_value(traj["longitude"][i]),
+            to_db_value(v[i])
+            if (v := traj["air_pressure_at_sea_level"]) is not None
+            else None,
+            to_db_value(v[i]) if (v := traj["surface_altitude"]) is not None else None,
+            to_db_value(v[i]) if (v := traj["wind_speed"]) is not None else None,
+            to_db_value(v[i])
+            if (v := traj["atmosphere_relative_vorticity"]) is not None
+            else None,
             hadsst.lookup(traj["times"][i], traj["latitude"][i], traj["longitude"][i])
             if hadsst is not None
             else None,
