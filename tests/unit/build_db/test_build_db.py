@@ -38,6 +38,27 @@ def open_db(db_path):
     return db
 
 
+class TestStatisticsIntegration:
+    """Test that database building produces trajectory statistics."""
+
+    def test_statistics_match_observation_counts(self, tmp_db):
+        """Build one statistics row per observed trajectory with the correct count."""
+        build_db.build(tmp_db, NETCDF_FILE)
+
+        with open_db(tmp_db) as db:
+            expected = db.execute(
+                "select trajectory_id, count(*) from observations "
+                "group by trajectory_id order by trajectory_id"
+            ).fetchall()
+            actual = db.execute(
+                "select trajectory_id, observation_count from statistics "
+                "order by trajectory_id"
+            ).fetchall()
+
+        assert expected
+        assert actual == expected
+
+
 class TestFileImport:
     """Test import of a single NetCDF file."""
 

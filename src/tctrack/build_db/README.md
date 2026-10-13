@@ -65,12 +65,36 @@ build-db --output tracks.db --roni roni.nc tracks.nc
 collections              Named groups of track files.
 └─ files                 Individual NetCDF files with metadata.
    └─ trajectories       Cyclone tracks.
-      └─ observations    Individual observation rows.
+      ├─ observations    Individual observation rows.
+      └─ statistics      Summary statistics for each track.
 
 oceans                   Ocean basins.
 ```
 
 See [`schema.sql`](schema.sql) for the full schema definition.
+
+
+## Trajectory Statistics
+
+Each track has summary statistics calculated from its observations.
+
+| Columns | Definition |
+| --- | --- |
+| `date_start`, `date_end`, `date_median` | Earliest, latest and median observation timestamps. An even-count median is the midpoint of the two central timestamps. |
+| `duration_hours` | Elapsed hours between the start and end. |
+| `observation_count` | Number of stored observations. |
+| `wind_speed_min`, `wind_speed_max`, `wind_speed_median`, `wind_speed_mean` | Wind summaries in m/s. |
+| `air_pressure_at_sea_level_min` | Minimum sea-level pressure in the stored metric units. |
+| `ace` | Accumulated Cyclone Energy, calculated as described below. |
+| `sea_surface_temp_anomaly_mean`, `roni_mean` | Means of the stored environmental values. |
+
+ACE uses the researchers' approved calculation over all wind observations:
+
+```text
+ace = sum(1e-4 * (wind_speed_ms * 1.944)^2)
+```
+
+Every stored observation with a valid wind speed contributes; there is no wind threshold, storm-status filtering, cadence selection, interpolation or time weighting.
 
 
 ## Notes

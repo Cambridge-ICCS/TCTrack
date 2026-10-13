@@ -80,6 +80,9 @@ dev = [
 [project.scripts]
 build-db = "tctrack.build_db.build_db:main"
 
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
 [tool.ruff]
 # Run linting and formatting on notebooks
 extend-include = ["*.ipynb"]

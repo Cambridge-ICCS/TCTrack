@@ -76,6 +76,26 @@ create index traj_ocean_idx on trajectories(ocean_id);
 create index traj_landfall_idx on trajectories(landfall);
 
 
+-- Trajectory Statistics
+-- Derived from stored observations after all files have been imported.
+create table statistics (
+    trajectory_id                 integer primary key references trajectories(id) on delete cascade,
+    date_start                    text,
+    date_end                      text,
+    date_median                   text,
+    duration_hours                real,
+    observation_count             integer not null check (observation_count >= 0),
+    wind_speed_min                real,
+    wind_speed_max                real,
+    wind_speed_median             real,
+    wind_speed_mean               real,
+    air_pressure_at_sea_level_min real,
+    ace                           real,
+    sea_surface_temp_anomaly_mean real,
+    roni_mean                     real
+);
+
+
 -- Observations
 -- Individual observations from a trajectory.
 create table observations (
@@ -193,3 +213,23 @@ select
 	sea_surface_temp_anomaly, roni,
 	ocean_id, landfall
 from tracks;
+
+-- Track statistics
+create view track_stats as
+select
+	collections.name as collection,
+	files.filename,
+	ob.trajectory_id,
+	cast(substr(stats.date_start, 1, 4) as integer) as year,
+	tr.start_end,
+	tr.ocean_id, tr.landfall,
+	sequence, latitude, longitude,
+	stats.*
+from
+	observations ob
+	join trajectories tr on tr.id = ob.trajectory_id
+	join statistics stats on stats.trajectory_id = tr.id
+	join files on files.id = file_id
+	join collections on collections.id = collection_id
+order by
+	trajectory_id, sequence;

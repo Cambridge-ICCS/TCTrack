@@ -13,6 +13,7 @@ import numpy as np
 
 from tctrack.build_db.hadsst import HadSST
 from tctrack.build_db.roni import RONI
+from tctrack.build_db.statistics import generate_statistics
 from tctrack.geographic import classify_tracks
 
 logger = logging.getLogger(__name__)
@@ -314,7 +315,7 @@ def to_db_value(value):
     return value.item() if isinstance(value, np.generic) else value
 
 
-def insert_trajectory(  # noqa: PLR0913, PLR0917
+def insert_trajectory(  # noqa: PLR0913
     db: sqlite3.Connection,
     file_id: int,
     traj: dict,
@@ -518,6 +519,8 @@ def build(
         else:
             for nc_file in input_paths:
                 import_file(db, collection_id, nc_file, hadsst, roni)
+
+        generate_statistics(db)
 
 
 def main(argv: list[str] | None = None) -> int:
