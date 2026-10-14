@@ -263,6 +263,11 @@ a.blob-download {
     animation-name: none;
 }
 
+/* Hide lat/lon column */
+.col-lat_lon {
+	display: none;
+}
+
 /* Forms ------------------------------------------------------------------- */
 .core input[type=text],
 input.core[type=text],

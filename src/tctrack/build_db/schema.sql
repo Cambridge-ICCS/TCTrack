@@ -68,7 +68,8 @@ create table trajectories (
     start_end  text    check (start_end in ('S', 'E', 'SE')),
 
     ocean_id   text    references oceans(id),
-    landfall   integer check (landfall in (0, 1))
+    landfall   integer check (landfall in (0, 1)),
+    lat_lon    text    not null default '[]'
 );
 
 create index traj_file_idx on trajectories(file_id);
@@ -214,22 +215,18 @@ select
 	ocean_id, landfall
 from tracks;
 
--- Track statistics
+-- Track statistics with trajectory geometry
 create view track_stats as
 select
 	collections.name as collection,
 	files.filename,
-	ob.trajectory_id,
 	cast(substr(stats.date_start, 1, 4) as integer) as year,
 	tr.start_end,
 	tr.ocean_id, tr.landfall,
-	sequence, latitude, longitude,
+	tr.lat_lon,
 	stats.*
 from
-	observations ob
-	join trajectories tr on tr.id = ob.trajectory_id
+	trajectories tr
 	join statistics stats on stats.trajectory_id = tr.id
 	join files on files.id = file_id
-	join collections on collections.id = collection_id
-order by
-	trajectory_id, sequence;
+	join collections on collections.id = collection_id;

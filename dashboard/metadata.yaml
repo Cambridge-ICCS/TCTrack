@@ -45,6 +45,7 @@ databases:
         description: One row per cyclone track.
         columns:
           start_end: Start/end marker from the source file (S, E or SE).
+          lat_lon: JSON array of ordered [latitude, longitude] observation pairs.
         facets: [ocean_id, landfall, file_id, start_end]
 
       observations:

@@ -43,7 +43,7 @@ async function fetchRows() {
 /**
 	Build a GeoJSON FeatureCollection from a Datasette JSON response (_shape=arrays).
 
-	Expects columns: latitude, longitude
+	Expects columns: lat_lon JSON pairs, or latitude and longitude.
 
 	@returns A GeoJSON FeatureCollection for all data.
 	         Includes two root-level keys:
@@ -51,14 +51,70 @@ async function fetchRows() {
 	           lines  = number of LineString features added.
 
 */
-function buildGeoJSON({ columns, rows }) {
+function buildGeoJSON(data) {
+	if (data.columns.some((c) => c.toLowerCase() === "lat_lon"))
+		return buildGeoJSONFromPairs(data);
+
+	return buildGeoJSONFromRows(data);
+}
+
+/**
+	Build trajectory lines from a JSON array of [latitude, longitude] pairs
+*/
+function buildGeoJSONFromPairs({ columns, rows }) {
+	const pairs_idx = columns.findIndex((c) => c.toLowerCase() === "lat_lon");
+	if (pairs_idx == -1)
+		throw new Error("No lat_lon in dataset");
+
+	// Pair property column names with their row indexes to aid attachment to line features below
+	const prop_pairs = [];
+	columns.forEach((name, i) => {
+		if (i != pairs_idx) prop_pairs.push([name, i]);
+	});
+
+	const features = [];
+	rows.forEach((row) => {
+		const pairs = JSON.parse(row[pairs_idx]);
+		if (pairs.length < 2) return;
+
+		// Unwrap longitude when a track crosses the antimeridian (±180°)
+		let previous_lon = pairs[0][1];
+		const coordinates = pairs.map(([latitude, lon]) => {
+			// Use the same adjacent-point antimeridian rule as grouped observation lines.
+			let longitude = lon;
+			if (longitude < previous_lon - 180) longitude += 360;
+			else if (longitude > previous_lon + 180) longitude -= 360;
+			previous_lon = longitude;
+
+			return [longitude, latitude];
+		});
+
+		// Add row property values to this line feature
+		const properties = {};
+		for (let i = 0; i < prop_pairs.length; i++)
+			properties[prop_pairs[i][0]] = row[prop_pairs[i][1]];
+
+		features.push({
+			type: "Feature",
+			geometry: { type: "LineString", coordinates },
+			properties,
+		});
+	});
+
+	console.log(`Features: ${features.length}`);
+	console.log(`Groups: 0, Lines: ${features.length}`);
+
+	return { type: "FeatureCollection", features, points: 0, lines: features.length, groups: 0 };
+}
+
+function buildGeoJSONFromRows({ columns, rows }) {
 	// Locate latitude and longitude column indices
 	const lat_idx = columns.findIndex((c) => c.toLowerCase() === "latitude");
 	const lon_idx = columns.findIndex((c) => c.toLowerCase() === "longitude");
 	if (lat_idx == -1 || lon_idx == -1)
 		throw new Error("No latitude/longitude in dataset");
 
-	// Pair property column names with their row indexes
+	// Pair property column names with their row indexes to aid attachment to features below
 	const prop_pairs = [];
 	columns.forEach((name, i) => {
 		if (i != lat_idx && i != lon_idx) prop_pairs.push([name, i]);
@@ -76,6 +132,7 @@ function buildGeoJSON({ columns, rows }) {
 			properties,
 		};
 	});
+	const points = features.length;
 
 	// Group-by processing
 	const groups = new Map();
@@ -113,9 +170,10 @@ function buildGeoJSON({ columns, rows }) {
 				previous_lon = row[lon_idx];  // Use the first value as previous to avoid triggering wrap behaviour
 			}
 
-			// Wrap longitudes across the antimeridian to keep adjacent points within 180°
-			// This ensures that lines are drawn correctly, even when adjacent points cross the antimeridian
-			// (rather than drawing across the whole map)
+			// Unwrap longitude when a track crosses the antimeridian (±180°).
+			// For example, 179° followed by -179° becomes 179° followed by 181°.
+			// Adding or subtracting 360° preserves the location but continues the
+			// line to the nearby map edge instead of stretching across the whole map.
 			let longitude = row[lon_idx];
 			if (longitude < previous_lon - 180) longitude += 360;
 			else if (longitude > previous_lon + 180) longitude -= 360;
@@ -141,7 +199,7 @@ function buildGeoJSON({ columns, rows }) {
 	console.log(`Features: ${features.length}`);
 	console.log(`Groups: ${groups.size}, Lines: ${lines}`);
 
-	return { type: "FeatureCollection", features, groups: groups.size, lines };
+	return { type: "FeatureCollection", features, points, lines, groups: groups.size };
 }
 
 /**
@@ -427,7 +485,7 @@ function init() {
 			// Line layer - lines added first so that points can be rendered on top
 			// Only added if lines were made
 			if (geojson.lines > 0) {
-				layer_id = String(layer) + " lines";
+				layer_id = String(layer) + " (lines)";
 				map.addLayer({
 					id: layer_id,
 					source: "datasette-geojson",
@@ -447,25 +505,27 @@ function init() {
 			}
 
 			// Points layer
-			layer_id = String(layer);
-			map.addLayer({
-				id: layer_id,
-				source: "datasette-geojson",
-				type: "circle",
-				paint: {
-					"circle-radius": circle_radius,
-					"circle-color": colour,
-					"circle-opacity": circle_opacity,
-					"circle-stroke-color": "#00000020",
-					"circle-stroke-width": 1,
-				},
-				filter: [
-					"all",
-					["==", ["geometry-type"], "Point"],
-					...(layer_filter ? [layer_filter] : []),
-				],
-			});
-			layers_added.push(layer_id);
+			if (geojson.points > 0) {
+				layer_id = String(layer);
+				map.addLayer({
+					id: layer_id,
+					source: "datasette-geojson",
+					type: "circle",
+					paint: {
+						"circle-radius": circle_radius,
+						"circle-color": colour,
+						"circle-opacity": circle_opacity,
+						"circle-stroke-color": "#00000020",
+						"circle-stroke-width": 1,
+					},
+					filter: [
+						"all",
+						["==", ["geometry-type"], "Point"],
+						...(layer_filter ? [layer_filter] : []),
+					],
+				});
+				layers_added.push(layer_id);
+			}
 
 			// Advance layer colour index, reusing once exhausted
 			colour_idx = (colour_idx + 1) % PALETTE.layers.length;

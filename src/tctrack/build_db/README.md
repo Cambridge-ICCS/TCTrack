@@ -71,6 +71,8 @@ collections              Named groups of track files.
 oceans                   Ocean basins.
 ```
 
+In addition to individual observation points, each trajectory stores an ordered array of observation pairs in a `lat_lon` column. The `track_stats` view combines this geometry with statistics in one row per trajectory, without joining observation rows.
+
 See [`schema.sql`](schema.sql) for the full schema definition.
 
 

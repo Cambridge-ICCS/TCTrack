@@ -11,9 +11,9 @@ LAYER_CONTROL_CSS = "https://unpkg.com/maplibre-gl-layer-control@0.17.5/dist/map
 
 
 def has_lat_lon_columns(columns):
-    """Return true when columns named latitude and longitude exist."""
+    """Return true when coordinate pairs or latitude/longitude columns exist."""
     names = {c.lower() for c in (columns or [])}
-    return "latitude" in names and "longitude" in names
+    return "lat_lon" in names or {"latitude", "longitude"} <= names
 
 
 # ruff: noqa: PLR0913 PLR0917 ARG001

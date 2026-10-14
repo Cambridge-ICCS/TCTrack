@@ -7,7 +7,7 @@ The dashboard runs on the [Datasette platform](https://datasette.io/), specifica
 
 ## Installation
 
-The custom Datasette plugin, `datasette-maplibre`, renders a [MapLibre GL JS](https://maplibre.org/projects/gl-js/) map when columns named `latitude` and `longitude` are detected.
+The custom Datasette plugin, `datasette-maplibre`, renders a [MapLibre GL JS](https://maplibre.org/projects/gl-js/) map when columns named `latitude` and `longitude`, or `lat_lon`, are detected.
 
 Datasette and the `datasette-maplibre` plugin are installed together via the [dashboard] extra. Run from the project root:
 
@@ -51,9 +51,11 @@ Resulting data from any view can be exported to JSON or CSV files. There is also
 
 ## Map Display
 
-The MapLibre map is shown automatically when a Datasette query, table or view has columns named `latitude` and `longitude`. All rows and columns are dynamically converted into GeoJSON for use as the map data source. Just as with the table view, data shown on the map is determined by the underlying dataset filters. There are also controls on the map to hide and show layers and switch between flat map and globe views. Map projection, zoom level and position are persisted in local storage.
+The MapLibre map is shown automatically when a Datasette query, table or view has columns named `latitude` and `longitude`, or `lat_lon`. All rows and columns are dynamically converted into GeoJSON for use as the map data source. Just as with the table view, data shown on the map is determined by the underlying dataset filters. There are also controls on the map to hide and show layers and switch between flat map and globe views. Map projection, zoom level and position are persisted in local storage.
 
-Data is automatically split across map layers when a column name beginning `layer_` is found. Distinct values from this layer column determine the name of each new layer. See `map_file_layers_view` in the database and the dashboard for an example of this in action.
+A `lat_lon` column contains a JSON array of ordered `[latitude, longitude]` pairs. Each row creates one trajectory line, with all other columns available as line properties. Tables with `latitude` and `longitude` columns generate one point per row. If both coordinate formats are present, `lat_lon` takes precedence.
+
+Data is automatically split across map layers when a column name beginning `layer_` is found. Distinct values from this layer column determine the name of each new layer. See `points_layer_collection` in the database and the dashboard for an example of this in action.
 
 
 ### Map Control

@@ -348,10 +348,16 @@ def insert_trajectory(  # noqa: PLR0913
     -------
     Row id of trajectory in the database.
     """
+    # Build list of lat/lon pairs
+    lat_lon = [
+        [to_db_value(traj["latitude"][i]), to_db_value(traj["longitude"][i])]
+        for i in traj["indices"]
+    ]
+
     cur = db.execute(
         """insert into trajectories
-           (file_id, start_end, ocean_id, landfall)
-           values (?, ?, ?, ?)""",
+           (file_id, start_end, ocean_id, landfall, lat_lon)
+           values (?, ?, ?, ?, ?)""",
         (
             file_id,
             traj["start_end"],
@@ -359,6 +365,7 @@ def insert_trajectory(  # noqa: PLR0913
             if (basin := traj["genesis_ocean_basin"]) is not None
             else None,
             traj["makes_landfall"],
+            json.dumps(lat_lon, allow_nan=False),
         ),
     )
     if cur.lastrowid is None:

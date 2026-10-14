@@ -58,6 +58,19 @@ class TestStatisticsIntegration:
         assert expected
         assert actual == expected
 
+        with open_db(tmp_db) as db:
+            view_rows = db.execute(
+                "select trajectory_id, lat_lon, observation_count "
+                "from track_stats order by trajectory_id"
+            ).fetchall()
+
+        assert len(view_rows) == len(expected)
+        for (trajectory_id, lat_lon, count), expected_row in zip(
+            view_rows, expected, strict=True
+        ):
+            assert (trajectory_id, count) == expected_row
+            assert len(json.loads(lat_lon)) == count
+
 
 class TestFileImport:
     """Test import of a single NetCDF file."""
@@ -132,6 +145,43 @@ class TestFileImport:
 
 class TestTrajectoryImport:
     """Test import of trajectories."""
+
+    @pytest.mark.parametrize("longitude", [np.nan, np.inf, -np.inf])
+    def test_invalid_coordinates_rejected(self, tmp_db, longitude):
+        """Reject non-finite geometry before inserting a trajectory."""
+        build_db.build(tmp_db, NETCDF_FILE)
+        netcdf_data = build_db.read_netcdf(NETCDF_FILE)
+        traj = build_db.extract_trajectory(netcdf_data, 0)
+        traj["longitude"][traj["indices"][0]] = longitude
+
+        with open_db(tmp_db) as db:
+            count = db.execute("select count(*) from trajectories").fetchone()[0]
+            with pytest.raises(ValueError, match="Out of range float values"):
+                build_db.insert_trajectory(db, 1, traj, build_db.get_ocean_ids(db))
+
+            assert (
+                db.execute("select count(*) from trajectories").fetchone()[0] == count
+            )
+
+    @pytest.mark.parametrize("source", [NETCDF_FILE, NON_STANDARD_FILE])
+    def test_lat_lon_matches_observations(self, tmp_db, source):
+        """Store ordered JSON coordinate pairs for every trajectory."""
+        build_db.build(tmp_db, source)
+
+        with open_db(tmp_db) as db:
+            trajectories = db.execute(
+                "select id, lat_lon from trajectories order by id"
+            ).fetchall()
+            assert trajectories
+            for trajectory_id, lat_lon in trajectories:
+                observations = db.execute(
+                    "select latitude, longitude from observations "
+                    "where trajectory_id = ? order by sequence",
+                    (trajectory_id,),
+                ).fetchall()
+                pairs = json.loads(lat_lon)
+                assert pairs == [list(row) for row in observations]
+                assert all(math.isfinite(value) for pair in pairs for value in pair)
 
     def test_trajectories_inserted(self, tmp_db):
         """Test that all trajectories are inserted into the database."""
