@@ -28,7 +28,9 @@ from tctrack.preprocessing import (
 )
 
 
-def make_field(var_name: str, time: str | None = None) -> cf.Field:
+def make_field(
+    var_name: str, time: str | None = None, calendar: str | None = None
+) -> cf.Field:
     """Create a small example field with an optional time value."""
     standard_names = {
         "mslp": "air_pressure_at_mean_sea_level",
@@ -40,7 +42,10 @@ def make_field(var_name: str, time: str | None = None) -> cf.Field:
     field.nc_set_variable(var_name)
     field.set_property("standard_name", standard_names[var_name])
     if time is not None:
-        field.coordinate("T").set_data([cf.dt(time)], inplace=True)
+        time_coordinate = field.coordinate("T")
+        time_coordinate.set_data([cf.dt(time, calendar=calendar)], inplace=True)
+        if calendar is not None:
+            time_coordinate.set_property("calendar", calendar)
     return field
 
 
@@ -133,6 +138,23 @@ class TestPreprocessing:
         assert isinstance(output, cf.Field)
         assert output.nc_get_variable() == "mslp"
         assert output.coordinate("T").size == 1
+
+    def test_select_time_range_calendar(self, tmp_path: Path):
+        """Test selection creates bounds using the field's calendar."""
+        input_files = [
+            write_fields(
+                make_field("mslp", "2000-01-01", "360_day"), tmp_path / "a.nc"
+            ),
+            write_fields(
+                make_field("mslp", "2000-02-01", "360_day"), tmp_path / "b.nc"
+            ),
+        ]
+
+        output = select_time_range(input_files, ("2000-01-01", "2000-02-01"))
+
+        assert isinstance(output, cf.Field)
+        assert output.coordinate("T").size == 1
+        assert output.coordinate("T").get_property("calendar") == "360_day"
 
     def test_separate_varibles(self, tmp_path: Path):
         """Test separate_variables correctly splits variables across multiple files."""
@@ -320,7 +342,7 @@ class TestPreprocessing:
 
         updated = set_time_units(field, "days since 1999-12-31")
 
-        assert str(updated.coordinate("T").Units) == "days since 1999-12-31"
+        assert updated.coordinate("T").Units.units == "days since 1999-12-31"
         assert updated.coordinate("T").array[0] == 1
         assert updated.coordinate("T").datetime_array[0] == cf.dt(
             2000, 1, 1, calendar="gregorian"
