@@ -16,10 +16,6 @@ Run from the repo root with:
     pytest tests/integration
 """
 
-# The test inspects the tracker's internal state on purpose - that is what it
-# is verifying - so private-member access is expected throughout.
-# ruff: noqa: SLF001
-
 from pathlib import Path
 
 import cf
@@ -27,7 +23,7 @@ import numpy as np
 import pytest
 from huggingface_hub.errors import HfHubHTTPError
 
-from tctrack.machine_learning import MLParameters, MLTracker
+from tctrack.machine_learning import MLTracker
 
 SAMPLE_FILE = (
     Path(__file__).parents[2]
@@ -48,13 +44,15 @@ def tracker() -> MLTracker:
     The tracker downloads the model from the HuggingFace Hub when it is constructed.
     """
     try:
-        return MLTracker(MLParameters(input_file=str(SAMPLE_FILE)))
+        return MLTracker()
     except (OSError, HfHubHTTPError) as error:
         pytest.skip(f"Requires the model from the HuggingFace Hub: {error}")
 
 
 def test_pipeline(tracker: MLTracker) -> None:
     """Run the pipeline at default settings and check each step's output."""
+    tracker.set_input_files(str(SAMPLE_FILE))
+
     tensor = tracker.preprocess()
     n_lat, n_lon = len(tracker._lats), len(tracker._lons)
     assert tuple(tensor.shape) == (N_CHANNELS, N_TIME, n_lat, n_lon)
@@ -89,7 +87,7 @@ def test_output_writers(tracker: MLTracker, tmp_path: Path) -> None:
     """
     # run_tracker() runs detect() and stitch() and writes the trajectories.
     tracks_file = tmp_path / "tracks.nc"
-    tracker.run_tracker(str(tracks_file))
+    tracker.run_tracker(str(SAMPLE_FILE), str(tracks_file))
 
     trajectories = tracker.read_trajectories()
     assert tracker._candidates, (

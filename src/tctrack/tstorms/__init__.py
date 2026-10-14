@@ -1,15 +1,17 @@
 """Package bindings to the TSTORMS tracking code."""
 
-from .tstorms import (
+from .parameters import (
     TSTORMSBaseParameters,
     TSTORMSDetectParameters,
     TSTORMSStitchParameters,
-    TSTORMSTracker,
+    parameter_set,
 )
+from .tstorms import TSTORMSTracker
 
 __all__ = [
     "TSTORMSBaseParameters",
     "TSTORMSDetectParameters",
     "TSTORMSStitchParameters",
     "TSTORMSTracker",
+    "parameter_set",
 ]
