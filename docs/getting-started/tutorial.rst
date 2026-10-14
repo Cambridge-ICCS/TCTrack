@@ -10,6 +10,7 @@ tracking algorithms for a week of data. These are shown on the pages below:
 
 * :doc:`Tempest Extremes tutorial <tutorial_tempest_extremes>`
 * :doc:`TSTORMS tutorial <tutorial_tstorms>`
+* :doc:`Batching tutorial <tutorial_batching>`
 
 .. Adds the tutorials to the contents menu
 .. toctree::
@@ -18,6 +19,7 @@ tracking algorithms for a week of data. These are shown on the pages below:
 
    tutorial_tempest_extremes
    tutorial_tstorms
+   tutorial_batching
 
 
 Running manually
