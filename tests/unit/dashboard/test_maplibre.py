@@ -36,7 +36,6 @@ def test_geometry_activates_map_hooks(columns, active):
     datasette = Mock()
     datasette.static.side_effect = lambda name, plugin: f"/{plugin}/{name}"
     datasette.plugin_config.return_value = {
-        "group_by": {"column": "trajectory_id"},
         "line": {"thickness": 3},
     }
     args = {
@@ -55,10 +54,6 @@ def test_geometry_activates_map_hooks(columns, active):
     script = PLUGIN["extra_body_script"](**args)
     assert bool(script) is active
     if active:
-        assert (
-            'window.DATASETTE_MAPLIBRE_GROUP_BY = {"column": "trajectory_id"};'
-            in script
-        )
         assert 'window.DATASETTE_MAPLIBRE_LINE = {"thickness": 3};' in script
 
     args["view_name"] = "index"

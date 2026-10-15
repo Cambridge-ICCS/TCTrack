@@ -16,9 +16,6 @@ plugins:
         tile_class: ocean
         colour: '#000000'
         opacity: 0.6
-    group_by:
-      column: trajectory_id
-      properties: [filename, year]
     point:
       radius: 4
       opacity: 0.4

@@ -77,26 +77,6 @@ create index traj_ocean_idx on trajectories(ocean_id);
 create index traj_landfall_idx on trajectories(landfall);
 
 
--- Trajectory Statistics
--- Derived from stored observations after all files have been imported.
-create table statistics (
-    trajectory_id                 integer primary key references trajectories(id) on delete cascade,
-    date_start                    text,
-    date_end                      text,
-    date_median                   text,
-    duration_hours                real,
-    observation_count             integer not null check (observation_count >= 0),
-    wind_speed_min                real,
-    wind_speed_max                real,
-    wind_speed_median             real,
-    wind_speed_mean               real,
-    air_pressure_at_sea_level_min real,
-    ace                           real,
-    sea_surface_temp_anomaly_mean real,
-    roni_mean                     real
-);
-
-
 -- Observations
 -- Individual observations from a trajectory.
 create table observations (
@@ -133,14 +113,39 @@ create index obs_landfall_idx on observations(landfall);
 create index obs_landfall_distance_idx on observations(landfall, distance_to_coast_km);
 
 
+-- Trajectory Statistics
+-- Derived from stored observations after all files have been imported.
+create table statistics (
+    trajectory_id                 integer primary key references trajectories(id) on delete cascade,
+    date_start                    text,
+    date_end                      text,
+    date_median                   text,
+    duration_hours                real,
+    observation_count             integer not null check (observation_count >= 0),
+    wind_speed_min                real,
+    wind_speed_max                real,
+    wind_speed_median             real,
+    wind_speed_mean               real,
+    air_pressure_at_sea_level_min real,
+    ace                           real,
+    sea_surface_temp_anomaly_mean real,
+    roni_mean                     real
+);
+create index stats_duration_hours_idx on statistics(duration_hours);
+create index stats_date_start_idx on statistics(date_start);
+create index stats_wind_speed_median_idx on statistics(wind_speed_median);
+create index stats_wind_speed_max_idx on statistics(wind_speed_max);
+create index stats_ace_idx on statistics(ace);
+
+
 -- Views used for map display
 
--- Points only (trajectory_id renamed so it is not grouped into tracks as per the configuration group_by setting)
+-- Points - Observations without tracks
 create view points as
 select
 	collections.name as collection,
 	files.filename,
-	trajectory_id as track_id,
+	trajectory_id,
 	cast(substr(date, 1, 4) as integer) as year,
 	sequence, date, latitude, longitude,
 	air_pressure_at_sea_level, surface_altitude, wind_speed,
@@ -173,60 +178,50 @@ select
 from points;
 
 
--- Tracks
+-- Tracks - Trajectories with statistical summary of observations
 create view tracks as
 select
 	collections.name as collection,
 	files.filename,
 	trajectory_id,
+	tr.ocean_id, tr.landfall,
+	cast(substr(stats.date_start, 1, 4) as integer) as year,
+	stats.date_start, stats.date_end, stats.date_median, stats.duration_hours, stats.observation_count,
+	stats.wind_speed_min, stats.wind_speed_max, stats.wind_speed_median, stats.wind_speed_mean,
+	stats.air_pressure_at_sea_level_min, stats.ace,
+	stats.sea_surface_temp_anomaly_mean, stats.roni_mean,
 	tr.start_end,
-	cast(substr(date, 1, 4) as integer) as year,
-	sequence, date, latitude, longitude,
-	air_pressure_at_sea_level, surface_altitude, wind_speed,
-	sea_surface_temp_anomaly, roni,
-	tr.ocean_id, tr.landfall
+	tr.lat_lon
 from
-	observations ob
-	join trajectories tr on tr.id = ob.trajectory_id
+	trajectories tr
+	join statistics stats on stats.trajectory_id = tr.id
 	join files on files.id = file_id
-	join collections on collections.id = collection_id
-order by
-	trajectory_id, sequence;
+	join collections on collections.id = collection_id;
 
 -- Tracks layered by collection
 create view tracks_layer_collection as
 select
 	collection as layer_collection,
-	trajectory_id, start_end,
-	year, sequence, date, latitude, longitude,
-	air_pressure_at_sea_level, surface_altitude, wind_speed,
-	sea_surface_temp_anomaly, roni,
-	ocean_id, landfall
+	trajectory_id,
+	ocean_id, landfall,
+	year, date_start, date_end, date_median, duration_hours, observation_count,
+	wind_speed_min, wind_speed_max, wind_speed_median, wind_speed_mean,
+	air_pressure_at_sea_level_min, ace,
+	sea_surface_temp_anomaly_mean, roni_mean,
+	start_end,
+	lat_lon
 from tracks;
 
 -- Tracks layered by filename
 create view tracks_layer_file as
 select
 	filename as layer_file,
-	trajectory_id, start_end,
-	year, sequence, date, latitude, longitude,
-	air_pressure_at_sea_level, surface_altitude, wind_speed,
-	sea_surface_temp_anomaly, roni,
-	ocean_id, landfall
+	trajectory_id,
+	ocean_id, landfall,
+	year, date_start, date_end, date_median, duration_hours, observation_count,
+	wind_speed_min, wind_speed_max, wind_speed_median, wind_speed_mean,
+	air_pressure_at_sea_level_min, ace,
+	sea_surface_temp_anomaly_mean, roni_mean,
+	start_end,
+	lat_lon
 from tracks;
-
--- Track statistics with trajectory geometry
-create view track_stats as
-select
-	collections.name as collection,
-	files.filename,
-	cast(substr(stats.date_start, 1, 4) as integer) as year,
-	tr.start_end,
-	tr.ocean_id, tr.landfall,
-	tr.lat_lon,
-	stats.*
-from
-	trajectories tr
-	join statistics stats on stats.trajectory_id = tr.id
-	join files on files.id = file_id
-	join collections on collections.id = collection_id;

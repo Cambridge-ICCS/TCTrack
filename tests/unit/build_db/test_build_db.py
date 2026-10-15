@@ -61,7 +61,7 @@ class TestStatisticsIntegration:
         with open_db(tmp_db) as db:
             view_rows = db.execute(
                 "select trajectory_id, lat_lon, observation_count "
-                "from track_stats order by trajectory_id"
+                "from tracks order by trajectory_id"
             ).fetchall()
 
         assert len(view_rows) == len(expected)

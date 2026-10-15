@@ -4,7 +4,6 @@ import { LayerControl } from "https://unpkg.com/maplibre-gl-layer-control@0.17.5
 // Pick up config passed from Python __init__ layer
 const TABLE_NAME = window.DATASETTE_MAPLIBRE_TABLE_NAME || "Data";
 const BASEMAP = window.DATASETTE_MAPLIBRE_BASEMAP || { style: "https://demotiles.maplibre.org/style.json" };
-const GROUP_BY = window.DATASETTE_MAPLIBRE_GROUP_BY || null;
 const POINT = window.DATASETTE_MAPLIBRE_POINT || { radius: 4, opacity: 1 };
 const LINE = window.DATASETTE_MAPLIBRE_LINE || { thickness: 2, opacity: 1 };
 const HEATMAP = window.DATASETTE_MAPLIBRE_HEATMAP || null;
@@ -47,8 +46,8 @@ async function fetchRows() {
 
 	@returns A GeoJSON FeatureCollection for all data.
 	         Includes two root-level keys:
-	           groups = number of groups created from the dataset if a group-by is defined and matched.
-	           lines  = number of LineString features added.
+	           points = number of Point features added
+	           lines  = number of LineString features added
 
 */
 function buildGeoJSON(data) {
@@ -77,10 +76,12 @@ function buildGeoJSONFromPairs({ columns, rows }) {
 		const pairs = JSON.parse(row[pairs_idx]);
 		if (pairs.length < 2) return;
 
-		// Unwrap longitude when a track crosses the antimeridian (±180°)
+		// Unwrap longitude when a track crosses the antimeridian (±180°).
+		// For example, 179° followed by -179° becomes 179° followed by 181°.
+		// Adding or subtracting 360° preserves the location but continues the
+		// line to the nearby map edge instead of stretching across the whole map.
 		let previous_lon = pairs[0][1];
 		const coordinates = pairs.map(([latitude, lon]) => {
-			// Use the same adjacent-point antimeridian rule as grouped observation lines.
 			let longitude = lon;
 			if (longitude < previous_lon - 180) longitude += 360;
 			else if (longitude > previous_lon + 180) longitude -= 360;
@@ -102,9 +103,8 @@ function buildGeoJSONFromPairs({ columns, rows }) {
 	});
 
 	console.log(`Features: ${features.length}`);
-	console.log(`Groups: 0, Lines: ${features.length}`);
 
-	return { type: "FeatureCollection", features, points: 0, lines: features.length, groups: 0 };
+	return { type: "FeatureCollection", features, points: 0, lines: features.length };
 }
 
 function buildGeoJSONFromRows({ columns, rows }) {
@@ -132,74 +132,10 @@ function buildGeoJSONFromRows({ columns, rows }) {
 			properties,
 		};
 	});
-	const points = features.length;
-
-	// Group-by processing
-	const groups = new Map();
-	let lines = 0;
-	const group_idx = GROUP_BY?.column ? columns.indexOf(GROUP_BY.column) : -1;
-	let previous_lon;
-
-	if (group_idx != -1) {
-		// Pair the group property columns with their indexes
-		// Group-by and layer columns are always included as properties
-		const group_prop_pairs = prop_pairs.filter(([name]) =>
-			name == GROUP_BY.column ||
-			name == LAYER_COLUMN ||
-			GROUP_BY.properties?.includes(name)
-		);
-
-		// Build group map
-		// Iterate rows to find groups and accumulate coordinates
-		// Points are chained together in row order so group rows must be contiguous and in sequence
-		for (const row of rows) {
-			const key = row[group_idx];
-
-			// Get group for this row or create a new one
-			let group = groups.get(key);
-			if (!group) {
-				// Get properties for this new group
-				// Properties are considered to be the same for all points in a group so the first row values are taken
-				const properties = {};
-				for (let p = 0; p < group_prop_pairs.length; p++)
-					properties[group_prop_pairs[p][0]] = row[group_prop_pairs[p][1]];
-
-				// Create new group
-				group = { coordinates: [], properties };
-				groups.set(key, group);
-				previous_lon = row[lon_idx];  // Use the first value as previous to avoid triggering wrap behaviour
-			}
-
-			// Unwrap longitude when a track crosses the antimeridian (±180°).
-			// For example, 179° followed by -179° becomes 179° followed by 181°.
-			// Adding or subtracting 360° preserves the location but continues the
-			// line to the nearby map edge instead of stretching across the whole map.
-			let longitude = row[lon_idx];
-			if (longitude < previous_lon - 180) longitude += 360;
-			else if (longitude > previous_lon + 180) longitude -= 360;
-			previous_lon = longitude;
-
-			group.coordinates.push([longitude, row[lat_idx]]);
-		}
-
-		// Create a LineString for each group entry
-		groups.forEach((group) => {
-			// A LineString needs at least two positions
-			if (group.coordinates.length < 2) return;
-
-			features.push({
-				type: "Feature",
-				geometry: { type: "LineString", coordinates: group.coordinates },
-				properties: group.properties,
-			});
-			lines++;
-		});
-	}
 
 	console.log(`Features: ${features.length}`);
-	console.log(`Groups: ${groups.size}, Lines: ${lines}`);
 
-	return { type: "FeatureCollection", features, points, lines, groups: groups.size };
+	return { type: "FeatureCollection", features, points: features.length, lines: 0 };
 }
 
 /**

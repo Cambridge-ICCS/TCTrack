@@ -50,7 +50,7 @@ test("missing coordinates and malformed JSON report clear errors", () => {
 	}
 });
 
-test("observation rows retain points, grouping, properties and longitude unwrapping", () => {
+test("observation rows retain points, properties and longitude unwrapping", () => {
 	const data = {
 		columns: ["Latitude", "LONGITUDE", "track", "layer", "score", "extra"],
 		rows: [
@@ -65,25 +65,12 @@ test("observation rows retain points, grouping, properties and longitude unwrapp
 		point([-175, 12], { track: "b", layer: "south", score: 7, extra: "third" }),
 	];
 	assert.deepEqual(plain(loadScript().buildGeoJSON(data)), {
-		type: "FeatureCollection", features: points, points: 3, groups: 0, lines: 0,
-	});
-
-	const { buildGeoJSON } = loadScript({
-		DATASETTE_MAPLIBRE_GROUP_BY: { column: "track", properties: ["score"] },
-		DATASETTE_MAPLIBRE_LAYER_COLUMN: "layer",
-	});
-	assert.deepEqual(plain(buildGeoJSON(data)), {
-		type: "FeatureCollection",
-		features: [...points, line([[170, 10], [190, 11]], { track: "a", layer: "north", score: 5 })],
-		points: 3,
-		groups: 2,
-		lines: 1,
+		type: "FeatureCollection", features: points, points: 3, lines: 0,
 	});
 });
 
-test("pairs take precedence, preserve order and all other properties, and never group rows", () => {
+test("pairs take precedence, preserve order and all other properties", () => {
 	const config = {
-		DATASETTE_MAPLIBRE_GROUP_BY: { column: "track", properties: [] },
 		DATASETTE_MAPLIBRE_LAYER_COLUMN: "layer",
 	};
 	const data = {
@@ -104,26 +91,17 @@ test("pairs take precedence, preserve order and all other properties, and never 
 			}),
 		],
 		points: 0,
-		groups: 0,
 		lines: 2,
 	};
 	assert.deepEqual(plain(loadScript(config).buildGeoJSON(data)), expected);
 	assert.deepEqual(plain(loadScript().buildGeoJSON(data)), expected);
-
-	// Any attempt to consult group-by configuration in this path must fail.
-	const forbiddenGroup = new Proxy({}, {
-		get() { throw new Error("Pairs must not read GROUP_BY"); },
-	});
-	assert.deepEqual(plain(loadScript({
-		DATASETTE_MAPLIBRE_GROUP_BY: forbiddenGroup,
-	}).buildGeoJSON(data)), expected);
 });
 
 test("empty and single-position trajectories emit no geometry; exact 180-degree steps stay unchanged", () => {
 	const { buildGeoJSON } = loadScript();
 	for (const rows of [[], [["[]"]], [["[[10,20]]"]], [["[]"], ["[[10,20]]"]]]) {
 		assert.deepEqual(plain(buildGeoJSON({ columns: ["lat_lon"], rows })), {
-			type: "FeatureCollection", features: [], points: 0, groups: 0, lines: 0,
+			type: "FeatureCollection", features: [], points: 0, lines: 0,
 		});
 	}
 	assert.deepEqual(plain(buildGeoJSON({
@@ -133,7 +111,6 @@ test("empty and single-position trajectories emit no geometry; exact 180-degree 
 		type: "FeatureCollection",
 		features: [line([[0, 1], [180, 2], [0, 3], [-180, 4]], {})],
 		points: 0,
-		groups: 0,
 		lines: 1,
 	});
 });
@@ -154,7 +131,6 @@ test("loading rejects non-drawable collections and retains layer discovery for t
 			line([[22, 12], [23, 13]], { layer: "south", score: 6 }),
 		],
 		points: 0,
-		groups: 0,
 		lines: 2,
 		layers: ["north", "south"],
 	});

@@ -83,29 +83,26 @@ The following settings are available:
 		- `tile_class` (optional) Class name of features to render as lines, e.g. for a coastline, use `ocean`.
 		- `colour` Outline colour.
 		- `opacity` Outline opacity.
-- `group_by` A collection of settings for defining groups in the source data. This is primarily used to create map lines from the observation points of each track. Data is added to the group in the order given by the query so it should be in sequence, e.g. `order by trajectory_id, sequence`.
-	- `column` The column name to group by. Use `trajectory_id` to define a group for each track.
-	- `properties` An array of column names that will be used as properties for each group if they exist in the dataset. These are linked to the group and displayed when selected. The columns are presumed to contain unique values across each group.
 - `point` Point rendering options:
 	- `radius` Standard point radius.
 	- `opacity` Standard point opacity.
-	- `radius_property` Link radius size to a property value:
+	- `radius_property` (optional) Link radius size to a property value:
 		- `column`: Column name to use as the linked property.
 		- `min`: Value/radius pair for smallest point, e.g. [0, 2] when property = 0, radius = 2.
 		- `max`: Value/radius pair for largest point, e.g. [30, 12] when property >= 30, radius = 12.
 		- `exponential`: Exponential base for radius scaling.
-	- `opacity_property`: Link opacity (0.0–1.0) to a property value.
+	- `opacity_property`: (optional) Link opacity (0.0–1.0) to a property value.
 		- `column`: Column name to use as the linked property.
 		- `min`: Value/opacity pair for smallest value, e.g. [0, 0.1] when property = 0, opacity = 0.1.
 		- `max`: Value/opacity pair for largest value, e.g. [25, 1] when property >= 25, opacity = 1.0.
 - `line` Line rendering options:
 	- `thickness`: Line thickness.
 	- `opacity` Standard line opacity.
-	- `opacity_property`: Link opacity (0.0–1.0) to a property value.
+	- `opacity_property`: (optional) Link opacity (0.0–1.0) to a property value.
 		- `column`: Column name to use as the linked property.
 		- `min`: Value/opacity pair for smallest value, e.g. [0, 0.1] when property = 0, opacity = 0.1.
 		- `max`: Value/opacity pair for largest value, e.g. [25, 1] when property >= 25, opacity = 1.0.
-- `heatmap` Configuration to create a density map layer:
+- `heatmap` (optional) Configuration to create a density map layer:
 	- `weight_property`: Link a property value to heatmap weights (0.0–1.0):
 		- `column`: Column name to use as the linked property.
 		- `min`: Value/weight pair for lowest weight, e.g. [0, 0] when property = 0, weight = 0.
@@ -121,7 +118,7 @@ The following settings are available:
 - `palette` Colours for rendering features (`#rrggbb[aa]` hex format). The default accessible set is taken from [Qualitative Colour Schemes](https://sronpersonalpages.nl/~pault/):
 	- `single` Feature colour when there is only one layer.
 	- `layers` Any number of colours to use for features on each layer. Colours are applied to layers in sequence. When all colours are used, subsequent layers will use the final colour in the list.
-- `max_layers` The maximum number of layers allowed (the layer pair of lines and points is counted as one). Data in layers beyond the maximum is not shown; a warning is sent to the console log.
+- `max_layers` (optional) The maximum number of layers allowed (the layer pair of lines and points is counted as one). Data in layers beyond the maximum is not shown; a warning is sent to the console log.
 
 
 ### Ideas for the Future

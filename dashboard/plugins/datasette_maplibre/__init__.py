@@ -57,7 +57,6 @@ def extra_body_script(
 
     config = datasette.plugin_config(PLUGIN, database=database, table=table) or {}
     basemap = config.get("basemap")
-    group_by = config.get("group_by")
     point = config.get("point")
     line = config.get("line")
     heatmap = config.get("heatmap")
@@ -68,7 +67,6 @@ def extra_body_script(
     return (
         f"window.DATASETTE_MAPLIBRE_TABLE_NAME = {json.dumps(table)};\n"
         f"window.DATASETTE_MAPLIBRE_BASEMAP = {json.dumps(basemap)};\n"
-        f"window.DATASETTE_MAPLIBRE_GROUP_BY = {json.dumps(group_by)};\n"
         f"window.DATASETTE_MAPLIBRE_POINT = {json.dumps(point)};\n"
         f"window.DATASETTE_MAPLIBRE_LINE = {json.dumps(line)};\n"
         f"window.DATASETTE_MAPLIBRE_HEATMAP = {json.dumps(heatmap)};\n"
