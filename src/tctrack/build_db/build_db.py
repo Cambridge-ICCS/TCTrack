@@ -14,7 +14,7 @@ import numpy as np
 from tctrack.build_db.hadsst import HadSST
 from tctrack.build_db.roni import RONI
 from tctrack.build_db.statistics import generate_statistics
-from tctrack.geographic import classify_tracks
+from tctrack.geographic import Gates, classify_tracks, load_gates
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +97,28 @@ def file_exists(db: sqlite3.Connection, filepath: str) -> bool:
     return (
         db.execute("select 1 from files where filepath = ?", (filepath,)).fetchone()
         is not None
+    )
+
+
+def store_gates(db: sqlite3.Connection, gates: Gates) -> None:
+    """Populate empty gate definitions, or require an identical existing set."""
+    definitions = sorted(
+        (g.code, g.name, g.min_lat, g.max_lat, g.min_lon, g.max_lon) for g in gates
+    )
+    existing = db.execute(
+        "select id, name, min_lat, max_lat, min_lon, max_lon from gates order by id"
+    ).fetchall()
+
+    if existing:
+        if existing != definitions:
+            msg = "Gate configuration differs from existing database definitions"
+            raise ValueError(msg)
+        return
+
+    db.executemany(
+        "insert into gates (id, name, min_lat, max_lat, min_lon, max_lon) "
+        "values (?, ?, ?, ?, ?, ?)",
+        definitions,
     )
 
 
@@ -202,6 +224,12 @@ def extract_trajectory(netcdf_data: dict, traj_idx: int) -> dict:
 
     # Geographic classification of the observations, merged into netcdf data
     classification = netcdf_data.get("classification", {}).get(traj_idx)
+    gate_ids = classification.get("gate_id") if classification is not None else None
+    first_gate_id = (
+        next((gate_ids[i] for i in indices if gate_ids[i] is not None), None)
+        if gate_ids is not None
+        else None
+    )
 
     if classification is None:
         landfall = None
@@ -224,6 +252,8 @@ def extract_trajectory(netcdf_data: dict, traj_idx: int) -> dict:
         "filepath": netcdf_data["filepath"],
         "start_end": start_end,
         "makes_landfall": makes_landfall,
+        "gate_id": gate_ids,
+        "first_gate_id": first_gate_id,
         "genesis_ocean_basin": genesis_ocean_basin,
         "indices": indices,
         "times": times,
@@ -356,8 +386,8 @@ def insert_trajectory(  # noqa: PLR0913
 
     cur = db.execute(
         """insert into trajectories
-           (file_id, start_end, ocean_id, landfall, lat_lon)
-           values (?, ?, ?, ?, ?)""",
+           (file_id, start_end, ocean_id, landfall, gate_id, lat_lon)
+           values (?, ?, ?, ?, ?, ?)""",
         (
             file_id,
             traj["start_end"],
@@ -365,6 +395,7 @@ def insert_trajectory(  # noqa: PLR0913
             if (basin := traj["genesis_ocean_basin"]) is not None
             else None,
             traj["makes_landfall"],
+            traj.get("first_gate_id"),
             json.dumps(lat_lon, allow_nan=False),
         ),
     )
@@ -407,6 +438,7 @@ def insert_trajectory(  # noqa: PLR0913
             v[i] if (v := obs_ocean_ids) is not None else None,
             v[i] if (v := traj["distance_to_coast_km"]) is not None else None,
             int(v[i]) if (v := traj["landfall"]) is not None else None,
+            v[i] if (v := traj.get("gate_id")) is not None else None,
         )
         for sequence, i in enumerate(traj["indices"])
     ]
@@ -417,8 +449,8 @@ def insert_trajectory(  # noqa: PLR0913
                (trajectory_id, sequence, date, latitude, longitude,
                 air_pressure_at_sea_level, surface_altitude, wind_speed,
                 atmosphere_relative_vorticity, sea_surface_temp_anomaly, roni,
-                ocean_id, distance_to_coast_km, landfall)
-               values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                ocean_id, distance_to_coast_km, landfall, gate_id)
+               values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             rows,
         )
         if cur.rowcount != len(rows):
@@ -428,12 +460,13 @@ def insert_trajectory(  # noqa: PLR0913
     return trajectory_id
 
 
-def import_file(
+def import_file(  # noqa: PLR0913
     db: sqlite3.Connection,
     collection_id: int,
     netcdf_filepath: str,
     hadsst: HadSST | None = None,
     roni: RONI | None = None,
+    gates: Gates | None = None,
 ) -> None:
     """
     Import a single NetCDF file into the database.
@@ -456,6 +489,9 @@ def import_file(
     roni
         Optional RONI lookup used to add Relative Oceanic Niño Index values to
         observations.
+
+    gates
+        Optional validated landfall gate definitions.
     """
     filepath = os.path.abspath(netcdf_filepath)
 
@@ -468,7 +504,7 @@ def import_file(
     netcdf_data = read_netcdf(netcdf_filepath)
 
     # Classify the observations against the world map
-    netcdf_data["classification"] = classify_tracks(netcdf_data)
+    netcdf_data["classification"] = classify_tracks(netcdf_data, gates)
 
     ocean_ids = get_ocean_ids(db)
 
@@ -487,12 +523,13 @@ def import_file(
     )
 
 
-def build(
+def build(  # noqa: PLR0913
     db_path: str,
     input_paths: str | list[str],
     collection_name: str = "default",
     hadsst_filepath: str | Path | None = None,
     roni_filepath: str | Path | None = None,
+    gates_filepath: str | Path | None = None,
 ) -> None:
     """
     Build a database from imported NetCDF file(s) - main worker entry point.
@@ -514,18 +551,25 @@ def build(
     roni_filepath
         Optional RONI NetCDF file used to add matching-month RONI values to imported
         observations.
+
+    gates_filepath
+        Optional CSV file defining non-overlapping landfall rectangles.
     """
     hadsst = HadSST(hadsst_filepath) if hadsst_filepath is not None else None
     roni = RONI(roni_filepath) if roni_filepath is not None else None
+    gates = load_gates(gates_filepath) if gates_filepath is not None else None
 
     with init_db(db_path) as db:
+        if gates is not None:
+            store_gates(db, gates)
+
         collection_id = get_collection(db, collection_name)
 
         if isinstance(input_paths, (str, Path)):
-            import_file(db, collection_id, input_paths, hadsst, roni)
+            import_file(db, collection_id, input_paths, hadsst, roni, gates)
         else:
             for nc_file in input_paths:
-                import_file(db, collection_id, nc_file, hadsst, roni)
+                import_file(db, collection_id, nc_file, hadsst, roni, gates)
 
         generate_statistics(db)
 
@@ -559,6 +603,11 @@ def main(argv: list[str] | None = None) -> int:
         help="RONI NetCDF of monthly values matched by observation year and month",
     )
     parser.add_argument(
+        "--gates",
+        metavar="PATH",
+        help="CSV file defining optional landfall gate rectangles",
+    )
+    parser.add_argument(
         "files",
         nargs="+",
         help="NetCDF files to import",
@@ -570,7 +619,12 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.INFO, format="%(levelname)s: %(message)s", force=True
     )
 
-    build(args.output, args.files, args.collection, args.hadsst, args.roni)
+    try:
+        build(
+            args.output, args.files, args.collection, args.hadsst, args.roni, args.gates
+        )
+    except (ValueError, OSError) as exc:
+        parser.error(str(exc))
     return 0
 
 

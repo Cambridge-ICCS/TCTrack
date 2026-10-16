@@ -11,6 +11,8 @@ from pathlib import Path
 
 import numpy as np
 
+from .gates import Gates, match_gates
+
 DATA_PATH = Path(__file__).parent / "world_map.npz"
 
 #: Maximum absolute latitude in degrees.
@@ -170,7 +172,7 @@ def classify_points(
     return landfall, distance, basin
 
 
-def classify_tracks(netcdf_data: dict) -> dict[int, dict]:
+def classify_tracks(netcdf_data: dict, gates: Gates | None = None) -> dict[int, dict]:
     """
     Classify the points of every trajectory in a read_netcdf dataset.
 
@@ -182,6 +184,8 @@ def classify_tracks(netcdf_data: dict) -> dict[int, dict]:
     ----------
     netcdf_data
         Dictionary from `tctrack.build_db.build_db.read_netcdf`.
+    gates
+        Validated gate definitions from `load_gates`, or None to disable matching.
 
     Returns
     -------
@@ -194,6 +198,9 @@ def classify_tracks(netcdf_data: dict) -> dict[int, dict]:
       coastline, NaN where the input point is NaN
     - ``ocean_basin``: array of ocean names, None where the input point is
       NaN
+
+    - ``gate_id``: object array of gate codes for landfall points inside a gate,
+      None otherwise (including when gates are disabled)
 
     The arrays span the full observation dimension of the input, with NaN
     padded observations left unclassified.
@@ -217,12 +224,16 @@ def classify_tracks(netcdf_data: dict) -> dict[int, dict]:
         raise ValueError(msg)
 
     landfall, distance, basin = classify_points(lat, lon)
+    gate_ids = np.full(lat.shape, None, dtype=object)
+    if gates is not None:
+        gate_ids = match_gates(lat, lon, landfall, gates)
 
     return {
         traj_idx: {
             "landfall": landfall[traj_idx],
             "distance_to_coast_km": distance[traj_idx],
             "ocean_basin": basin[traj_idx],
+            "gate_id": gate_ids[traj_idx],
         }
         for traj_idx in range(lat.shape[0])
     }

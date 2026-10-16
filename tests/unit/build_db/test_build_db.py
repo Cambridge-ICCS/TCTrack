@@ -38,6 +38,118 @@ def open_db(db_path):
     return db
 
 
+GATE_HEADER = "code,name,min_lat,max_lat,min_lon,max_lon\n"
+GATE_ROWS = [
+    "S,South,0,30,-180,180\n",
+    "N,North,30,90,-180,180\n",
+]
+
+
+@pytest.fixture
+def gates_csv(tmp_path):
+    """Provide two shared-edge gates covering northern hemisphere landfalls."""
+    path = tmp_path / "gates.csv"
+    path.write_text(GATE_HEADER + "".join(GATE_ROWS), encoding="utf-8")
+    return path
+
+
+class TestGates:
+    """Test gate validation, persistence, summaries and CLI integration."""
+
+    def test_invalid_configuration_does_not_touch_database(self, tmp_db, tmp_path):
+        """Validate gates before creating or modifying any database."""
+        missing = tmp_path / "missing.csv"
+        invalid = tmp_path / "invalid.csv"
+        invalid.write_text(GATE_HEADER + "A,Invalid,0,nan,0,10\n", encoding="utf-8")
+
+        for path, error in [(missing, OSError), (invalid, ValueError)]:
+            with pytest.raises(error):
+                build_db.build(tmp_db, NETCDF_FILE, gates_filepath=path)
+            assert not Path(tmp_db).exists()
+
+        build_db.build(tmp_db, NETCDF_FILE)
+        before = Path(tmp_db).read_bytes()
+        with pytest.raises(ValueError, match="finite"):
+            build_db.build(tmp_db, NETCDF_SE_FILE, gates_filepath=invalid)
+        assert Path(tmp_db).read_bytes() == before
+
+    def test_import_assigns_gates_and_trajectory_summaries(self, tmp_db, gates_csv):
+        """Store gate definitions, observation assignments and first-gate summaries."""
+        build_db.build(tmp_db, NETCDF_NATL_FILE, gates_filepath=gates_csv)
+
+        with open_db(tmp_db) as db:
+            assert db.execute("select * from gates order by id").fetchall() == [
+                ("N", "North", 30, 90, -180, 180),
+                ("S", "South", 0, 30, -180, 180),
+            ]
+            assert db.execute("pragma foreign_key_check").fetchall() == []
+            assert set(db.execute("select distinct gate_id from points")) == {
+                (None,),
+                ("S",),
+                ("N",),
+            }
+            assert db.execute(
+                "select count(*) from points where landfall = 0 and gate_id is not null"
+            ).fetchone() == (0,)
+
+            for trajectory_id, gate_id in db.execute(
+                "select trajectory_id, gate_id from tracks"
+            ):
+                observations = db.execute(
+                    "select gate_id from observations "
+                    "where trajectory_id = ? order by sequence",
+                    (trajectory_id,),
+                ).fetchall()
+                first_gate = next((g for (g,) in observations if g is not None), None)
+                assert gate_id == first_gate
+
+    def test_reopening_reuse_conflict_skipping_and_disabled(self, tmp_db, gates_csv):
+        """Require identical definitions, never backfill or implicitly enable gates."""
+        build_db.build(tmp_db, NETCDF_FILE)
+        build_db.build(tmp_db, NETCDF_FILE, gates_filepath=gates_csv)
+        build_db.build(tmp_db, NETCDF_NATL_FILE, gates_filepath=gates_csv)
+        gates_csv.write_text(
+            GATE_HEADER + "".join(reversed(GATE_ROWS)), encoding="utf-8"
+        )
+        build_db.build(tmp_db, NETCDF_NATL_FILE, gates_filepath=gates_csv)
+        build_db.build(tmp_db, NETCDF_SE_FILE)
+        with open_db(tmp_db) as db:
+            assert db.execute("select count(*) from files").fetchone() == (3,)
+            assert db.execute(
+                "select count(*) from observations ob join trajectories tr "
+                "on tr.id = ob.trajectory_id join files f on f.id = tr.file_id "
+                "where f.filename in ('test_tracks.nc', 'test_tracks_se.nc') "
+                "and (ob.gate_id is not null or tr.gate_id is not null)"
+            ).fetchone() == (0,)
+        before = Path(tmp_db).read_bytes()
+        gates_csv.write_text(GATE_HEADER + GATE_ROWS[0], encoding="utf-8")
+        with pytest.raises(ValueError, match="differs"):
+            build_db.build(
+                tmp_db, NETCDF_SE_FILE, "new collection", gates_filepath=gates_csv
+            )
+        assert Path(tmp_db).read_bytes() == before
+
+    def test_cli_gates_and_errors(self, tmp_db, tmp_path, gates_csv, capsys):
+        """Accept valid optional gates and report configuration errors clearly."""
+        assert (
+            build_db.main(
+                ["--output", tmp_db, "--gates", str(gates_csv), NETCDF_NATL_FILE]
+            )
+            == 0
+        )
+        with open_db(tmp_db) as db:
+            assert db.execute("select count(*) from gates").fetchone() == (2,)
+        invalid_db = tmp_path / "invalid.db"
+        gates_csv.write_text("invalid header", encoding="utf-8")
+        with pytest.raises(SystemExit) as exc:
+            build_db.main(
+                ["--output", str(invalid_db), "--gates", str(gates_csv), NETCDF_FILE]
+            )
+        assert exc.value.code == 2
+        assert str(gates_csv) in capsys.readouterr().err
+        assert not invalid_db.exists()
+
+
 class TestStatisticsIntegration:
     """Test that database building produces trajectory statistics."""
 

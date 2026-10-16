@@ -24,6 +24,16 @@ insert into oceans (id, name) values
     ('ARC', 'Arctic Ocean'),
     ('SOU', 'Southern Ocean');
 
+-- Optional landfall gates
+create table gates (
+    id       text primary key not null,
+    name     text not null,
+    min_lat  real not null,
+    max_lat  real not null,
+    min_lon  real not null,
+    max_lon  real not null
+);
+
 -- Collections
 -- A named group of track files.
 create table collections (
@@ -69,11 +79,13 @@ create table trajectories (
 
     ocean_id   text    references oceans(id),
     landfall   integer check (landfall in (0, 1)),
+    gate_id    text    references gates(id),
     lat_lon    text    not null default '[]'
 );
 
 create index traj_file_idx on trajectories(file_id);
 create index traj_ocean_idx on trajectories(ocean_id);
+create index traj_gate_idx on trajectories(gate_id);
 create index traj_landfall_idx on trajectories(landfall);
 
 
@@ -98,6 +110,7 @@ create table observations (
     ocean_id                       text    references oceans(id),
     distance_to_coast_km           real,
     landfall                       integer check (landfall in (0, 1)),
+    gate_id                        text    references gates(id),
 
     primary key (trajectory_id, sequence)
 );
@@ -111,6 +124,7 @@ create index obs_ocean_idx on observations(ocean_id);
 create index obs_distance_to_coast_km_idx on observations(distance_to_coast_km);
 create index obs_landfall_idx on observations(landfall);
 create index obs_landfall_distance_idx on observations(landfall, distance_to_coast_km);
+create index obs_gate_idx on observations(gate_id);
 
 
 -- Trajectory Statistics
@@ -150,7 +164,7 @@ select
 	sequence, date, latitude, longitude,
 	air_pressure_at_sea_level, surface_altitude, wind_speed,
 	sea_surface_temp_anomaly, roni,
-	ob.ocean_id, ob.landfall, cast(sequence = 0 as integer) as genesis
+	ob.ocean_id, ob.landfall, ob.gate_id, cast(sequence = 0 as integer) as genesis
 from
 	observations ob
 	join trajectories on trajectories.id = trajectory_id
@@ -164,7 +178,7 @@ select
 	year, sequence, date, latitude, longitude,
 	air_pressure_at_sea_level, surface_altitude, wind_speed,
 	sea_surface_temp_anomaly, roni,
-	ocean_id, landfall, genesis
+	ocean_id, landfall, gate_id, genesis
 from points;
 
 -- Points layered by filename
@@ -174,7 +188,7 @@ select
 	year, sequence, date, latitude, longitude,
 	air_pressure_at_sea_level, surface_altitude, wind_speed,
 	sea_surface_temp_anomaly, roni,
-	ocean_id, landfall, genesis
+	ocean_id, landfall, gate_id, genesis
 from points;
 
 
@@ -184,7 +198,7 @@ select
 	collections.name as collection,
 	files.filename,
 	trajectory_id,
-	tr.ocean_id, tr.landfall,
+	tr.ocean_id, tr.landfall, tr.gate_id,
 	cast(substr(stats.date_start, 1, 4) as integer) as year,
 	stats.date_start, stats.date_end, stats.date_median, stats.duration_hours, stats.observation_count,
 	stats.wind_speed_min, stats.wind_speed_max, stats.wind_speed_median, stats.wind_speed_mean,
@@ -203,7 +217,7 @@ create view tracks_layer_collection as
 select
 	collection as layer_collection,
 	trajectory_id,
-	ocean_id, landfall,
+	ocean_id, landfall, gate_id,
 	year, date_start, date_end, date_median, duration_hours, observation_count,
 	wind_speed_min, wind_speed_max, wind_speed_median, wind_speed_mean,
 	air_pressure_at_sea_level_min, ace,
@@ -217,7 +231,7 @@ create view tracks_layer_file as
 select
 	filename as layer_file,
 	trajectory_id,
-	ocean_id, landfall,
+	ocean_id, landfall, gate_id,
 	year, date_start, date_end, date_median, duration_hours, observation_count,
 	wind_speed_min, wind_speed_max, wind_speed_median, wind_speed_mean,
 	air_pressure_at_sea_level_min, ace,
