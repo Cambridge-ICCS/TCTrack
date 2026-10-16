@@ -381,7 +381,7 @@ function init() {
 		let colour = geojson.layers.length > 1 ? PALETTE.layers[colour_idx] : PALETTE.single;
 
 		// Create opacity expressions for point and line layers
-		let circle_opacity = POINT.opacity;
+		let circle_opacity = POINT.opacity || 1.0;
 		if (POINT.opacity_property && POINT.opacity_property.column in geojson.features[0].properties)
 			circle_opacity = [
 				"interpolate",
@@ -390,7 +390,7 @@ function init() {
 				POINT.opacity_property.min[0], POINT.opacity_property.min[1],
 				POINT.opacity_property.max[0], POINT.opacity_property.max[1]
 			];
-		let line_opacity = LINE.opacity;
+		let line_opacity = LINE.opacity || 1.0;
 		if (LINE.opacity_property && LINE.opacity_property.column in geojson.features[0].properties)
 			line_opacity = [
 				"interpolate",

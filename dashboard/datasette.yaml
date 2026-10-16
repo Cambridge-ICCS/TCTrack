@@ -25,8 +25,12 @@ plugins:
         max: [30, 10]
         exponential: 1.2
     line:
-      thickness: 3
-      opacity: 0.4
+      thickness: 2
+      opacity: 0.2
+      opacity_property:
+        column: ace
+        min: [0, 0]
+        max: [40, 1]
     heatmap:
       weight_property:
         column: wind_speed
