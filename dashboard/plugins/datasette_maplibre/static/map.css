@@ -1,12 +1,15 @@
 /* Reserve space for the map - keep height in sync with #datasette-maplibre */
 section.content:not(:has(> #datasette-maplibre))::before {
 	display: block;
-	height: 70dvh;
+	height: 100dvh;
 }
 
 #datasette-maplibre {
-	height: 70dvh;
-    margin-inline: calc(-1rem); /* remove parent margin */
+	height: 100dvh;
+	background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 1rem;
 }
 
 .maplibregl-popup-content dl.properties {

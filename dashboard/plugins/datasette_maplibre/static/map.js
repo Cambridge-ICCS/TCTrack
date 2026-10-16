@@ -242,17 +242,17 @@ function init() {
 
 	const t0 = performance.now();
 
-	// Add map container and element
-	const parent = document.querySelector("section.content");
+	// Add map container just before the data table
+	const parent = document.querySelector("div.table-wrapper");
 	if (!parent) {
-		console.log("Unable to find section.content in HTML template");
+		console.log("Unable to find `div.table-wrapper` in HTML template");
 		return;
 	}
 
 	// Create map element early to minimise visual pop-in
 	const container = document.createElement("div");
 	container.id = "datasette-maplibre";
-	parent.prepend(container);
+	parent.before(container);
 
 	// Load data concurrently with map loading
 	const data_promise = loadGeoJSON();
