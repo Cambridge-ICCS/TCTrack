@@ -66,6 +66,10 @@
 }
 
 /* Base -------------------------------------------------------------------- */
+html {
+    font-size: 14px;
+}
+
 body {
     background-color: var(--bg);
     color: var(--text);
@@ -78,7 +82,6 @@ h1, h2, h3, h4, h5, h6,
 .header1, .header2, .header3, .header4, .header5, .header6 {
     color: var(--text);
     font-weight: 600;
-    letter-spacing: -0.01em;
     text-decoration: none;
 }
 
@@ -174,12 +177,23 @@ form.nav-menu-logout {
 
 /* Page header and action menus -------------------------------------------- */
 .page-header {
-    border-left: 4px solid var(--accent);
-    padding-left: 12px;
+	border: none;
+	padding-left: 0;
 }
 .page-header h1 {
-    font-weight: 700;
-    font-size: 1.4rem;
+    font-weight: bold;
+    font-size: 1.3rem;
+}
+
+/* Row count and query parameters */
+h3.table-summary {
+	font-weight: normal;
+	font-size: 1rem;
+}
+
+/* Hide mini export links under the filters */
+.export-links {
+	display: none;
 }
 
 .page-action-menu .icon-text {
@@ -290,22 +304,24 @@ a.blob-download {
     animation-name: none;
 }
 
+/* Columns ----------------------------------------------------------------- */
+
 /* Hide lat/lon column */
 .col-lat_lon {
 	display: none;
 }
 
+/* Don't wrap... */
+td.col-date.type-str,
+td.col-collection.type-str,
+td.col-filename.type-str {
+    white-space: nowrap;
+}
+
 /* Forms ------------------------------------------------------------------- */
-.core input[type=text],
-input.core[type=text],
-.core input[type=search],
-input.core[type=search],
-.core input[type=number],
+.core input:is([type=text], [type=search], [type=number]),
 form.sql textarea,
-.select-wrapper select,
-select,
-.filters input.filter-value,
-.filters #_search {
+.select-wrapper select {
     background: #2A363E;
     border: 1px solid var(--border-strong);
     border-radius: 6px;
@@ -316,10 +332,7 @@ select,
 
 .core input:focus,
 form.sql textarea:focus,
-.select-wrapper select:focus,
-select:focus,
-.filters input.filter-value:focus,
-.filters #_search:focus {
+.select-wrapper select:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 1px var(--focus-ring);
     outline: none;
@@ -329,10 +342,8 @@ select:focus,
     color: var(--text-muted);
 }
 
-/* Primary action */
 .core input[type=submit],
-input.core[type=submit],
-.filters input[type=submit] {
+.core button[type=button] {
     background: var(--accent-strong);
     border: 1px solid var(--accent);
     border-radius: 6px;
@@ -341,24 +352,10 @@ input.core[type=submit],
     cursor: pointer;
 }
 .core input[type=submit]:hover,
-input.core[type=submit]:hover,
-.filters input[type=submit]:hover,
+.core button[type=button]:hover,
 .filters input[type=submit]:focus {
     background: var(--accent);
     border-color: var(--accent);
-}
-
-/* Secondary action */
-.core button[type=button],
-button.core[type=button] {
-    background: transparent;
-    border: 1px solid var(--accent);
-    border-radius: 6px;
-    color: var(--link);
-}
-.core button[type=button]:hover,
-button.core[type=button]:hover {
-    background: rgba(255, 152, 0, 0.12);
 }
 
 form.sql textarea {
@@ -374,15 +371,14 @@ form.sql textarea {
 
 select,
 ::picker(select) {
-  appearance: base-select;
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
+    appearance: base-select;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
 }
 
-select option:hover,
-select option:focus-visible {
+select option:is(:hover, :focus-visible) {
   background-color: var(--blue-grey-700);
 }
 
@@ -445,13 +441,13 @@ form.sql .cm-editor .\37C m {
 }
 
 .filters button.filter-row-icon {
-    background: var(--surface-raised);
-    border-color: var(--border);
-    color: var(--text-secondary);
+    background: var(--surface-raised) !important;
+    border-color: var(--border) !important;
+    color: var(--text-secondary) !important;
 }
 .filters button.filter-row-icon:hover {
-    background: var(--surface);
-    color: var(--text);
+    background: var(--accent-hover) !important;
+    color: var(--text) !important;
 }
 .filters button.filter-row-add {
     background: var(--accent-strong);
@@ -672,67 +668,4 @@ navigation-search .hint-text kbd {
 
 .maplibregl-ctrl-layer-control .layer-control-icon svg {
 	color: black;
-}
-
-
-/* Leaflet Map ------------------------------------------------------------- */
-/* Leaflet's CSS is injected dynamically at runtime (after this stylesheet),
-   so !important is needed on properties used to ensure they're overridden.  */
-
-/* Leaflet popups */
-
-.leaflet-popup-content-wrapper {
-    background: var(--surface-raised) !important;
-    color: var(--text) !important;
-    border: 1px solid var(--border);
-    border-radius: 6px !important;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55) !important;
-}
-
-.leaflet-popup-tip {
-    background: var(--surface-raised) !important;
-    box-shadow: none !important;
-}
-
-.leaflet-popup-close-button {
-    color: var(--text-muted) !important;
-}
-
-.leaflet-popup-close-button:hover {
-    color: var(--text) !important;
-}
-
-.leaflet-popup-content {
-    color: var(--text);
-    font-family: var(--font-sans);
-}
-
-/* Key-value pairs from datasette-geojson-map (dl.properties) */
-.leaflet-popup-content .properties dt {
-    color: var(--text-secondary);
-}
-
-.leaflet-popup-content .properties dd {
-    color: var(--text);
-}
-
-/* Key-value pairs from datasette-cluster-map (dl.cluster-map-dl) */
-.leaflet-popup-content .cluster-map-dl dd span {
-    color: var(--text-muted) !important;
-}
-
-/* datasette-cluster-map custom popups */
-.leaflet-popup-content p {
-    color: var(--text) !important;
-}
-
-/* Links inside popups */
-.leaflet-popup-content a:link,
-.leaflet-popup-content a:visited {
-    color: var(--link);
-}
-
-.leaflet-popup-content a:hover,
-.leaflet-popup-content a:focus {
-    color: var(--link-hover);
 }

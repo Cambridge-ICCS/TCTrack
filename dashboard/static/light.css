@@ -59,6 +59,10 @@
 }
 
 /* Base -------------------------------------------------------------------- */
+html {
+    font-size: 14px;
+}
+
 body {
     background-color: var(--bg);
     color: var(--text);
@@ -71,7 +75,6 @@ h1, h2, h3, h4, h5, h6,
 .header1, .header2, .header3, .header4, .header5, .header6 {
     color: var(--text);
     font-weight: 600;
-    letter-spacing: -0.01em;
     text-decoration: none;
 }
 
@@ -167,12 +170,23 @@ form.nav-menu-logout {
 
 /* Page header and action menus -------------------------------------------- */
 .page-header {
-    border-left: 4px solid var(--accent);
-    padding-left: 12px;
+	border: none;
+	padding-left: 0;
 }
 .page-header h1 {
-    font-weight: 700;
-    font-size: 1.4rem;
+    font-weight: bold;
+    font-size: 1.3rem;
+}
+
+/* Row count and query parameters */
+h3.table-summary {
+	font-weight: normal;
+	font-size: 1rem;
+}
+
+/* Hide mini export links under the filters */
+.export-links {
+	display: none;
 }
 
 .page-action-menu .icon-text {
@@ -263,22 +277,25 @@ a.blob-download {
     animation-name: none;
 }
 
+/* Columns ----------------------------------------------------------------- */
+
 /* Hide lat/lon column */
 .col-lat_lon {
 	display: none;
 }
 
+/* Don't wrap... */
+td.col-date.type-str,
+td.col-collection.type-str,
+td.col-filename.type-str {
+    white-space: nowrap;
+}
+
 /* Forms ------------------------------------------------------------------- */
-.core input[type=text],
-input.core[type=text],
-.core input[type=search],
-input.core[type=search],
-.core input[type=number],
+.core input:is([type=text], [type=search], [type=number]),
 form.sql textarea,
-.select-wrapper select,
-.filters input.filter-value,
-.filters #_search {
-    background: #FFFFFF;
+.select-wrapper select {
+    background: #fff;
     border: 1px solid var(--border-strong);
     border-radius: 6px;
     color: var(--text);
@@ -288,9 +305,7 @@ form.sql textarea,
 
 .core input:focus,
 form.sql textarea:focus,
-.select-wrapper select:focus,
-.filters input.filter-value:focus,
-.filters #_search:focus {
+.select-wrapper select:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 1px var(--focus-ring);
     outline: none;
@@ -300,10 +315,8 @@ form.sql textarea:focus,
     color: var(--text-muted);
 }
 
-/* Primary action */
 .core input[type=submit],
-input.core[type=submit],
-.filters input[type=submit] {
+.core button[type=button] {
     background: var(--accent-strong);
     border: 1px solid var(--accent-strong);
     border-radius: 6px;
@@ -312,24 +325,10 @@ input.core[type=submit],
     cursor: pointer;
 }
 .core input[type=submit]:hover,
-input.core[type=submit]:hover,
-.filters input[type=submit]:hover,
+.core button[type=button]:hover,
 .filters input[type=submit]:focus {
     background: var(--accent);
     border-color: var(--accent);
-}
-
-/* Secondary action */
-.core button[type=button],
-button.core[type=button] {
-    background: transparent;
-    border: 1px solid var(--accent);
-    border-radius: 6px;
-    color: var(--link);
-}
-.core button[type=button]:hover,
-button.core[type=button]:hover {
-    background: rgba(33, 150, 243, 0.1);
 }
 
 form.sql textarea {
@@ -345,16 +344,15 @@ form.sql textarea {
 
 select,
 ::picker(select) {
-  appearance: base-select;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
+    appearance: base-select;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
 }
 
-select option:hover,
-select option:focus-visible {
-  background-color: var(--grey-100);
+select option:is(:hover, :focus-visible) {
+    background-color: var(--grey-100);
 }
 
 
@@ -380,13 +378,13 @@ form.sql .cm-editor {
 }
 
 .filters button.filter-row-icon {
-    background: var(--surface-raised);
-    border-color: var(--border);
-    color: var(--text-secondary);
+    background: var(--surface-raised) !important;
+    border-color: var(--border) !important;
+    color: var(--text-secondary) !important;
 }
 .filters button.filter-row-icon:hover {
-    background: var(--grey-200);
-    color: var(--text);
+    background: var(--grey-200) !important;
+    color: var(--text) !important;
 }
 .filters button.filter-row-add {
     background: var(--accent-strong);
