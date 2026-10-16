@@ -164,6 +164,11 @@ select
 	sequence, date, latitude, longitude,
 	air_pressure_at_sea_level, surface_altitude, wind_speed,
 	sea_surface_temp_anomaly, roni,
+	case
+		when roni >= 0.5 then 'El Niño'
+		when roni <= -0.5 then 'La Niña'
+		else 'Neutral'
+	end as enso,
 	ob.ocean_id, ob.landfall, ob.gate_id, cast(sequence = 0 as integer) as genesis
 from
 	observations ob
@@ -177,7 +182,7 @@ select
 	collection as layer_collection,
 	year, sequence, date, latitude, longitude,
 	air_pressure_at_sea_level, surface_altitude, wind_speed,
-	sea_surface_temp_anomaly, roni,
+	sea_surface_temp_anomaly, roni, enso,
 	ocean_id, landfall, gate_id, genesis
 from points;
 
@@ -185,6 +190,16 @@ from points;
 create view points_layer_file as
 select
 	filename as layer_file,
+	year, sequence, date, latitude, longitude,
+	air_pressure_at_sea_level, surface_altitude, wind_speed,
+	sea_surface_temp_anomaly, roni, enso,
+	ocean_id, landfall, gate_id, genesis
+from points;
+
+-- Points layered by ENSO
+create view points_layer_enso as
+select
+	enso as layer_enso,
 	year, sequence, date, latitude, longitude,
 	air_pressure_at_sea_level, surface_altitude, wind_speed,
 	sea_surface_temp_anomaly, roni,
@@ -204,6 +219,11 @@ select
 	stats.wind_speed_min, stats.wind_speed_max, stats.wind_speed_median, stats.wind_speed_mean,
 	stats.air_pressure_at_sea_level_min, stats.ace,
 	stats.sea_surface_temp_anomaly_mean, stats.roni_mean,
+	case
+		when roni_mean >= 0.5 then 'El Niño'
+		when roni_mean <= -0.5 then 'La Niña'
+		else 'Neutral'
+	end as enso,
 	tr.start_end,
 	tr.lat_lon
 from
@@ -221,7 +241,7 @@ select
 	year, date_start, date_end, date_median, duration_hours, observation_count,
 	wind_speed_min, wind_speed_max, wind_speed_median, wind_speed_mean,
 	air_pressure_at_sea_level_min, ace,
-	sea_surface_temp_anomaly_mean, roni_mean,
+	sea_surface_temp_anomaly_mean, roni_mean, enso,
 	start_end,
 	lat_lon
 from tracks;
@@ -230,6 +250,20 @@ from tracks;
 create view tracks_layer_file as
 select
 	filename as layer_file,
+	trajectory_id,
+	ocean_id, landfall, gate_id,
+	year, date_start, date_end, date_median, duration_hours, observation_count,
+	wind_speed_min, wind_speed_max, wind_speed_median, wind_speed_mean,
+	air_pressure_at_sea_level_min, ace,
+	sea_surface_temp_anomaly_mean, roni_mean, enso,
+	start_end,
+	lat_lon
+from tracks;
+
+-- Tracks layered by ENSO phase
+create view tracks_layer_enso as
+select
+	enso as layer_enso,
 	trajectory_id,
 	ocean_id, landfall, gate_id,
 	year, date_start, date_end, date_median, duration_hours, observation_count,
