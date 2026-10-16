@@ -14,7 +14,6 @@ plugins:
         tile_source: openmaptiles
         tile_layer: water
         tile_class: ocean
-        colour: '#000000'
         opacity: 0.6
     point:
       radius: 4
@@ -62,6 +61,7 @@ plugins:
         - '#cc3311'
         - '#009988'
         - '#bbbbbb'
+      outline: '#000000'
     # dark palette
     # palette:
     #   single: '#d0b100'
@@ -73,6 +73,7 @@ plugins:
     #     - '#009988'
     #     - '#bbbbbb'
     #     - '#cc3311'
+    #   outline: '#ffffff'
 
 
 settings:

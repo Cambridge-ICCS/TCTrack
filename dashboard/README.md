@@ -81,7 +81,6 @@ The following settings are available:
 		- `tile_source` The name of the source vector from the map, e.g. `openmaptiles`. This can be found by inspecting the style URL.
 		- `tile_layer` Layer id that contains the required vectors, e.g. for a coastline, use `water`.
 		- `tile_class` (optional) Class name of features to render as lines, e.g. for a coastline, use `ocean`.
-		- `colour` Outline colour.
 		- `opacity` Outline opacity.
 - `point` Point rendering options:
 	- `radius` Standard point radius.
@@ -115,9 +114,10 @@ The following settings are available:
 		- `mid`: Colour at midpoint.
 		- `high`: Colour at maximum weight.
 	- `opacity`: Heatmap opacity.
-- `palette` Colours for rendering features (`#rrggbb[aa]` hex format). The default accessible set is taken from [Qualitative Colour Schemes](https://sronpersonalpages.nl/~pault/):
+- `palette` Colours for rendering features (`#rrggbb[aa]` hex format):
 	- `single` Feature colour when there is only one layer.
-	- `layers` Any number of colours to use for features on each layer. Colours are applied to layers in sequence. When all colours are used, subsequent layers will use the final colour in the list.
+	- `layers` Any number of colours to use for features on each layer. Colours are applied to layers in sequence and reused when exhausted. The default accessible set is taken from [Qualitative Colour Schemes](https://sronpersonalpages.nl/~pault/).
+	- `outline` Line colour when `basemap.outline` is specified.
 - `max_layers` (optional) The maximum number of layers allowed (the layer pair of lines and points is counted as one). Data in layers beyond the maximum is not shown; a warning is sent to the console log.
 
 

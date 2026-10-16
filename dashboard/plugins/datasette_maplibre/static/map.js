@@ -304,7 +304,7 @@ function init() {
 					filter: ["==", ["get", "class"], BASEMAP.outline.tile_class]
 				} : {}),
 				paint: {
-					"line-color": BASEMAP.outline.colour,
+					"line-color": PALETTE.outline || "#000000",
 					"line-opacity": BASEMAP.outline.opacity,
 					"line-width": 1,
 				}
