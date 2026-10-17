@@ -84,6 +84,7 @@ dev = [
 
 [project.scripts]
 build-db = "tctrack.build_db.build_db:main"
+tctrack-convert = "tctrack.build_db.tctrack_convert:main"
 
 [tool.ruff]
 # Run linting and formatting on notebooks
