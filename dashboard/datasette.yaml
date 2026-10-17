@@ -19,7 +19,7 @@ plugins:
       radius: 4
       opacity: 0.4
       radius_property:
-        column: wind_speed
+        column: Wind Speed
         min: [0, 2]
         max: [30, 10]
         exponential: 1.2
@@ -27,12 +27,12 @@ plugins:
       thickness: 2
       opacity: 0.2
       opacity_property:
-        column: ace
+        column: ACE
         min: [0, 0]
         max: [40, 1]
     heatmap:
       weight_property:
-        column: wind_speed
+        column: Wind Speed
         min: [0, 0]
         max: [30, 1]
         exponential: 1.2

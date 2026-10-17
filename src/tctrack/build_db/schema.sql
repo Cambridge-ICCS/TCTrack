@@ -155,21 +155,21 @@ create index stats_ace_idx on statistics(ace);
 -- Views used for map display
 
 -- Points - Observations without tracks
-create view points as
+create view Points as
 select
-	collections.name as collection,
-	files.filename,
-	trajectory_id,
-	cast(substr(date, 1, 4) as integer) as year,
-	sequence, date, latitude, longitude,
-	air_pressure_at_sea_level, surface_altitude, wind_speed,
-	sea_surface_temp_anomaly, roni,
+	collections.name as Collection,
+	trajectory_id as Track,
+	cast(substr(date, 1, 4) as integer) as Year,
+	sequence as Sequence, date as Date, latitude as Latitude, longitude as Longitude,
+	air_pressure_at_sea_level as SLP, surface_altitude as 'Surface Altitude', wind_speed as 'Wind Speed',
+	sea_surface_temp_anomaly as SSTA, roni as RONI,
 	case
 		when roni >= 0.5 then 'El Niño'
 		when roni <= -0.5 then 'La Niña'
 		else 'Neutral'
-	end as enso,
-	ob.ocean_id, ob.landfall, ob.gate_id, cast(sequence = 0 as integer) as genesis
+	end as ENSO,
+	ob.ocean_id as Ocean, ob.landfall as Landfall, ob.gate_id as Gate, cast(sequence = 0 as integer) as Genesis,
+	files.filename as File
 from
 	observations ob
 	join trajectories on trajectories.id = trajectory_id
@@ -177,54 +177,56 @@ from
 	join collections on collections.id = collection_id;
 
 -- Points layered by collection
-create view points_layer_collection as
+create view 'Points - Collection Layer' as
 select
-	collection as layer_collection,
-	year, sequence, date, latitude, longitude,
-	air_pressure_at_sea_level, surface_altitude, wind_speed,
-	sea_surface_temp_anomaly, roni, enso,
-	ocean_id, landfall, gate_id, genesis
+	Collection as 'Layer Collection',
+	Track, Year, Sequence, Date, Latitude, Longitude,
+	SLP, "Surface Altitude", "Wind Speed",
+	SSTA, RONI, ENSO,
+	Ocean, Landfall, Gate, Genesis,
+	File
 from points;
 
 -- Points layered by filename
-create view points_layer_file as
+create view 'Points - File Layer' as
 select
-	filename as layer_file,
-	year, sequence, date, latitude, longitude,
-	air_pressure_at_sea_level, surface_altitude, wind_speed,
-	sea_surface_temp_anomaly, roni, enso,
-	ocean_id, landfall, gate_id, genesis
+	File as 'Layer File',
+	Track, Year, Sequence, Date, Latitude, Longitude,
+	SLP, "Surface Altitude", "Wind Speed",
+	SSTA, RONI, ENSO,
+	Ocean, Landfall, Gate, Genesis
 from points;
 
 -- Points layered by ENSO
-create view points_layer_enso as
+create view 'Points - ENSO Layer' as
 select
-	enso as layer_enso,
-	year, sequence, date, latitude, longitude,
-	air_pressure_at_sea_level, surface_altitude, wind_speed,
-	sea_surface_temp_anomaly, roni,
-	ocean_id, landfall, gate_id, genesis
+	ENSO As 'Layer ENSO',
+	Track, Year, Sequence, Date, Latitude, Longitude,
+	SLP, "Surface Altitude", "Wind Speed",
+	SSTA, RONI,
+	Ocean, Landfall, Gate, Genesis,
+	Collection, File
 from points;
 
 
 -- Tracks - Trajectories with statistical summary of observations
-create view tracks as
+create view Tracks as
 select
-	collections.name as collection,
-	files.filename,
-	trajectory_id,
-	tr.ocean_id, tr.landfall, tr.gate_id,
-	cast(substr(stats.date_start, 1, 4) as integer) as year,
-	stats.date_start, stats.date_end, stats.date_median, stats.duration_hours, stats.observation_count,
-	stats.wind_speed_min, stats.wind_speed_max, stats.wind_speed_median, stats.wind_speed_mean,
-	stats.air_pressure_at_sea_level_min, stats.ace,
-	stats.sea_surface_temp_anomaly_mean, stats.roni_mean,
+	collections.name as Collection,
+	trajectory_id as Track,
+	tr.ocean_id as Ocean, tr.landfall as Landfall, tr.gate_id as Gate,
+	cast(substr(stats.date_start, 1, 4) as integer) as Year,
+	stats.date_start as 'Start', stats.date_end as 'End', stats.date_median as 'Median', stats.duration_hours as Hours, stats.observation_count as Points,
+	stats.wind_speed_min as 'WS Min', stats.wind_speed_max as 'WS Max', stats.wind_speed_median as 'WS Median', stats.wind_speed_mean as 'WS Mean',
+	stats.air_pressure_at_sea_level_min as 'SLP Min', stats.ace as ACE,
+	stats.sea_surface_temp_anomaly_mean as 'SSTA Mean', stats.roni_mean as 'RONI Mean',
 	case
 		when roni_mean >= 0.5 then 'El Niño'
 		when roni_mean <= -0.5 then 'La Niña'
 		else 'Neutral'
-	end as enso,
-	tr.start_end,
+	end as ENSO,
+	tr.start_end as 'Start/End',
+	files.filename as File,
 	tr.lat_lon
 from
 	trajectories tr
@@ -233,43 +235,43 @@ from
 	join collections on collections.id = collection_id;
 
 -- Tracks layered by collection
-create view tracks_layer_collection as
+create view 'Tracks - Collection Layer' as
 select
-	collection as layer_collection,
-	trajectory_id,
-	ocean_id, landfall, gate_id,
-	year, date_start, date_end, date_median, duration_hours, observation_count,
-	wind_speed_min, wind_speed_max, wind_speed_median, wind_speed_mean,
-	air_pressure_at_sea_level_min, ace,
-	sea_surface_temp_anomaly_mean, roni_mean, enso,
-	start_end,
+	collection as 'Layer Collection',
+	Track,
+	Ocean, Landfall, Gate,
+	Year, "Start", "End", "Median", Hours, Points,
+	"WS Min", "WS Max", "WS Median", "WS Mean",
+	"SLP Min", ACE,
+	"SSTA Mean", "RONI Mean", ENSO,
+	"Start/End", File,
 	lat_lon
-from tracks;
+from Tracks;
 
 -- Tracks layered by filename
-create view tracks_layer_file as
+create view 'Tracks - File Layer' as
 select
-	filename as layer_file,
-	trajectory_id,
-	ocean_id, landfall, gate_id,
-	year, date_start, date_end, date_median, duration_hours, observation_count,
-	wind_speed_min, wind_speed_max, wind_speed_median, wind_speed_mean,
-	air_pressure_at_sea_level_min, ace,
-	sea_surface_temp_anomaly_mean, roni_mean, enso,
-	start_end,
+	File as 'Layer File',
+	Track,
+	Ocean, Landfall, Gate,
+	Year, "Start", "End", "Median", Hours, Points,
+	"WS Min", "WS Max", "WS Median", "WS Mean",
+	"SLP Min", ACE,
+	"SSTA Mean", "RONI Mean", ENSO,
+	"Start/End",
 	lat_lon
-from tracks;
+from Tracks;
 
 -- Tracks layered by ENSO phase
-create view tracks_layer_enso as
+create view 'Tracks - ENSO Layer' as
 select
-	enso as layer_enso,
-	trajectory_id,
-	ocean_id, landfall, gate_id,
-	year, date_start, date_end, date_median, duration_hours, observation_count,
-	wind_speed_min, wind_speed_max, wind_speed_median, wind_speed_mean,
-	air_pressure_at_sea_level_min, ace,
-	sea_surface_temp_anomaly_mean, roni_mean,
-	start_end,
+	ENSO as 'Layer ENSO',
+	Track,
+	Ocean, Landfall, Gate,
+	Year, "Start", "End", "Median", Hours, Points,
+	"WS Min", "WS Max", "WS Median", "WS Mean",
+	"SLP Min", ACE,
+	"SSTA Mean", "RONI Mean",
+	"Start/End", File,
 	lat_lon
-from tracks;
+from Tracks;

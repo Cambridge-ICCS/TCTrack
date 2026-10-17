@@ -312,9 +312,9 @@ a.blob-download {
 }
 
 /* Don't wrap... */
-td.col-date.type-str,
-td.col-collection.type-str,
-td.col-filename.type-str {
+td.col-Date.type-str,
+td.col-Collection.type-str,
+td.col-File.type-str {
     white-space: nowrap;
 }
 

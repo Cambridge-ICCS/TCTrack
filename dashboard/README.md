@@ -55,7 +55,7 @@ The MapLibre map is shown automatically when a Datasette query, table or view ha
 
 A `lat_lon` column contains a JSON array of ordered `[latitude, longitude]` pairs. Each row creates one trajectory line, with all other columns available as line properties. Tables with `latitude` and `longitude` columns generate one point per row. If both coordinate formats are present, `lat_lon` takes precedence.
 
-Data is automatically split across map layers when a column name beginning `layer_` is found. Distinct values from this layer column determine the name of each new layer. See `points_layer_collection` in the database and the dashboard for an example of this in action.
+Data is automatically split across map layers when a column name beginning `layer` is found. Distinct values from this layer column determine the name of each new layer. See `Points - Collection Layer` in the database and the dashboard for an example of this in action.
 
 
 ### Map Control

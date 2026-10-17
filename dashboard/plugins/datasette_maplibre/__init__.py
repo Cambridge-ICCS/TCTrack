@@ -52,7 +52,7 @@ def extra_body_script(
 
     # Get optional layer column
     layer_column = next(
-        (c for c in (columns or []) if c.lower().startswith("layer_")), None
+        (c for c in (columns or []) if c.lower().startswith("layer")), None
     )
 
     config = datasette.plugin_config(PLUGIN, database=database, table=table) or {}

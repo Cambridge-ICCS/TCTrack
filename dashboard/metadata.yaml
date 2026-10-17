@@ -8,7 +8,7 @@ description: Explore and compare tropical cyclone trajectories from TCTrack.
 # This enables the quick filter facets to be shown for each view.
 
 databases:
-  HadGEM3-HH-2003-2025-gates:
+  <DATABASE_NAME>:
     title: Cyclone Tracks
     description_html: >-
       <p>Cyclone trajectories imported from NetCDF files.</p>
@@ -36,20 +36,20 @@ databases:
         description: One row per trajectory observation point.
         facets: [ocean_id, landfall, gate_id]
 
-      points:
-        facets: [ocean_id, landfall, gate_id, enso, genesis]
-      points_layer_file:
-        facets: [ocean_id, landfall, gate_id, enso, genesis]
-      points_layer_collection:
-        facets: [ocean_id, landfall, gate_id, enso, genesis]
-      points_layer_enso:
-        facets: [layer_enso, ocean_id, landfall, gate_id, genesis]
+      Points:
+        facets: [Ocean, Landfall, Gate, ENSO, Genesis]
+      "Points - Collection Layer":
+        facets: [Ocean, Landfall, Gate, ENSO, Genesis, "Layer Collection"]
+      "Points - File Layer":
+        facets: [Ocean, Landfall, Gate, ENSO, Genesis]
+      "Points - ENSO Layer":
+        facets: [Ocean, Landfall, Gate, "Layer ENSO", Genesis]
 
-      tracks:
-        facets: [ocean_id, landfall, gate_id, enso, start_end]
-      tracks_layer_file:
-        facets: [ocean_id, landfall, gate_id, enso, start_end]
-      tracks_layer_collection:
-        facets: [ocean_id, landfall, gate_id, enso, start_end]
-      tracks_layer_enso:
-        facets: [layer_enso, ocean_id, landfall, gate_id, start_end]
+      Tracks:
+        facets: [Ocean, Landfall, Gate, ENSO]
+      "Tracks - Collection Layer":
+        facets: [Ocean, Landfall, Gate, ENSO, "Layer Collection"]
+      "Tracks - File Layer":
+        facets: [Ocean, Landfall, Gate, ENSO]
+      "Tracks - ENSO Layer":
+        facets: [Ocean, Landfall, Gate, "Layer ENSO"]
