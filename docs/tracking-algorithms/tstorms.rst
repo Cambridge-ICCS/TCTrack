@@ -64,6 +64,13 @@ detection, which performs node detection of candidate storms for each snapshot i
 and stitching, which combines suitable nodes across timesteps to generate
 trajectories. [*]_
 
+At a high level, detection looks for a co-located combination of strong low-level
+vorticity, a warm-core temperature maximum, and a sea-level pressure minimum, with
+surface or 850 hPa winds used according to configuration. The candidates are linked
+between timesteps by distance; the resulting trajectories can then be filtered by
+duration, latitude, and intensity criteria. The input preparation is therefore more
+prescriptive than for a tracker that searches a single user-selected field.
+
 Usage of TSTORMS in TCTrack is through the ``tstorms`` module.
 
 This provides the :class:`TSTORMSTracker` class that stores algorithm parameters and provides
@@ -215,6 +222,21 @@ data from 1950 the time units should be ``days since 1950-01-01`` or earlier).
 The latitude coordinates should be increasing (from south to north).
 There can be only one variable per file and they should conform to the pre-defined
 variable names described below.
+
+The current TCTrack interface requires all five input files (eastward wind, northward
+wind, vorticity, warm-core mean temperature, and sea-level pressure) to run detection;
+they are required parameters and TSTORMS uses them to identify and describe candidates.
+There is no option in this interface to request only a subset. The wind inputs can be
+surface winds or 850 hPa winds, controlled by ``use_sfc_wind``. Vorticity is at 850 hPa,
+and ``tm`` is the mean temperature over 500–200 hPa. Thickness detection is not
+implemented by TSTORMS, so ``do_thickness`` does not add an input requirement or affect
+the results.
+
+TSTORMS does not provide a general mechanism for sampling arbitrary extra fields along
+the tracks. Its text outputs contain a fixed set of quantities: longitude, latitude,
+wind, pressure, and (in ``trav``) maximum vorticity. Adding another field requires
+changes to the TSTORMS software or a separate post-processing step that samples it
+from the source data at the track coordinates.
 
 * Eastward Velocity:
 

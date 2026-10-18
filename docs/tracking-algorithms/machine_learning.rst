@@ -87,6 +87,12 @@ The stitching step is not part of the reference training pipeline, which only tr
 the per-point classification. The model was trained on full global ERA5 fields, and
 the detections it makes on small regional subsets can be less reliable.
 
+In practical terms, the pretrained segmentation model runs independently on each input
+timestep, groups neighbouring storm-classified grid points into detections, and links
+those detections using distance and gap rules. The model expects a fixed set of fields
+and was trained on global ERA5 data, so variable availability, pressure levels, and
+grid coverage matter when preparing inputs; regional subsets may be less reliable.
+
 Usage
 -----
 
@@ -191,6 +197,14 @@ and ``range`` for each channel, using :attr:`~MLParameters.normalisation_stats_p
 Some preprocessing of the input data is likely to be required in order to extract these
 variables, combine multiple files over time, and regrid onto a consistent grid. See
 :doc:`../data/preprocessing_data` for examples.
+
+The variables listed above are the minimum required by the pretrained model, using the
+configured :attr:`~MLParameters.pressure_variables`,
+:attr:`~MLParameters.pressure_levels`, SST selection, and 2-metre temperature used to
+fill SST over land. Arbitrary additional variables in the file are not sampled into the
+trajectories. The output includes the model input channels sampled at each detection
+(as well as the predicted lifecycle class and confidence); use a separate sampling step
+if other fields are needed along tracks.
 
 Example Data
 ------------
