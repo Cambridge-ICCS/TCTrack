@@ -262,7 +262,6 @@ function init() {
 	});
 	map.addControl(new maplibregl.NavigationControl({ showCompass: true }));
 	map.addControl(new maplibregl.GlobeControl(), 'top-right');
-	map.addControl(new LayerControl({ basemapStyleUrl: BASEMAP.style }), 'top-right');
 
 	// Restore the persisted view settings (globe and camera position)
 	const view = loadStored(STORAGE_KEY);
@@ -317,6 +316,11 @@ function init() {
 		const source_id = "datasette-geojson";
 		map.addSource(source_id, { type: "geojson", data: geojson });
 
+		// Map layers...
+		let layer_id;
+		let layer_filter;
+		let layers_added = [];
+
 		// Link heatmap weight to property value if defined and column exists
 		let heatmap_weight = null;
 		if (HEATMAP?.weight_property?.column && HEATMAP.weight_property.column in geojson.features[0].properties)
@@ -329,9 +333,10 @@ function init() {
 			];
 
 		// Add heatmap if configured
-		if (heatmap_weight)
+		if (heatmap_weight) {
+			layer_id = HEATMAP.weight_property.column;
 			map.addLayer({
-				id: HEATMAP.weight_property.column,
+				id: layer_id,
 				type: "heatmap",
 				source: source_id,
 				maxzoom: HEATMAP.max_zoom,
@@ -364,11 +369,8 @@ function init() {
 					],
 				},
 			});
-
-		// Add new layers for each distinct layer value
-		let layer_id;
-		let layer_filter;
-		let layers_added = [];
+			layers_added.push({id: layer_id, name: layer_id});
+		}
 
 		// Use feature colour for single layers and the layer palette for multiple
 		let colour_idx = 0;
@@ -406,6 +408,7 @@ function init() {
 				POINT.radius_property.max[0], POINT.radius_property.max[1]
 			];
 
+		// Add map layers
 		for (const layer of geojson.layers) {
 
 			// Set filter expression to restrict data to this layer only
@@ -413,7 +416,6 @@ function init() {
 				layer_filter = ["==", ["get", LAYER_COLUMN], layer];
 
 			// Line layer - lines added first so that points can be rendered on top
-			// Only added if lines were made
 			if (geojson.lines > 0) {
 				layer_id = String(layer) + " (lines)";
 				map.addLayer({
@@ -431,7 +433,7 @@ function init() {
 						...(layer_filter ? [layer_filter] : [])
 					],
 				});
-				layers_added.push(layer_id);
+				layers_added.push({id: layer_id, name: layer});
 			}
 
 			// Points layer
@@ -454,7 +456,7 @@ function init() {
 						...(layer_filter ? [layer_filter] : []),
 					],
 				});
-				layers_added.push(layer_id);
+				layers_added.push({id: layer_id, name: layer});
 			}
 
 			// Advance layer colour index, reusing once exhausted
@@ -463,18 +465,21 @@ function init() {
 		}
 
 		// Move map outline to top of the stack so it appears above all other layers
-		if (BASEMAP.outline) map.moveLayer(BASEMAP.outline.name);
+		if (BASEMAP.outline) {
+			map.moveLayer(BASEMAP.outline.name);
+			layers_added.push({id: BASEMAP.outline.name, name: BASEMAP.outline.name});
+		}
 
 		// Set on-click popups and pointer style for all added layers
 		for (const layer of layers_added) {
-			map.on("mouseenter", layer, () => {
+			map.on("mouseenter", layer.id, () => {
 				map.getCanvas().style.cursor = "pointer";
 			});
-			map.on("mouseleave", layer, () => {
+			map.on("mouseleave", layer.id, () => {
 				map.getCanvas().style.cursor = "";
 			});
 
-			map.on("click", layer, (ev) => {
+			map.on("click", layer.id, (ev) => {
 				const feature = ev.features[0];
 				const html = propertiesHtml(feature.properties);
 				new maplibregl.Popup()
@@ -485,6 +490,18 @@ function init() {
 		}
 
 		console.log(`Map load: ${Math.round(performance.now() - t0)}ms`);
+
+		// Add layer control
+		const control = new LayerControl({
+			basemapStyleUrl: BASEMAP.style,
+			layers: layers_added.map(layer => layer.id),
+			layerStates: Object.fromEntries(
+				layers_added.map(layer => [layer.id, {
+					name: String(layer.name),
+				}])
+			),
+		});
+		map.addControl(control, "top-right");
 
 		// Zoom to data bounds when no view saved or no points are visible in the view
 		const data_bounds = calcGeoJSONBounds(geojson);
