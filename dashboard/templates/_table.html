@@ -1,0 +1,6 @@
+{% set column_names = columns|map('lower')|list %}
+{% set has_coordinates = 'lat_lon' in column_names or ('latitude' in column_names and 'longitude' in column_names) %}
+{% if has_coordinates %}
+<div id="datasette-maplibre"></div>
+{% endif %}
+{% include "default:_table.html" %}

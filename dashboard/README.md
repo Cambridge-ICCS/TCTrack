@@ -24,11 +24,12 @@ A database of track files must be built for loading into the dashboard. See the 
 
 Dashboard configuration files for metadata and style are located in the `dashboard` directory. If run from the project root:
 
-	datasette serve <database.db> --metadata dashboard/metadata.yaml --config dashboard/datasette.yaml --static static:dashboard/static
+	datasette serve <database.db> --metadata dashboard/metadata.yaml --config dashboard/datasette.yaml --static static:dashboard/static --template-dir dashboard/templates
 
 - `metadata.yaml` applies the database and table metadata.
 - `datasette.yaml` applies the dashboard theme, map configuration and server settings.
 - `static:dashboard/static` serves the `dashboard/static` directory at location `/static/`, so that files linked in the metadata can be loaded.
+- `dashboard/templates` includes custom HTML templates.
 
 View a running dashboard at http://localhost:8001
 

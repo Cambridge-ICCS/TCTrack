@@ -1,4 +1,4 @@
-import * as maplibregl from "https://unpkg.com/maplibre-gl@6.12.0/dist/maplibre-gl.mjs";
+import * as maplibregl from "https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.mjs";
 import { LayerControl } from "https://unpkg.com/maplibre-gl-layer-control@0.17.5/dist/index.mjs";
 
 // Pick up config passed from Python __init__ layer
@@ -242,20 +242,14 @@ function init() {
 
 	const t0 = performance.now();
 
-	// Add map container just before the data table
-	const parent = document.querySelector("div.table-wrapper");
-	if (!parent) {
-		console.log("Unable to find `div.table-wrapper` in HTML template");
-		return;
-	}
-
-	// Create map element early to minimise visual pop-in
-	const container = document.createElement("div");
-	container.id = "datasette-maplibre";
-	parent.before(container);
-
 	// Load data concurrently with map loading
 	const data_promise = loadGeoJSON();
+
+	let container = document.getElementById("datasette-maplibre");
+	if (!container) {
+		console.log("Unable to find `datasette-maplibre` container in HTML template");
+		return;
+	}
 
 	const map = new maplibregl.Map({
 		container: container,
