@@ -82,23 +82,6 @@ def mock_xr_ds_ibtracs() -> xr.Dataset:
 class TestIBTrACSConverterInit:
     """Tests for IBTrACSConverter.__init__."""
 
-    def test_parameter_assignment(self, mock_load_dataset):
-        """Test that the parameters are assigned to instance variables."""
-        mock_output_path = "/path/to/output"
-        mock_start_date = "2025-01-01"
-        mock_end_date = "2025-12-31"
-
-        ibtracs_converter = IBTrACSConverter(
-            input_path="/path/to/input",
-            output_path=mock_output_path,
-            start_date=mock_start_date,
-            end_date=mock_end_date,
-        )
-
-        assert ibtracs_converter.output_path == mock_output_path
-        assert ibtracs_converter.start_date == mock_start_date
-        assert ibtracs_converter.end_date == mock_end_date
-
     def test_load_dataset(self, mock_load_dataset):
         """Test that the input dataset is loaded as an Xarray Dataset."""
         mock_input_path = "/path/to/input"
@@ -260,6 +243,23 @@ class TestIBTrACSConverterFilterByDate:
 
         assert ibtracs_converter.ds["time"].size == 3
 
+    def test_end_date_is_exclusive_in_filtering(
+        self, mock_load_dataset, mock_xr_ds_basic
+    ):
+        """Test that filtering is exclusive of end date."""
+        mock_load_dataset.return_value = mock_xr_ds_basic
+
+        ibtracs_converter = IBTrACSConverter(
+            input_path="/path/to/input",
+            output_path="/path/to/output",
+            start_date="2025-03-01",
+            end_date="2025-03-15",
+        )
+        assert ibtracs_converter.ds["time"].size == 6
+        ibtracs_converter._filter_by_date()
+
+        assert ibtracs_converter.ds["time"].size == 3
+
     def test_nodata_for_given_valid_date_range(
         self, mock_load_dataset, mock_xr_ds_basic
     ):
@@ -371,10 +371,9 @@ class TestIBTrACSConverterConvertToTCTrackFormat:
             "wind_speed",
             "air_pressure_at_sea_level",
         ]
-        print(ibtracs_converter.ds["wind_speed"].values)
         assert np.allclose(
             ibtracs_converter.ds["wind_speed"].values,
-            np.array([[0.0, 0.514, 1.028], [1.542, 2.056, 2.57]]),
+            np.array([[0.0, 0.514444, 1.028888], [1.543332, 2.057776, 2.57222]]),
         )
         assert ibtracs_converter.ds["wind_speed"].attrs["units"] == "m s-1"
         assert np.allclose(

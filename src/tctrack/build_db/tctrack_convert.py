@@ -1,6 +1,7 @@
 """CLI tool to convert datasets into TCTrack format."""
 
 import argparse
+import logging
 import sys
 
 from tctrack.build_db.converters import Converter
@@ -12,14 +13,14 @@ def get_argument_parser() -> argparse.ArgumentParser:
         description="CLI tool to convert datasets into TCTrack format."
     )
     parser.add_argument(
-        "--tracker",
-        "-t",
+        "--source",
+        "-s",
         required=True,
-        help="The tracker/source for the input file. Ex. IBTrACS.",
+        help="The source for the input file. E.g. IBTrACS.",
     )
     parser.add_argument(
         "--start-date",
-        "-s",
+        "-d",
         help="The date (in YYYY-MM-DD format) from which the"
         " data needs to be filtered from the input file.",
     )
@@ -30,7 +31,11 @@ def get_argument_parser() -> argparse.ArgumentParser:
         " data needs to be filtered from the input file.",
     )
     parser.add_argument(
-        "--output-path", "-o", required=True, help="Path to the output NetCDF file."
+        "--output",
+        "-o",
+        required=True,
+        dest="output_path",
+        help="Path to the output NetCDF file.",
     )
     parser.add_argument(
         "input_path", metavar="INPUT_PATH", help="Path to the input NetCDF file."
@@ -41,17 +46,21 @@ def get_argument_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
+    logging.basicConfig(
+        level=logging.INFO, format="%(levelname)s: %(message)s", force=True
+    )
+
     parser = get_argument_parser()
     args = parser.parse_args(argv)
 
     Converter_ = None
     for cls in Converter.__subclasses__():
-        if cls.tctrack_tracker == args.tracker:
+        if cls.tctrack_tracker.lower() == args.source.lower():
             Converter_ = cls
             break
 
     if not Converter_:
-        msg = "Unsupported tracker..."
+        msg = "Unsupported source..."
         raise SystemExit(msg)
 
     Converter_(**vars(args)).convert()  # type: ignore
