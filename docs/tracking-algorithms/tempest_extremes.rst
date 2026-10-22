@@ -64,6 +64,12 @@ Cyclone tracking in Tempest Extremes consists of two phases: node detection of c
 storms for each snapshot in time, and stitching of nodes across timesteps to generate
 tracks. [*]_
 
+At a high level, detection searches for local minima or maxima in a chosen field,
+optionally applies closed-contour and other criteria, then merges nearby candidates.
+Stitching links candidates between timesteps using their separation, time gap, and
+track-level filters. This makes Tempest Extremes useful when candidates should be
+defined by a pressure minimum together with additional structure tests, for example.
+
 Usage of Tempest Extremes in TCTrack is done through the ``tempest_extremes`` module.
 
 This provides the :class:`TETracker` class that stores algorithm parameters and provides
@@ -212,6 +218,24 @@ and :attr:`~TEDetectParameters.lat_name` parameters). There can be multiple inpu
 files and multiple variables per file. However, each variable must only appear in one
 file, i.e. variables split over time into multiple files must first be combined (see
 :ref:`combine_time`).
+
+For the minimum needed to produce tracks, provide a time-varying scalar field to search
+for candidates in and set either :attr:`~TEDetectParameters.search_by_min` or
+:attr:`~TEDetectParameters.search_by_max` to its NetCDF variable name. The file must
+also provide time, latitude, and longitude coordinates. The selected field should be
+chosen for the tracker configuration: for example, a sea-level pressure field for
+pressure minima or a vorticity field for maxima. Then configure stitching parameters
+that accept the resulting nodes.
+
+Additional values can be sampled at each candidate by adding
+:class:`TEOutputCommand` entries to :attr:`~TEDetectParameters.output_commands`.
+These can refer to other scalar variables in the input files, including variables in
+separate files, provided they share compatible time and horizontal grids with the
+search field. Tempest Extremes applies the requested operator (such as ``min``,
+``max``, or ``avg``) within the configured distance; these columns are carried through
+stitching and can be written to NetCDF. Thus additional fields need not be used for
+detection, but they must be available to DetectNodes and aligned with its input grid
+and times. See the example above for pressure, orography, and wind speed output fields.
 
 
 .. [*] These are named detect and stitch for consistency across the TCTrack package.

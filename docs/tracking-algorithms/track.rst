@@ -80,6 +80,12 @@ stitched into trajectories by minimising a cost function. Finally, the trajector
 filtered to remove any that do not travel a sufficient distance or last for a sufficient
 duration.
 
+In TCTrack, vorticity is calculated from the supplied eastward and northward winds,
+then filtered before candidate detection. The input therefore needs the Gaussian grid
+expected by TRACK; regridding and combining the wind components and time steps are
+common preprocessing steps. The tracking and filtering stages then link nearby
+detections and remove tracks that fail the configured duration or distance criteria.
+
 Tracking can also be performed using different fields, including mean sea level
 pressure, but this is not currently implemented in TCTrack. In addition, the TRACK
 algorithm describes performing checks for a warm core based upon the difference in
@@ -148,6 +154,12 @@ single `Gaussian grid <https://en.wikipedia.org/wiki/Gaussian_grid>`_. Some
 preprocessing of the input data is likely to be required in order to concatenate along
 time, combine the variables onto a single grid and into one file, and to regrid onto a
 Gaussian grid. See :doc:`../data/preprocessing_data` for examples.
+
+These two wind components are the minimum input needed to run the current TCTrack
+TRACK wrapper: it derives vorticity internally. Additional variables in the input file
+are not currently added to the output tracks. The wrapper writes the calculated
+intensity along each track, so arbitrary along-track fields require a separate sampling
+or post-processing step.
 
 Modifying Parameters
 --------------------
