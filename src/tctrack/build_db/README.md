@@ -68,3 +68,22 @@ See [`schema.sql`](schema.sql) for the full schema definition.
 - The database is SQLite with foreign keys enabled.
 - Trajectories in NetCDF files may be padded with `NaN` values. Only valid observations are imported.
 - Duplicate files are skipped (by filename) on attempted re-import.
+
+## Import Files From External Sources
+
+The NetCDF files from external sources, e.g. IBTrACS, need to be converted to TCTrack format
+before importing those into the database. The `tctrack-convert` tool can be used for the conversion.
+
+```bash
+tctrack-convert [-h] --source {IBTrACS} [--start-date START_DATE] [--end-date END_DATE] --output OUTPUT_PATH INPUT_PATH
+```
+
+### Arguments
+
+| Flag                 | Required | Description |
+|----------------------|----------|----------------------------------------------------------------------------------------------------------|
+| `--tracker`, `-t`     | yes      | The tracker/source for the input file. Ex. IBTrACS.                      |
+| `--start-date`, `-s` | no       | The date (in YYYY-MM-DD format) from which the data needs to be filtered from the input file. |
+| `--end-date`, `-e`| no      | The date (in YYYY-MM-DD format) to which the data needs to be filtered from the input file.                                                                   |
+| `--output-path`, `-o`| yes      | Path to the output NetCDF file. |
+| `INPUT_PATH`| yes | Path to the input NetCDF file.|
