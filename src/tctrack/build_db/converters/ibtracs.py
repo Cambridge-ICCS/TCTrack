@@ -10,8 +10,8 @@ import xarray as xr
 
 from .base import Converter
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s", force=True)
-logger = logging.getLogger(__name__)
+KNOTS_TO_MPS = 0.514444
+MB_TO_PA = 100
 
 
 class IBTrACSConverter(Converter):
@@ -32,7 +32,7 @@ class IBTrACSConverter(Converter):
         self.start_date = start_date
         self.end_date = end_date
 
-        logger.info(f"Loading dataset from {input_path}")
+        logging.info(f"Loading dataset from {input_path}")
         self.ds = xr.load_dataset(input_path)
         self.ds.attrs["tctrack_tracker"] = self.tctrack_tracker
 
@@ -56,7 +56,7 @@ class IBTrACSConverter(Converter):
             )
             self.ds = self.ds.where(
                 (self.ds["time"] >= np.datetime64(f"{self.start_date}T00:00:00"))
-                & (self.ds["time"] <= np.datetime64(f"{self.end_date}T23:59:59")),
+                & (self.ds["time"] < np.datetime64(f"{self.end_date}T00:00:00")),
                 drop=True,
             )
 
@@ -110,8 +110,10 @@ class IBTrACSConverter(Converter):
         self.ds = self.ds.rename_vars(
             {"wmo_wind": "wind_speed", "wmo_pres": "air_pressure_at_sea_level"}
         )
-        self._convert_units_for_data_variable("wind_speed", 0.514, "m s-1")
-        self._convert_units_for_data_variable("air_pressure_at_sea_level", 100, "Pa")
+        self._convert_units_for_data_variable("wind_speed", KNOTS_TO_MPS, "m s-1")
+        self._convert_units_for_data_variable(
+            "air_pressure_at_sea_level", MB_TO_PA, "Pa"
+        )
 
     def _filter_by_data_variables(self, data_vars: tuple[str, ...]) -> None:
         """Remove all data variables except the ones specified by data_vars.

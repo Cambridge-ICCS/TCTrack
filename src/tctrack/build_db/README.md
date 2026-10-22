@@ -75,7 +75,7 @@ The NetCDF files from external sources, e.g. IBTrACS, need to be converted to TC
 before importing those into the database. The `tctrack-convert` tool can be used for the conversion.
 
 ```bash
-tctrack-convert [-h] --tracker TRACKER [--start-date START_DATE] [--end-date END_DATE] --output-path OUTPUT_PATH INPUT_PATH
+tctrack-convert [-h] --source {IBTrACS} [--start-date START_DATE] [--end-date END_DATE] --output OUTPUT_PATH INPUT_PATH
 ```
 
 ### Arguments
