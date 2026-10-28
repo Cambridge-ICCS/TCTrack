@@ -66,6 +66,9 @@ class TCMLTracker(TCTracker):
     def _hf_filename(self) -> str:
         """Filename of the model weights in the HuggingFace repository."""
 
+    def _verify_inputs(self) -> None:
+        """Verify the input files match the expected format for ML trackers."""
+
     def _load_model(
         self, parameters: TCMLParameters, hf_token: str | None = None
     ) -> None:
