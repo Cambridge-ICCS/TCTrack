@@ -12,10 +12,12 @@ from pathlib import Path
 
 import cf
 import cftime
+import numpy as np
 import pytest
 from netCDF4 import Dataset
 from numpy.testing import assert_array_equal
 
+from tctrack.preprocessing import gaussian_grid
 from tctrack.track import TRACKParameters, TRACKTracker, parameter_set
 
 
@@ -134,6 +136,67 @@ class TestTrackTracker:
 
         with pytest.raises(ValueError, match="TRACK only accepts one input"):
             tracker.set_input_files(["file1", "file2"])
+
+    def test_verify_inputs_valid(self, tmp_path: Path):
+        """Check _verify_inputs succeeds for a valid Gaussian grid file."""
+        input_file = self._create_nc_input_file(tmp_path)
+        params = TRACKParameters(base_dir=str(tmp_path))
+        tracker = TRACKTracker(params)
+        tracker.set_input_files(input_file)
+        assert tracker._ny == self.ny
+        assert tracker._nx == self.nx
+
+    @pytest.mark.parametrize("missing_dim", ["lat", "lon", "time"])
+    def test_verify_inputs_missing_dim(self, tmp_path: Path, missing_dim: str):
+        """Check _verify_inputs raises error when required dimension is missing."""
+        input_file = self._create_nc_input_file(
+            tmp_path, filename=f"missing_{missing_dim}.nc", missing_dim=missing_dim
+        )
+        params = TRACKParameters(base_dir=str(tmp_path))
+        tracker = TRACKTracker(params)
+        with pytest.raises(
+            ValueError, match=f"missing required dimension '{missing_dim}'"
+        ):
+            tracker.set_input_files(input_file)
+
+    def test_verify_inputs_missing_eastward_wind(self, tmp_path: Path):
+        """Check _verify_inputs raises error when eastward wind is missing."""
+        input_file = self._create_nc_input_file(
+            tmp_path, filename="no_u.nc", wind_vars=("va",)
+        )
+        params = TRACKParameters(base_dir=str(tmp_path))
+        tracker = TRACKTracker(params)
+        with pytest.raises(ValueError, match="missing eastward wind variable 'ua'"):
+            tracker.set_input_files(input_file)
+
+    def test_verify_inputs_missing_northward_wind(self, tmp_path: Path):
+        """Check _verify_inputs raises error when northward wind is missing."""
+        input_file = self._create_nc_input_file(
+            tmp_path, filename="no_v.nc", wind_vars=("ua",)
+        )
+        params = TRACKParameters(base_dir=str(tmp_path))
+        tracker = TRACKTracker(params)
+        with pytest.raises(ValueError, match="missing northward wind variable 'va'"):
+            tracker.set_input_files(input_file)
+
+    def test_verify_inputs_non_gaussian_grid(self, tmp_path: Path):
+        """Check _verify_inputs raises error when grid is not Gaussian."""
+        linear_lats = np.linspace(-90, 90, self.ny)
+        input_file = self._create_nc_input_file(
+            tmp_path, filename="linear_grid.nc", lat_coords=linear_lats
+        )
+        params = TRACKParameters(base_dir=str(tmp_path))
+        tracker = TRACKTracker(params)
+        with pytest.raises(ValueError, match="must be on a regular Gaussian grid"):
+            tracker.set_input_files(input_file)
+
+    def test_verify_inputs_odd_latitudes(self, tmp_path: Path):
+        """Check _verify_inputs raises error when number of latitudes is odd."""
+        input_file = self._create_nc_input_file(tmp_path, filename="odd_lat.nc", ny=9)
+        params = TRACKParameters(base_dir=str(tmp_path))
+        tracker = TRACKTracker(params)
+        with pytest.raises(ValueError, match="odd number of latitudes"):
+            tracker.set_input_files(input_file)
 
     def test_export_inputs(self, mocker):
         """Check the command line inputs are correctly exported."""
@@ -362,24 +425,62 @@ class TestTrackTracker:
             lat[:] = [0, -1, -2, -3, -4]
             intensity[:] = [0, 10, 20, 30, 40]
 
-    def _create_nc_input_file(self, tmp_path: Path):
-        """Create a minimal NetCDF input file with defined times."""
-        file_path = tmp_path / "input.nc"
+    def _create_nc_input_file(
+        self,
+        tmp_path: Path,
+        *,
+        filename: str = "input.nc",
+        lat_coords: np.ndarray | None = None,
+        wind_vars: tuple[str, ...] = ("ua", "va"),
+        missing_dim: str | None = None,
+        ny: int | None = None,
+    ):
+        """Create a NetCDF input file with defined times, grid, and wind variables."""
+        file_path = tmp_path / filename
+        actual_ny = ny if ny is not None else self.ny
 
         with Dataset(file_path, "w", format="NETCDF4") as nc:
             # Dimensions
-            nc.createDimension("lon", self.nx)
-            nc.createDimension("lat", self.ny)
-            nc.createDimension("time", None)  # unlimited
+            if missing_dim != "lon":
+                nc.createDimension("lon", self.nx)
+            if missing_dim != "lat":
+                nc.createDimension("lat", actual_ny)
+            if missing_dim != "time":
+                nc.createDimension("time", None)  # unlimited
 
             # Time data
-            time = nc.createVariable("time", "f4", ("time",))
-            time[:] = [0, 0.5, 1, 1.5, 2]
-            time.standard_name = "time"
-            time.long_name = "time"
-            time.units = "days since 1950-01-01"
-            time.calendar = "360_day"
-            time.axis = "T"
+            time_len = 5
+            if missing_dim != "time":
+                time = nc.createVariable("time", "f4", ("time",))
+                time[:] = [0, 0.5, 1, 1.5, 2]
+                time.standard_name = "time"
+                time.long_name = "time"
+                time.units = "days since 1950-01-01"
+                time.calendar = "360_day"
+                time.axis = "T"
+
+            if missing_dim not in ("lat", "lon"):
+                if actual_ny % 2 == 0:
+                    lats, lons = gaussian_grid(actual_ny // 2)
+                else:
+                    lats = np.linspace(-90, 90, actual_ny)
+                    lons = np.linspace(0, 360, self.nx)
+                if lat_coords is not None:
+                    lats = lat_coords
+                lat_var = nc.createVariable("lat", "f4", ("lat",))
+                lat_var[:] = lats
+                lon_var = nc.createVariable("lon", "f4", ("lon",))
+                lon_var[:] = lons
+
+            dims = tuple(d for d in ("time", "lat", "lon") if d != missing_dim)
+            shape = tuple(
+                time_len if d == "time" else (actual_ny if d == "lat" else self.nx)
+                for d in dims
+            )
+            for v in wind_vars:
+                if v:
+                    var = nc.createVariable(v, "f4", dims)
+                    var[:] = np.zeros(shape)
 
         return str(file_path)
 

@@ -12,6 +12,7 @@ import warnings
 from typing import Iterable
 
 import cf
+import numpy as np
 from cftime import num2date
 from netCDF4 import Dataset
 
@@ -98,32 +99,214 @@ class TSTORMSTracker(TCTracker):
         """Check the input files and set the appropriate input file parameters."""
         super().set_input_files(input_files)
 
-        # Set the input files for each variable if they are not set
+    def _check_tstorms_grid_consistency(
+        self, filename: str, current_grid: dict, ref_fn: str, rg: dict
+    ) -> None:
+        """Check grid dimensions and coordinates consistency across TSTORMS files."""
+        if (
+            current_grid["lat_size"] != rg["lat_size"]
+            or current_grid["lon_size"] != rg["lon_size"]
+            or current_grid["time_size"] != rg["time_size"]
+        ):
+            msg = (
+                f"Grid size mismatch between '{filename}' and '{ref_fn}'. "
+                "All TSTORMS variables must be on the same grid."
+            )
+            raise ValueError(msg)
+        if (
+            current_grid["lat"] is not None
+            and rg["lat"] is not None
+            and not np.allclose(current_grid["lat"], rg["lat"])
+        ):
+            msg = f"Latitude coordinates in '{filename}' do not match '{ref_fn}'."
+            raise ValueError(msg)
+        if (
+            current_grid["lon"] is not None
+            and rg["lon"] is not None
+            and not np.allclose(current_grid["lon"], rg["lon"])
+        ):
+            msg = f"Longitude coordinates in '{filename}' do not match '{ref_fn}'."
+            raise ValueError(msg)
+        if (
+            current_grid["time"] is not None
+            and rg["time"] is not None
+            and not np.allclose(current_grid["time"], rg["time"])
+        ):
+            msg = f"Time coordinates in '{filename}' do not match '{ref_fn}'."
+            raise ValueError(msg)
+
+    def _verify_tstorms_file(
+        self,
+        filename: str,
+        nc_file: Dataset,
+        expected_vars: set[str],
+        coord_names: set[str],
+        var_to_file: dict[str, str],
+    ) -> tuple[str, dict]:
+        """Verify an individual TSTORMS NetCDF input file.
+
+        Returns
+        -------
+        tuple[str, dict]
+            The data variable name and the file's grid info dict.
+        """
+        data_vars = [
+            v
+            for v in nc_file.variables
+            if v not in coord_names and v not in nc_file.dimensions
+        ]
+        if len(data_vars) == 0:
+            msg = f"TSTORMS input file '{filename}' contains no data variables."
+            raise ValueError(msg)
+        if len(data_vars) > 1:
+            msg = (
+                f"TSTORMS input file '{filename}' contains multiple variables "
+                f"({data_vars}). Only one variable per file is allowed."
+            )
+            raise ValueError(msg)
+
+        var = data_vars[0]
+        if var not in expected_vars:
+            msg = (
+                f"TSTORMS input file '{filename}' contains unexpected variable "
+                f"'{var}'. Expected one of {sorted(expected_vars)}."
+            )
+            raise ValueError(msg)
+
+        if var in var_to_file:
+            msg = (
+                f"Variable '{var}' is provided by multiple files: "
+                f"'{var_to_file[var]}' and '{filename}'."
+            )
+            raise ValueError(msg)
+
+        for req_dim in ("time", "lat", "lon"):
+            if req_dim not in nc_file.dimensions:
+                msg = (
+                    f"TSTORMS input file '{filename}' is missing dimension "
+                    f"'{req_dim}'. Required dimensions are ('time', 'lat', 'lon')."
+                )
+                raise ValueError(msg)
+
+        var_dims = nc_file.variables[var].dimensions
+        if var_dims != ("time", "lat", "lon"):
+            msg = (
+                f"Variable '{var}' in '{filename}' must have dimensions "
+                f"('time', 'lat', 'lon'), got {var_dims}."
+            )
+            raise ValueError(msg)
+
+        if not nc_file.dimensions["time"].isunlimited():
+            msg = f"Time dimension in '{filename}' must be an unlimited dimension."
+            raise ValueError(msg)
+
+        if "time" in nc_file.variables:
+            time_vals = nc_file.variables["time"][:]
+            if np.any(time_vals < 0):
+                msg = (
+                    f"Time coordinate values in '{filename}' must only have "
+                    "positive values."
+                )
+                raise ValueError(msg)
+
+        if "lat" in nc_file.variables:
+            lat_vals = nc_file.variables["lat"][:]
+            if len(lat_vals) > 1 and not np.all(np.diff(lat_vals) > 0):
+                msg = (
+                    f"Latitude coordinates in '{filename}' must be strictly "
+                    "increasing from south to north."
+                )
+                raise ValueError(msg)
+
+        grid_info = {
+            "lat_size": len(nc_file.dimensions["lat"]),
+            "lon_size": len(nc_file.dimensions["lon"]),
+            "time_size": len(nc_file.dimensions["time"]),
+            "lat": (
+                nc_file.variables["lat"][:] if "lat" in nc_file.variables else None
+            ),
+            "lon": (
+                nc_file.variables["lon"][:] if "lon" in nc_file.variables else None
+            ),
+            "time": (
+                nc_file.variables["time"][:] if "time" in nc_file.variables else None
+            ),
+        }
+        return var, grid_info
+
+    def _map_tstorms_attributes(
+        self, var_to_file: dict[str, str], u_var: str, v_var: str
+    ) -> None:
+        """Map verified filepaths to TSTORMSTracker attributes."""
+        var_attr_map = {
+            u_var: "_u_in_file",
+            v_var: "_v_in_file",
+            "vort850": "_vort_in_file",
+            "tm": "_tm_in_file",
+            "slp": "_slp_in_file",
+        }
+        for var_name, attr_name in var_attr_map.items():
+            if var_name in var_to_file:
+                setattr(self, attr_name, var_to_file[var_name])
+
+    def _verify_inputs(self) -> None:
+        """Verify that the input files obey the expected format for TSTORMS.
+
+        Raises
+        ------
+        ValueError
+            If input files do not obey TSTORMS requirements.
+        """
+        if not self._input_files:
+            return
+
         use_sfc_wind = self.detect_parameters.use_sfc_wind
+        u_var = "u_ref" if use_sfc_wind else "u850"
+        v_var = "v_ref" if use_sfc_wind else "v850"
+        expected_vars = {u_var, v_var, "vort850", "tm", "slp"}
+        coord_names = {
+            "lat",
+            "latitude",
+            "lon",
+            "longitude",
+            "time",
+            "time_bnds",
+            "lat_bnds",
+            "lon_bnds",
+        }
+
+        ref_grid = None
+        var_to_file: dict[str, str] = {}
+
         for filename in self._input_files:
+            if not os.path.exists(filename):
+                continue
+
             with Dataset(filename, "r") as nc_file:
-                variables = nc_file.variables
+                var, grid_info = self._verify_tstorms_file(
+                    filename, nc_file, expected_vars, coord_names, var_to_file
+                )
+                var_to_file[var] = os.path.abspath(filename)
 
-                if self._u_in_file is None and (
-                    (use_sfc_wind and "u_ref" in variables)
-                    or (not use_sfc_wind and "u850" in variables)
-                ):
-                    self._u_in_file = os.path.abspath(filename)
+                if ref_grid is None:
+                    ref_grid = (filename, grid_info)
+                else:
+                    self._check_tstorms_grid_consistency(
+                        filename, grid_info, ref_grid[0], ref_grid[1]
+                    )
 
-                if self._v_in_file is None and (
-                    (use_sfc_wind and "v_ref" in variables)
-                    or (not use_sfc_wind and "v850" in variables)
-                ):
-                    self._v_in_file = os.path.abspath(filename)
+        self._map_tstorms_attributes(var_to_file, u_var, v_var)
 
-                if self._vort_in_file is None and "vort850" in variables:
-                    self._vort_in_file = os.path.abspath(filename)
-
-                if self._tm_in_file is None and "tm" in variables:
-                    self._tm_in_file = os.path.abspath(filename)
-
-                if self._slp_in_file is None and "slp" in variables:
-                    self._slp_in_file = os.path.abspath(filename)
+        # If files exist on disk, check all 5 required variables are present
+        existing_files = [f for f in self._input_files if os.path.exists(f)]
+        if existing_files:
+            missing = [v for v in expected_vars if v not in var_to_file]
+            if missing:
+                msg = (
+                    f"TSTORMS requires all 5 input variables: {missing} are missing. "
+                    "All five variables must be provided."
+                )
+                raise ValueError(msg)
 
     def _in_file(self, var: str) -> str:
         """Get the filepath for one of the input files."""
