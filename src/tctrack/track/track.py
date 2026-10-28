@@ -667,7 +667,7 @@ class TRACKTracker(TCTracker):
         ValueError
             If a variable with time coordinate is not found in the input file.
         """
-        vars_with_time = cf.read(self.parameters.input_file).select_by_construct("time")  # type: ignore[operator]  # type: ignore[operator]
+        vars_with_time = cf.read(self.parameters.input_file).select_by_construct("time")  # type: ignore[operator]
         if len(vars_with_time) == 0:
             msg = r"No variable with 'time' coordinate found in TRACK input file."
             raise ValueError(msg)
