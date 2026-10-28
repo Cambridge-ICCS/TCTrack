@@ -214,6 +214,22 @@ class TCTracker(ABC):
                 msg = f"Input file does not exist ({file})."
                 raise FileNotFoundError(msg)
 
+        self._verify_inputs()
+
+    @abstractmethod
+    def _verify_inputs(self) -> None:
+        """Abstract method to verify that input files match the expected format.
+
+        This method is called by :meth:`set_input_files` to verify that the
+        provided input files conform to the requirements of the tracking
+        algorithm (e.g. required variables, dimensions, coordinates, and grids).
+
+        Raises
+        ------
+        ValueError
+            If the input files do not obey the expected format.
+        """
+
     @abstractmethod
     def _set_metadata(self) -> None:
         """Abstract method to initialize subclass-specific metadata.
@@ -287,7 +303,7 @@ class TCTracker(ABC):
         }
         self._set_metadata()
 
-    def run_tracker_subprocess(  # noqa: PLR0912
+    def run_tracker_subprocess(  # noqa: PLR0912, PLR0917
         self,
         command_name: str,
         command_list: list[str],

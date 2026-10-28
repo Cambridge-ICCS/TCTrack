@@ -129,6 +129,10 @@ class TestTCTracker:
             else:
                 self._time_metadata = example_time_metadata()
 
+        def _verify_inputs(self) -> None:
+            """Implement a dummy of the _verify_inputs abstractmethod."""
+            return None
+
         def read_trajectories(self) -> list[Trajectory]:
             """Implement a dummy of the read_trajectories abstractmethod."""
             return self._example_trajectories
@@ -292,6 +296,16 @@ class TestTCTracker:
         tracker.set_input_files(str(input_file))
         assert isinstance(tracker._input_files, list)
         assert tracker._input_files == [str(input_file)]
+
+    def test_set_input_files_calls_verify_inputs(self, mocker, tmp_path: Path):
+        """Test that `set_input_files` calls `_verify_inputs`."""
+        input_file = tmp_path / "input.nc"
+        input_file.touch()
+
+        tracker = self.ExampleTracker()
+        mock_verify = mocker.patch.object(tracker, "_verify_inputs")
+        tracker.set_input_files(str(input_file))
+        mock_verify.assert_called_once()
 
     def make_netcdf_file(self, tmp_path: Path, delete_std_name: bool = False) -> Path:
         """Output a trajectories netcdf file with to_netcdf.
