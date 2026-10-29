@@ -303,7 +303,7 @@ class TCTracker(ABC):
         }
         self._set_metadata()
 
-    def run_tracker_subprocess(  # noqa: PLR0912, PLR0917
+    def run_tracker_subprocess(  # noqa: PLR0912
         self,
         command_name: str,
         command_list: list[str],
