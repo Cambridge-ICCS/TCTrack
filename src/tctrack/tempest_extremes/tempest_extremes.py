@@ -551,7 +551,7 @@ class TETracker(TCTracker):
             self._input_files, select=f"ncvar%{variable_name}", backend="netCDF4"
         )
         times: set | None = None
-        for field in fields:
+        for field in fields:  # There should only be one field but this is not guaranteed
             time_coord = field.coordinate("time", default=None)
             if time_coord is None:
                 continue

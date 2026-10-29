@@ -1096,7 +1096,7 @@ class TestTETrackerVerifyInputs:
         psl = netcdf_variable_file("psl", range(10))
         z = netcdf_variable_file("z", range(2, 12))
         contour = TEContour(var="z", delta=10.0, dist=5.0, minmaxdist=0.0)
-        dn_params = TEDetectParameters(search_by_min="psl", **{parameter: [contour]})
+        dn_params = TEDetectParameters(search_by_min="psl", **{parameter: [contour]})  # type: ignore[arg-type]
         tracker = TETracker(dn_params)
 
         with pytest.raises(ValueError, match=r"Variable 'z' is missing 2 of the 10"):
