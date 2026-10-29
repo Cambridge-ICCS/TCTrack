@@ -44,6 +44,38 @@ When finished using TCTrack this environment can be turned off with ``conda deac
 The individual tracking algorithms will also need to be :ref:`installed separately
 <getting-started/index:tracking algorithms>`.
 
+Docker container as environment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An alternative approach for setting up the development environment is via Docker container.
+The TCTrack repository contains a `Dockerfile` to build the required Docker image.
+Installing `Docker Desktop <https://docs.docker.com/desktop/>`_ is a prerequisite for
+this approach.
+
+Once Docker Desktop is setup, the Docker image can be built by running the following
+command from the root directory of the TCTrack repository::
+
+    docker build -t tctrack:latest .
+
+The Docker image has the TCTrack dependencies installed. The optional dependencies can
+be installed later from within the Docker container as required. 
+
+The Docker image has `Tempest Extremes` tracking algorithm already installed in it. The 
+other tracking algorithms need to be installed manually as required. See
+:doc:`tracking algorithms documentation<../tracking-algorithms/index>`.
+
+To create a Docker container using the built image, run::
+
+    docker run --name iccs_tctrack -it -v REPO_PATH_ON_HOST:REPO_PATH_ON_CONTAINER tctrack:latest
+
+The above command creates a container named `iccs_tctrack` and provides a shell to access it.
+The command also mounts the TCTrack repository on the host to the `REPO_PATH_ON_CONTAINER`
+path within the container. As a result, any code changes made from the host will be
+visible within the container as well.
+
+Refer to the `Docker Docs <https://docs.docker.com/reference/cli/docker/container/>`_
+to stop a running container and start it again later.
+
 
 Installation from PyPI
 ~~~~~~~~~~~~~~~~~~~~~~

@@ -1,0 +1,17 @@
+name: base
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.14.0,<3.15.0
+  - cf-python>=3.19.0
+  - cf-plot=3.5.0
+  - udunits2=2.2.28
+  - esmpy=8.9.1
+  - tempest-extremes=2.4.2
+  - xarray=2026.9.0
+  - pip:
+    - h5py>=3.16.0
+    - cftime==1.6.6
+    - torch==2.14.1
+    - huggingface_hub==2.3.0
+    - scipy==1.18.1
