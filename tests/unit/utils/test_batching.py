@@ -47,6 +47,9 @@ class DummyTracker(TCTracker):
     def _set_metadata(self) -> None:
         """Implement the abstract method for testing."""
 
+    def _verify_inputs(self) -> None:
+        """Implement the abstract method for testing."""
+
     def read_trajectories(self) -> list:
         """Implement the abstract method for testing."""
         return []
