@@ -109,21 +109,22 @@ CF-compliant NetCDF format.
 
     from tctrack.machine_learning import MLParameters, MLStitchParameters, MLTracker
 
-    ml_params = MLParameters(input_file="era5_2020.nc")
+    ml_params = MLParameters()
     stitch_params = MLStitchParameters()
 
     tracker = MLTracker(ml_params, stitch_params)
-    tracker.run_tracker("trajectories.nc")
+    tracker.run_tracker("era5_2020.nc", "trajectories.nc")
 
-Creating the :class:`MLTracker` downloads or loads the model. The stitching
-parameters are optional, and the defaults are used if they are not provided. Further
-parameters can be set in :class:`MLParameters`, the most notable of which is
-:attr:`~tctrack.machine_learning.MLParameters.threshold`, the minimum probability for
-a point to be treated as part of a storm.
+Creating the :class:`MLTracker` downloads or loads the model. The parameters can be set
+in :class:`MLParameters` and :class:`MLStitchParameters`, the most notable of which is
+:attr:`~tctrack.machine_learning.MLParameters.threshold`, the minimum probability for a
+point to be treated as part of a storm. The parameters are optional, and the defaults
+are used if they are not provided.
 
 The :meth:`~MLTracker.run_tracker` method performs several steps in succession. These
 are:
 
+* :meth:`TCTracker.set_input_files`, to set the input file and verify it exists.
 * :meth:`~MLTracker.detect`, to run the model over each timestep and locate the
   candidate storms. This reads and normalises the input data itself, using
   :meth:`~MLTracker.preprocess`.
@@ -137,6 +138,7 @@ example to inspect the detections before stitching them:
 .. code-block:: python
 
     tracker = MLTracker(ml_params, stitch_params)
+    tracker.set_input_files("era5_2020.nc")
     tracker.detect()
     trajectories = tracker.stitch()
     tracker.to_netcdf("trajectories.nc")

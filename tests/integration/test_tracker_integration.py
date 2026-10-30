@@ -66,12 +66,13 @@ class TestTETrackerIntegration:
         output_file = str(tmp_path / "tracks.nc")
 
         dn_params = te.TEDetectParameters(
-            in_data=[synthetic_data_file],
             search_by_min="psl",
             merge_dist=6.0,
             closed_contours=[
                 te.TEContour(var="psl", delta=200.0, dist=5.5, minmaxdist=0.0),
             ],
+            lon_name="lon",
+            lat_name="lat",
             out_header=True,
             output_commands=[
                 te.TEOutputCommand(var="psl", operator="min", dist=0.0),
@@ -86,7 +87,7 @@ class TestTETrackerIntegration:
         )
 
         tracker = te.TETracker(dn_params, sn_params)
-        tracker.run_tracker(output_file)
+        tracker.run_tracker(synthetic_data_file, output_file)
 
         fields = cf.read(output_file)  # type: ignore[operator]
         assert len(fields) > 0, "No fields written to output file"
