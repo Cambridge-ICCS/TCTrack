@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Iterable
 
 import cf
+import numpy as np
+from netCDF4 import Dataset
 
 from tctrack.core import (
     TCTracker,
@@ -22,6 +24,7 @@ from tctrack.core import (
     Trajectory,
     lat_lon_sizes,
 )
+from tctrack.preprocessing import gaussian_grid
 from tctrack.track import TRACKParameters
 
 
@@ -70,15 +73,74 @@ class TRACKTracker(TCTracker):
         """A list of the parameter objects that is accessible from the base class."""
         return [self.parameters]
 
-    def set_input_files(self, input_files: str | Iterable[str]):
-        """Check the input file and store it as a class attribute."""
-        super().set_input_files(input_files)
+    def _verify_inputs(self) -> None:
+        """Verify that the input files obey the expected format for TRACK.
+
+        Raises
+        ------
+        ValueError
+            If multiple files or no files are provided, or if the file does
+            not contain the required wind variables, dimensions, or is not on
+            a regular Gaussian grid.
+        """
+        if not self._input_files:
+            msg = "TRACK requires an input file, but none was provided."
+            raise ValueError(msg)
 
         if len(self._input_files) > 1:
             msg = "TRACK only accepts one input file, but multiple have been provided."
             raise ValueError(msg)
 
-        self._ny, self._nx = lat_lon_sizes(self._input_files[0])
+        filename = self._input_files[0]
+        self._ny, self._nx = lat_lon_sizes(filename)
+
+        with Dataset(filename, "r") as nc_file:
+            # Check dimensions
+            for dim in ("lat", "lon", "time"):
+                if dim not in nc_file.dimensions:
+                    msg = (
+                        f"TRACK input file '{filename}' is missing required "
+                        f"dimension '{dim}'."
+                    )
+                    raise ValueError(msg)
+
+            # Check required wind variables
+            u_var, v_var = self.parameters.wind_var_names
+            if u_var not in nc_file.variables:
+                msg = (
+                    f"TRACK input file '{filename}' is missing eastward wind "
+                    f"variable '{u_var}'."
+                )
+                raise ValueError(msg)
+            if v_var not in nc_file.variables:
+                msg = (
+                    f"TRACK input file '{filename}' is missing northward wind "
+                    f"variable '{v_var}'."
+                )
+                raise ValueError(msg)
+
+            # Check regular Gaussian grid
+            if "lat" in nc_file.variables:
+                lat_vals = nc_file.variables["lat"][:]
+                ny = len(lat_vals)
+                if ny % 2 != 0:
+                    msg = (
+                        f"TRACK input file '{filename}' has an odd number of latitudes "
+                        f"({ny}). A regular Gaussian grid requires an even number of "
+                        "latitudes."
+                    )
+                    raise ValueError(msg)
+                expected_lats, _ = gaussian_grid(ny // 2)
+                if not (
+                    np.allclose(lat_vals, expected_lats, atol=0.1)
+                    or np.allclose(lat_vals, expected_lats[::-1], atol=0.1)
+                ):
+                    msg = (
+                        f"TRACK input data in '{filename}' must be on a regular "
+                        "Gaussian grid. Latitude coordinates do not match the expected "
+                        "Gaussian latitudes."
+                    )
+                    raise ValueError(msg)
 
     def _get_initialisation_inputs(self, inputs: list[str]):
         """Add "initialisation" inputs common to both tracking and filter_tracks calls.
