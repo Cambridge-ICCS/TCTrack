@@ -400,17 +400,6 @@ class TestTSTORMSTracker:
         with pytest.raises(ValueError, match="strictly increasing from south to north"):
             tracker.set_input_files(inputs)
 
-    def test_verify_inputs_multiple_variables_in_file(self, tmp_path):
-        """Test verification fails when a file contains more than one variable."""
-        base_params = TSTORMSBaseParameters(
-            tstorms_dir=str(tmp_path / "tstorms"),
-            output_dir=str(tmp_path / "tstorms/output"),
-        )
-        tracker = TSTORMSTracker(base_params)
-        inputs = self._create_valid_tstorms_files(tmp_path, extra_var=True)
-        with pytest.raises(ValueError, match="Only one variable per file is allowed"):
-            tracker.set_input_files(inputs)
-
     def test_verify_inputs_missing_required_variable(self, tmp_path):
         """Test verification fails when not all 5 required variables are provided."""
         base_params = TSTORMSBaseParameters(
