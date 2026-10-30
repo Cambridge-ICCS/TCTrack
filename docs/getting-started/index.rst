@@ -24,8 +24,10 @@ TCTrack is a Python package and requires Python version 3.11 or later.
 
 Before installing TCTrack ensure that any external :ref:`dependencies
 <getting-started/index:dependencies>` are installed. This can be done manually as
-:ref:`described below <getting-started/index:dependencies>`. However, the recommended
-approach is to install these non-python dependencies using a conda virtual environment.
+:ref:`described below <getting-started/index:dependencies>`, or using a 
+:ref:`Docker container <getting-started/index:docker container as environment>`.
+However, the recommended approach is to install these non-python dependencies
+using a conda virtual environment.
 
 To install conda we recommend using `miniforge
 <https://github.com/conda-forge/miniforge>`_. Once miniforge is installed conda can be
@@ -73,6 +75,40 @@ additional developer dependencies and the pre-commit hooks installed::
     pre-commit install
 
 The `dev` optional dependencies include the `test`, `lint`, and `doc` subgroups.
+
+
+Docker container as environment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An alternative approach for setting up the development environment is via Docker container.
+The TCTrack repository contains a `Dockerfile` to build the required Docker image.
+Installing `Docker Desktop <https://docs.docker.com/desktop/>`_ is a prerequisite for
+this approach.
+
+Once Docker Desktop is setup, the Docker image can be built by running the following
+command from the root directory of the TCTrack repository::
+
+    docker build -t tctrack:latest .
+
+The Docker image has the TCTrack dependencies installed. The optional dependencies can
+be installed later from within the Docker container as required. 
+
+The Docker image has `Tempest Extremes` tracking algorithm already installed in it. The 
+other tracking algorithms need to be installed manually as required. See
+:doc:`tracking algorithms documentation<../tracking-algorithms/index>`.
+
+To create a Docker container using the built image, run::
+
+    docker run --name iccs_tctrack -it -v /path/to/tctrack/:/home/mambauser/tctrack/ tctrack:latest
+
+Where `/path/to/tctrack/` needs to be updated with the actual path to TCTrack repository
+on the host machine. The above command creates a container named `iccs_tctrack` and provides 
+a shell to access it. The command also mounts the TCTrack repository on the host machine
+to the `/home/mambauser/tctrack/` path within the container. As a result, any code changes 
+made from the host will be visible within the container as well.
+
+Refer to the `Docker Docs <https://docs.docker.com/reference/cli/docker/container/>`_
+to stop a running container and start it again later.
 
 
 Dependencies
