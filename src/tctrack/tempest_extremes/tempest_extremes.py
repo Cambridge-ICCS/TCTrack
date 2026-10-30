@@ -509,6 +509,116 @@ class TETracker(TCTracker):
 
         return list(trajectories.values())
 
+    def set_input_files(self, input_files: str | Iterable[str]):
+        """Store the input file(s) as a list and check they are consistent.
+
+        After storing the files, :meth:`_verify_inputs` is called to check that the
+        input files are compatible with each other and with :attr:`detect_parameters`.
+
+        Parameters
+        ----------
+        input_files : str | Iterable[str]
+            A (list of) file path(s) containing NetCDF input data to use in the tracker.
+
+        Raises
+        ------
+        TypeError
+            If `input_files` is not a `str` or an iterable of `str`.
+        FileNotFoundError
+            If any of the input files does not exist.
+        ValueError
+            If the time ranges of the input variables do not match, see
+            :meth:`_verify_inputs`.
+        """
+        super().set_input_files(input_files)
+        self._verify_inputs()
+
+    def _variable_times(self, variable_name: str) -> set | None:
+        """Read the times of a variable from the input files.
+
+        Parameters
+        ----------
+        variable_name : str
+            The NetCDF variable name to look for in the input files.
+
+        Returns
+        -------
+        set | None
+            The set of times for which the variable has data in any of the input files,
+            or ``None`` if the variable is not found or has no time dimension.
+        """
+        fields = cf.read(  # type: ignore[operator]
+            self._input_files, select=f"ncvar%{variable_name}", backend="netCDF4"
+        )
+        times: set | None = None
+        for field in fields:  # There should only be one field but this is not guaranteed
+            time_coord = field.coordinate("time", default=None)
+            if time_coord is None:
+                continue
+            times = (times or set()) | set(time_coord.datetime_array)
+        return times
+
+    def _verify_inputs(self) -> None:
+        """Check that the time ranges of the input variables are consistent.
+
+        The times of the primary search variable (:attr:`search_by_min`, or
+        :attr:`search_by_max` if that is not set, or ``"PSL"`` if neither are set) must
+        all be included in the times of every other variable used in the detection
+        step (those in :attr:`closed_contours`, :attr:`no_closed_contours`,
+        :attr:`thresholds` and :attr:`output_commands`).
+
+        Variables that are not found in the input files, or that have no time
+        dimension, are not checked. If a `time_filter` is set the requirements on the
+        times are different, so no check is made.
+
+        Raises
+        ------
+        ValueError
+            If a variable is missing times that are present for the primary variable,
+            or if the variables use time coordinates with different calendars.
+        """
+        dn_params = self.detect_parameters
+        if dn_params.time_filter is not None:
+            return
+
+        primary_name = dn_params.search_by_min or dn_params.search_by_max or "PSL"
+        primary_times = self._variable_times(primary_name)
+        if not primary_times:
+            return
+
+        other_names = dict.fromkeys(
+            command["var"]
+            for commands in (
+                dn_params.closed_contours,
+                dn_params.no_closed_contours,
+                dn_params.thresholds,
+                dn_params.output_commands,
+            )
+            for command in commands or []
+        )
+        for name in other_names:
+            if name == primary_name:
+                continue
+            times = self._variable_times(name)
+            if times is None:
+                continue
+            try:
+                missing = sorted(primary_times - times)
+            except TypeError as err:
+                msg = (
+                    f"Variables '{primary_name}' and '{name}' use different calendars "
+                    "for their time coordinates in the input files."
+                )
+                raise ValueError(msg) from err
+            if missing:
+                msg = (
+                    f"Variable '{name}' is missing {len(missing)} of the "
+                    f"{len(primary_times)} times of the search variable "
+                    f"'{primary_name}' in the input files (first missing time: "
+                    f"{missing[0]})."
+                )
+                raise ValueError(msg)
+
     def _set_time_metadata(self) -> None:
         """Extract time metadata from the input files and set the attribute.
 
