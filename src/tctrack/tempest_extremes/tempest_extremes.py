@@ -8,7 +8,6 @@ References
 """
 
 import csv
-import os
 import tempfile
 from pathlib import Path
 from typing import Iterable
@@ -107,9 +106,9 @@ class TETracker(TCTracker):
             sn_params.in_fmt = ["lon", "lat", *variables]
 
     def _check_te_grid_consistency(
-        self, filename: str, current_info: dict, ref_fn: str, ri: dict
+        self, filename: str, current_info: dict, ref_file: str, ri: dict
     ) -> None:
-        """Check horizontal grid and time consistency between two input files."""
+        """Check horizontal grid consistency between two input files."""
         if (
             current_info["lat_size"] != ri["lat_size"]
             or current_info["lon_size"] != ri["lon_size"]
@@ -117,15 +116,7 @@ class TETracker(TCTracker):
             msg = (
                 f"Input file '{filename}' has horizontal grid dimensions "
                 f"({current_info['lat_size']}, {current_info['lon_size']}) "
-                f"that do not match '{ref_fn}' ({ri['lat_size']}, {ri['lon_size']})."
-            )
-            raise ValueError(msg)
-        if current_info["time_size"] != ri["time_size"]:
-            msg = (
-                f"Input file '{filename}' has a time dimension size "
-                f"({current_info['time_size']}) that does not match '{ref_fn}' "
-                f"({ri['time_size']}). All input files must share compatible "
-                "time ranges."
+                f"that do not match '{ref_file}' ({ri['lat_size']}, {ri['lon_size']})."
             )
             raise ValueError(msg)
         if (
@@ -135,7 +126,7 @@ class TETracker(TCTracker):
         ):
             msg = (
                 f"Input file '{filename}' has latitude coordinates that do not "
-                f"match '{ref_fn}'."
+                f"match '{ref_file}'."
             )
             raise ValueError(msg)
         if (
@@ -145,22 +136,11 @@ class TETracker(TCTracker):
         ):
             msg = (
                 f"Input file '{filename}' has longitude coordinates that do not "
-                f"match '{ref_fn}'."
-            )
-            raise ValueError(msg)
-        if (
-            current_info["time"] is not None
-            and ri["time"] is not None
-            and not np.allclose(current_info["time"], ri["time"])
-        ):
-            msg = (
-                f"Input file '{filename}' has time coordinates that do not "
-                f"match '{ref_fn}'. All input files must share compatible "
-                "time ranges."
+                f"match '{ref_file}'."
             )
             raise ValueError(msg)
 
-    def _check_te_required_variables(self, all_vars: dict[str, str]) -> None:
+    def _check_te_required_variables(self, all_vars: set[str]) -> None:
         """Check that all required detection variables exist in input files."""
         search_var = (
             self.detect_parameters.search_by_min
@@ -199,30 +179,13 @@ class TETracker(TCTracker):
 
         lat_name = self.detect_parameters.lat_name
         lon_name = self.detect_parameters.lon_name
-        time_name = "time"
-        coord_names = {
-            lat_name,
-            lon_name,
-            time_name,
-            "latitude",
-            "longitude",
-            "lat",
-            "lon",
-            "time",
-            "time_bnds",
-            "lat_bnds",
-            "lon_bnds",
-        }
 
-        all_vars: dict[str, str] = {}
+        all_vars: set[str] = set()
         ref_info = None
 
         for filename in self._input_files:
-            if not os.path.exists(filename):
-                continue
-
             with Dataset(filename, "r") as nc_file:
-                for req_dim in (lat_name, lon_name, time_name):
+                for req_dim in (lat_name, lon_name):
                     if req_dim not in nc_file.dimensions:
                         msg = (
                             f"TempestExtremes input file '{filename}' is missing "
@@ -231,21 +194,11 @@ class TETracker(TCTracker):
                         raise ValueError(msg)
 
                 for var_name in nc_file.variables:
-                    if var_name in coord_names or var_name in nc_file.dimensions:
-                        continue
-                    if var_name in all_vars:
-                        msg = (
-                            f"Variable '{var_name}' appears in multiple input files "
-                            f"('{all_vars[var_name]}' and '{filename}'). "
-                            "Variables split over time must first be combined."
-                        )
-                        raise ValueError(msg)
-                    all_vars[var_name] = filename
+                    all_vars.add(var_name)
 
                 current_info = {
                     "lat_size": len(nc_file.dimensions[lat_name]),
                     "lon_size": len(nc_file.dimensions[lon_name]),
-                    "time_size": len(nc_file.dimensions[time_name]),
                     "lat": (
                         nc_file.variables[lat_name][:]
                         if lat_name in nc_file.variables
@@ -256,11 +209,6 @@ class TETracker(TCTracker):
                         if lon_name in nc_file.variables
                         else None
                     ),
-                    "time": (
-                        nc_file.variables[time_name][:]
-                        if time_name in nc_file.variables
-                        else None
-                    ),
                 }
                 if ref_info is None:
                     ref_info = (filename, current_info)
@@ -269,9 +217,7 @@ class TETracker(TCTracker):
                         filename, current_info, ref_info[0], ref_info[1]
                     )
 
-        existing_files = [f for f in self._input_files if os.path.exists(f)]
-        if existing_files:
-            self._check_te_required_variables(all_vars)
+        self._check_te_required_variables(all_vars)
 
     @property
     def _parameters(self) -> list[TCTrackerParameters]:

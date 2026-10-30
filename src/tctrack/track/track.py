@@ -8,7 +8,6 @@ References
   <https://doi.org/10.1175/JCLI-D-16-0557.1>`__
 """
 
-import os
 import shutil
 import warnings
 from pathlib import Path
@@ -74,10 +73,6 @@ class TRACKTracker(TCTracker):
         """A list of the parameter objects that is accessible from the base class."""
         return [self.parameters]
 
-    def set_input_files(self, input_files: str | Iterable[str]):
-        """Check the input file and store it as a class attribute."""
-        super().set_input_files(input_files)
-
     def _verify_inputs(self) -> None:
         """Verify that the input files obey the expected format for TRACK.
 
@@ -97,9 +92,7 @@ class TRACKTracker(TCTracker):
             raise ValueError(msg)
 
         filename = self._input_files[0]
-        if not os.path.exists(filename):
-            self._ny, self._nx = lat_lon_sizes(filename)
-            return
+        self._ny, self._nx = lat_lon_sizes(filename)
 
         with Dataset(filename, "r") as nc_file:
             # Check dimensions
@@ -148,8 +141,6 @@ class TRACKTracker(TCTracker):
                         "Gaussian latitudes."
                     )
                     raise ValueError(msg)
-
-        self._ny, self._nx = lat_lon_sizes(filename)
 
     def _get_initialisation_inputs(self, inputs: list[str]):
         """Add "initialisation" inputs common to both tracking and filter_tracks calls.

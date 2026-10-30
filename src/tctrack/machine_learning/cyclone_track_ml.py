@@ -171,6 +171,9 @@ class MLTracker(TCMLTracker):
         """
         return self._trajectories
 
+    def _verify_inputs(self) -> None:
+        """Verify the input files match the expected format for ML tracker."""
+
     def _set_metadata(self) -> None:
         """Set the time and variable metadata attributes.
 
