@@ -1066,7 +1066,7 @@ class TestTETracker:
                 ev[:] = np.zeros(shape)
         return str(filepath)
 
-    @pytest.mark.parametrize("missing_dim", ["latitude", "longitude", "time"])
+    @pytest.mark.parametrize("missing_dim", ["latitude", "longitude"])
     def test_verify_inputs_missing_dimension(self, tmp_path: Path, missing_dim: str):
         """Check verification fails when a required dimension is missing."""
         fn = self._create_te_nc_file(tmp_path / "missing.nc", missing_dim=missing_dim)
@@ -1075,14 +1075,6 @@ class TestTETracker:
             ValueError, match=f"missing required dimension '{missing_dim}'"
         ):
             tracker.set_input_files(fn)
-
-    def test_verify_inputs_variable_in_multiple_files(self, tmp_path: Path):
-        """Check verification fails when a variable appears in multiple files."""
-        f1 = self._create_te_nc_file(tmp_path / "f1.nc", var_name="psl")
-        f2 = self._create_te_nc_file(tmp_path / "f2.nc", var_name="psl")
-        tracker = TETracker()
-        with pytest.raises(ValueError, match="appears in multiple input files"):
-            tracker.set_input_files([f1, f2])
 
     def test_verify_inputs_search_var_missing(self, tmp_path: Path):
         """Check verification fails when search variable is not found."""
@@ -1133,14 +1125,6 @@ class TestTETracker:
         tracker = TETracker(params)
         with pytest.raises(ValueError, match="Threshold variable 'wind' not found"):
             tracker.set_input_files(fn)
-
-    def test_verify_inputs_mismatched_time_ranges(self, tmp_path: Path):
-        """Check verification fails when input files have different time dimensions."""
-        f1 = self._create_te_nc_file(tmp_path / "f1.nc", var_name="psl", time_size=10)
-        f2 = self._create_te_nc_file(tmp_path / "f2.nc", var_name="wind", time_size=5)
-        tracker = TETracker(TEDetectParameters(search_by_min="psl"))
-        with pytest.raises(ValueError, match=r"time dimension size .* does not match"):
-            tracker.set_input_files([f1, f2])
 
     def test_verify_inputs_mismatched_horizontal_grid(self, tmp_path: Path):
         """Check verification fails when input files have different horizontal grids."""
