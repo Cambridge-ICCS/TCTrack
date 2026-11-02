@@ -1165,73 +1165,55 @@ class TestTETrackerVerifyInputs:
             """Write a variable ``name``, with a time axis if ``times`` is given."""
             path = str(tmp_path / (file_name or f"{name}.nc"))
             axis_values = list(times) if times is not None else [0, 1, 2]
-            field = cf.Field()
-            field.nc_set_variable(name)
-            domain_axis = cf.DomainAxis(len(axis_values))
-            _ = field.set_construct(domain_axis)
-            field.set_data(cf.Data(axis_values))
-            if times is not None:
-                properties = {
-                    "standard_name": "time",
-                    "calendar": calendar,
-                    "units": "days since 1950-01-01",
-                }
-            else:
-                properties = {"standard_name": "latitude", "units": "degrees_north"}
-            field.set_construct(
-                cf.DimensionCoordinate(properties=properties, data=cf.Data(axis_values))
-            )
-            cf.write(field, path)
+            with Dataset(path, "w") as nc:
+                nc.createDimension("axis", len(axis_values))
+                data = nc.createVariable(name, "f4", ("axis",))
+                if times is not None:
+                    coord = nc.createVariable("axis", "i8", ("axis",))
+                    coord.units = "days since 1950-01-01"
+                    coord.calendar = calendar
+                    coord.axis = "T"
+                    coord[:] = axis_values
+                data[:] = [0.0] * len(axis_values)
             return path
 
         return _create_file
 
     @pytest.fixture
-    def params_wind_threshold(self):
-        """Create parameters searching ``psl`` with a threshold on ``sfcWind``."""
-        return TEDetectParameters(
-            search_by_min="psl",
-            thresholds=[TEDetectThreshold(var="sfcWind", op=">", value=16, dist=1)],
-        )
+    def dn_params(self):
+        """Create parameters searching ``psl``."""
+        return TEDetectParameters(search_by_min="psl")
 
-    def test_check_times_matching(
-        self, netcdf_variable_file, params_wind_threshold
-    ) -> None:
+    def test_check_times_matching(self, netcdf_variable_file, dn_params) -> None:
         """Check files with identical time ranges are accepted."""
         psl = netcdf_variable_file("psl", range(10))
         wind = netcdf_variable_file("sfcWind", range(10))
-        tracker = TETracker(params_wind_threshold)
+        tracker = TETracker(dn_params)
         tracker._input_files = [psl, wind]
         tracker._check_input_times()
 
-    def test_check_times_extra(
-        self, netcdf_variable_file, params_wind_threshold
-    ) -> None:
+    def test_check_times_extra(self, netcdf_variable_file, dn_params) -> None:
         """Check other variables may cover more times than the search variable."""
         psl = netcdf_variable_file("psl", range(10))
         wind = netcdf_variable_file("sfcWind", range(15))
-        tracker = TETracker(params_wind_threshold)
+        tracker = TETracker(dn_params)
         tracker._input_files = [psl, wind]
         tracker._check_input_times()
 
-    def test_check_times_multiple_files(
-        self, netcdf_variable_file, params_wind_threshold
-    ) -> None:
+    def test_check_times_multiple_files(self, netcdf_variable_file, dn_params) -> None:
         """Check a variable split over several files by time is accepted."""
         psl_1 = netcdf_variable_file("psl", range(5), file_name="psl_1.nc")
         psl_2 = netcdf_variable_file("psl", range(5, 10), file_name="psl_2.nc")
         wind = netcdf_variable_file("sfcWind", range(10))
-        tracker = TETracker(params_wind_threshold)
+        tracker = TETracker(dn_params)
         tracker._input_files = [psl_1, psl_2, wind]
         tracker._check_input_times()
 
-    def test_check_times_missing_times(
-        self, netcdf_variable_file, params_wind_threshold
-    ) -> None:
+    def test_check_times_missing_times(self, netcdf_variable_file, dn_params) -> None:
         """Check ValueError is raised when another variable is missing times."""
         psl = netcdf_variable_file("psl", range(10))
         wind = netcdf_variable_file("sfcWind", range(3, 13))
-        tracker = TETracker(params_wind_threshold)
+        tracker = TETracker(dn_params)
         tracker._input_files = [psl, wind]
 
         with pytest.raises(
@@ -1241,25 +1223,21 @@ class TestTETrackerVerifyInputs:
         ):
             tracker._check_input_times()
 
-    def test_check_times_constant(self, netcdf_variable_file) -> None:
+    def test_check_times_constant(self, netcdf_variable_file, dn_params) -> None:
         """Check variables without a time dimension are not checked."""
         psl = netcdf_variable_file("psl", range(10))
         orography = netcdf_variable_file("orog")
-        dn_params = TEDetectParameters(
-            search_by_min="psl",
-            thresholds=[TEDetectThreshold(var="orog", op="<", value=500, dist=1)],
-        )
         tracker = TETracker(dn_params)
         tracker._input_files = [psl, orography]
         tracker._check_input_times()
 
     def test_check_times_different_calendars(
-        self, netcdf_variable_file, params_wind_threshold
+        self, netcdf_variable_file, dn_params
     ) -> None:
         """Check ValueError is raised when variables use different calendars."""
         psl = netcdf_variable_file("psl", range(10))
         wind = netcdf_variable_file("sfcWind", range(10), calendar="noleap")
-        tracker = TETracker(params_wind_threshold)
+        tracker = TETracker(dn_params)
         tracker._input_files = [psl, wind]
 
         with pytest.raises(ValueError, match=r"different calendars"):
