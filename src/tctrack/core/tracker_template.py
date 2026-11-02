@@ -76,6 +76,10 @@ class NAMETracker(TCTracker):
         trajectories: list[Trajectory] = []
         return trajectories
 
+    def _verify_inputs(self) -> None:
+        """Verify the input files match the expected format."""
+        # Add any relevant checks for the input files (self._input_files)
+
     def _set_metadata(self) -> None:
         """Set the time and variable metadata attributes.
 
