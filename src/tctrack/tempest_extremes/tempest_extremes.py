@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Iterable
 
 import cf
+import numpy as np
+from netCDF4 import Dataset
 
 from tctrack.core import TCTracker, TCTrackerMetadata, TCTrackerParameters, Trajectory
 from tctrack.tempest_extremes import TEDetectParameters, TEStitchParameters
@@ -106,6 +108,210 @@ class TETracker(TCTracker):
         if sn_params.in_fmt is None and dn_params.output_commands is not None:
             variables = [output["var"] for output in dn_params.output_commands]
             sn_params.in_fmt = ["lon", "lat", *variables]
+
+    @property
+    def _search_variable(self) -> str:
+        """The primary search variable used by TempestExtremes."""
+        return (
+            self.detect_parameters.search_by_min
+            or self.detect_parameters.search_by_max
+            or "PSL"
+        )
+
+    def _check_te_grid_consistency(
+        self, filename: str, current_info: dict, ref_file: str, ri: dict
+    ) -> None:
+        """Check horizontal grid consistency between two input files."""
+        if (
+            current_info["lat_size"] != ri["lat_size"]
+            or current_info["lon_size"] != ri["lon_size"]
+        ):
+            msg = (
+                f"Input file '{filename}' has horizontal grid dimensions "
+                f"({current_info['lat_size']}, {current_info['lon_size']}) "
+                f"that do not match '{ref_file}' ({ri['lat_size']}, {ri['lon_size']})."
+            )
+            raise ValueError(msg)
+        if (
+            current_info["lat"] is not None
+            and ri["lat"] is not None
+            and not np.allclose(current_info["lat"], ri["lat"])
+        ):
+            msg = (
+                f"Input file '{filename}' has latitude coordinates that do not "
+                f"match '{ref_file}'."
+            )
+            raise ValueError(msg)
+        if (
+            current_info["lon"] is not None
+            and ri["lon"] is not None
+            and not np.allclose(current_info["lon"], ri["lon"])
+        ):
+            msg = (
+                f"Input file '{filename}' has longitude coordinates that do not "
+                f"match '{ref_file}'."
+            )
+            raise ValueError(msg)
+
+    def _check_te_grids(self) -> set[str]:
+        """Check the grids of the input files are consistent.
+
+        Each input file must have the latitude and longitude dimensions named in
+        :attr:`detect_parameters`, with sizes and coordinate values consistent
+        across files.
+
+        Returns
+        -------
+        set[str]
+            The names of all variables in the input files.
+
+        Raises
+        ------
+        ValueError
+            If a file is missing a required dimension or the grids are
+            inconsistent.
+        """
+        lat_name = self.detect_parameters.lat_name
+        lon_name = self.detect_parameters.lon_name
+
+        all_vars: set[str] = set()
+        ref_info = None
+
+        for filename in self._input_files:
+            with Dataset(filename, "r") as nc_file:
+                for req_dim in (lat_name, lon_name):
+                    if req_dim not in nc_file.dimensions:
+                        msg = (
+                            f"TempestExtremes input file '{filename}' is missing "
+                            f"required dimension '{req_dim}'."
+                        )
+                        raise ValueError(msg)
+
+                for var_name in nc_file.variables:
+                    all_vars.add(var_name)
+
+                current_info = {
+                    "lat_size": len(nc_file.dimensions[lat_name]),
+                    "lon_size": len(nc_file.dimensions[lon_name]),
+                    "lat": (
+                        nc_file.variables[lat_name][:]
+                        if lat_name in nc_file.variables
+                        else None
+                    ),
+                    "lon": (
+                        nc_file.variables[lon_name][:]
+                        if lon_name in nc_file.variables
+                        else None
+                    ),
+                }
+                if ref_info is None:
+                    ref_info = (filename, current_info)
+                else:
+                    self._check_te_grid_consistency(
+                        filename, current_info, ref_info[0], ref_info[1]
+                    )
+        return all_vars
+
+    def _check_te_required_variables(self, all_vars: set[str]) -> None:
+        """Check that all required detection variables exist in input files."""
+        if self._search_variable not in all_vars:
+            msg = f"Search variable '{self._search_variable}' not found in input files."
+            raise ValueError(msg)
+
+        criteria_groups = [
+            (self.detect_parameters.closed_contours, "Closed contour"),
+            (self.detect_parameters.no_closed_contours, "No closed contour"),
+            (self.detect_parameters.thresholds, "Threshold"),
+            (self.detect_parameters.output_commands, "Output command"),
+        ]
+        for criteria, label in criteria_groups:
+            if criteria:
+                for item in criteria:
+                    v = item["var"] if isinstance(item, dict) else item.var
+                    if v not in all_vars:
+                        msg = f"{label} variable '{v}' not found in input files."
+                        raise ValueError(msg)
+
+    def _check_input_times(self) -> None:
+        """Check that the time ranges of the input variables are consistent.
+
+        The times of the primary search variable must all be included in the times of
+        every other variable in the input files.
+
+        Variables that have no time dimension are not checked. If a `time_filter` is set
+        the requirements on the times are different, so no check is made.
+
+        Raises
+        ------
+        ValueError
+            If a variable is missing times that are present for the primary variable,
+            or if the variables use time coordinates with different calendars.
+        """
+
+        def get_times(fields: cf.FieldList, ncvar: str) -> set | None:
+            times: set | None = None
+            for field in fields.select_by_ncvar(ncvar):
+                for key in field.constructs.filter_by_type("dimension_coordinate"):
+                    coord = field.construct(key)
+                    if not coord.Units.isreftime:
+                        continue
+                    times = (times or set()) | set(coord.datetime_array)
+            return times
+
+        # Currently does not perform the check for manually-defined time ranges
+        dn_params = self.detect_parameters
+        if dn_params.time_filter is not None:
+            return
+
+        fields: cf.FieldList = cf.read(self._input_files, backend="netCDF4")  # type: ignore[operator]
+
+        # Get the times for the primary search variable
+        primary_name = self._search_variable
+        primary_times = get_times(fields, primary_name)
+        if primary_times is None:
+            msg = (
+                f"The primary search variable '{primary_name}' does not have a valid "
+                "time dimension."
+            )
+            raise ValueError(msg)
+
+        # For each variable check it includes the times of the primary search variable
+        for var_name in {field.nc_get_variable() for field in fields}:
+            times = get_times(fields, var_name)
+            if times is None:
+                continue
+            try:
+                missing = sorted(primary_times - times)
+            except TypeError as err:
+                msg = (
+                    f"Variables '{primary_name}' and '{var_name}' use different "
+                    "calendars for their time coordinates in the input files."
+                )
+                raise ValueError(msg) from err
+            if missing:
+                msg = (
+                    f"Variable '{var_name}' is missing {len(missing)} of the "
+                    f"{len(primary_times)} times of the search variable "
+                    f"'{primary_name}' in the input files (first missing time: "
+                    f"{missing[0]})."
+                )
+                raise ValueError(msg)
+
+    def _verify_inputs(self) -> None:
+        """Verify that the input files obey the expected format for TempestExtremes.
+
+        Raises
+        ------
+        ValueError
+            If input files do not obey TempestExtremes requirements.
+        """
+        if not self._input_files:
+            msg = "At least one input file must be provided."
+            raise ValueError(msg)
+
+        all_vars = self._check_te_grids()
+        self._check_te_required_variables(all_vars)
+        self._check_input_times()
 
     @property
     def _parameters(self) -> list[TCTrackerParameters]:
@@ -513,116 +719,6 @@ class TETracker(TCTracker):
 
         return list(trajectories.values())
 
-    def set_input_files(self, input_files: str | Iterable[str]):
-        """Store the input file(s) as a list and check they are consistent.
-
-        After storing the files, :meth:`_verify_inputs` is called to check that the
-        input files are compatible with each other and with :attr:`detect_parameters`.
-
-        Parameters
-        ----------
-        input_files : str | Iterable[str]
-            A (list of) file path(s) containing NetCDF input data to use in the tracker.
-
-        Raises
-        ------
-        TypeError
-            If `input_files` is not a `str` or an iterable of `str`.
-        FileNotFoundError
-            If any of the input files does not exist.
-        ValueError
-            If the time ranges of the input variables do not match, see
-            :meth:`_verify_inputs`.
-        """
-        super().set_input_files(input_files)
-        self._verify_inputs()
-
-    def _variable_times(self, variable_name: str) -> set | None:
-        """Read the times of a variable from the input files.
-
-        Parameters
-        ----------
-        variable_name : str
-            The NetCDF variable name to look for in the input files.
-
-        Returns
-        -------
-        set | None
-            The set of times for which the variable has data in any of the input files,
-            or ``None`` if the variable is not found or has no time dimension.
-        """
-        fields = cf.read(  # type: ignore[operator]
-            self._input_files, select=f"ncvar%{variable_name}", backend="netCDF4"
-        )
-        times: set | None = None
-        for field in fields:  # There should only be one field but this is not guaranteed
-            time_coord = field.coordinate("time", default=None)
-            if time_coord is None:
-                continue
-            times = (times or set()) | set(time_coord.datetime_array)
-        return times
-
-    def _verify_inputs(self) -> None:
-        """Check that the time ranges of the input variables are consistent.
-
-        The times of the primary search variable (:attr:`search_by_min`, or
-        :attr:`search_by_max` if that is not set, or ``"PSL"`` if neither are set) must
-        all be included in the times of every other variable used in the detection
-        step (those in :attr:`closed_contours`, :attr:`no_closed_contours`,
-        :attr:`thresholds` and :attr:`output_commands`).
-
-        Variables that are not found in the input files, or that have no time
-        dimension, are not checked. If a `time_filter` is set the requirements on the
-        times are different, so no check is made.
-
-        Raises
-        ------
-        ValueError
-            If a variable is missing times that are present for the primary variable,
-            or if the variables use time coordinates with different calendars.
-        """
-        dn_params = self.detect_parameters
-        if dn_params.time_filter is not None:
-            return
-
-        primary_name = dn_params.search_by_min or dn_params.search_by_max or "PSL"
-        primary_times = self._variable_times(primary_name)
-        if not primary_times:
-            return
-
-        other_names = dict.fromkeys(
-            command["var"]
-            for commands in (
-                dn_params.closed_contours,
-                dn_params.no_closed_contours,
-                dn_params.thresholds,
-                dn_params.output_commands,
-            )
-            for command in commands or []
-        )
-        for name in other_names:
-            if name == primary_name:
-                continue
-            times = self._variable_times(name)
-            if times is None:
-                continue
-            try:
-                missing = sorted(primary_times - times)
-            except TypeError as err:
-                msg = (
-                    f"Variables '{primary_name}' and '{name}' use different calendars "
-                    "for their time coordinates in the input files."
-                )
-                raise ValueError(msg) from err
-            if missing:
-                msg = (
-                    f"Variable '{name}' is missing {len(missing)} of the "
-                    f"{len(primary_times)} times of the search variable "
-                    f"'{primary_name}' in the input files (first missing time: "
-                    f"{missing[0]})."
-                )
-                raise ValueError(msg)
-
     def _set_time_metadata(self) -> None:
         """Extract time metadata from the input files and set the attribute.
 
@@ -630,18 +726,13 @@ class TETracker(TCTracker):
         coordinate of the search variable in the first input file. Assumes other
         files match.
         """
-        variable_name = (
-            self.detect_parameters.search_by_min
-            or self.detect_parameters.search_by_max
-            or "PSL"
-        )
-        fields = cf.read(
+        fields = cf.read(  # type: ignore[operator]
             self._input_files,
-            select=f"ncvar%{variable_name}",  # type: ignore[operator]
+            select=f"ncvar%{self._search_variable}",
             backend="netCDF4",
         )
         if not fields:
-            msg = f"Variable '{variable_name}' not found in input files."
+            msg = f"Variable '{self._search_variable}' not found in input files."
             raise ValueError(msg)
         _, time_coord = fields[0].construct_item("time")
         time_arr = time_coord.datetime_array

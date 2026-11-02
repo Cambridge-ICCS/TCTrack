@@ -12,10 +12,12 @@ from pathlib import Path
 
 import cf
 import cftime
+import numpy as np
 import pytest
 from netCDF4 import Dataset
 from numpy.testing import assert_array_equal
 
+from tctrack.preprocessing import gaussian_grid
 from tctrack.track import TRACKParameters, TRACKTracker, parameter_set
 
 
@@ -69,75 +71,114 @@ class TestTrackTracker:
         *["-90", "0", "1", "193", "1", "48", "0", "150", "150"],
     )
 
-    def _setup_tracker(
-        self, mocker, clear_copy=True, mock_input_file=True, params_dict=None
-    ) -> TRACKTracker:
-        """Create the TRACKTracker object and mock the necessary functions."""
-        # Mock shutil.copy, subprocess.run
+    @pytest.fixture(autouse=True)
+    def track_setup(self, mocker, tmp_path: Path):
+        """Provide mocks and a TRACK base directory for every test.
+
+        shutil.copy and subprocess.run are mocked so that no TRACK files are
+        needed or run.
+        """
         self.mock_copy = mocker.patch("shutil.copy")
         self.mock_subprocess_run = mocker.patch("subprocess.run")
         self.mock_subprocess_run.return_value = mocker.MagicMock(
             returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
         )
+        self.tmp_path = tmp_path
+        self.base_dir = str(tmp_path)
 
-        # Optionally mock the reading of the input file
-        if mock_input_file:
-            self.mock_lat_lon = mocker.patch(
-                "tctrack.track.track.lat_lon_sizes", return_value=(self.ny, self.nx)
-            )
-            self.mock_path_exists = mocker.patch("pathlib.Path.exists")
-
-        # Create the parameters
-        if params_dict is None:
-            params_dict = {}
-        params_dict.setdefault("base_dir", "dir")
-        params = TRACKParameters(**params_dict)
-
-        # Create the tracker
+    @pytest.fixture
+    def tracker(self) -> TRACKTracker:
+        """Provide a TRACKTracker with a real input file in the base directory."""
+        params = TRACKParameters(base_dir=self.base_dir)
         tracker = TRACKTracker(params)
-
-        if clear_copy:
-            self.mock_copy.reset_mock()
+        self.mock_copy.reset_mock()
+        self.input_file = self._create_nc_input_file(self.tmp_path, filename="input.nc")
+        tracker.set_input_files(self.input_file)
         return tracker
 
     def test_initialisation(self, mocker):
         """Check TRACKTracker initialises correctly."""
-        _ = self._setup_tracker(mocker, clear_copy=False)
+        _ = TRACKTracker(TRACKParameters(base_dir=self.base_dir))
 
         # Check calls to shutil.copy are as expected
         copy_calls = [
-            mocker.call("dir/data/zone.dat", "dir/data/zone.dat0"),
-            mocker.call("dir/data/adapt.dat", "dir/data/adapt.dat0"),
+            mocker.call(
+                f"{self.base_dir}/data/zone.dat", f"{self.base_dir}/data/zone.dat0"
+            ),
+            mocker.call(
+                f"{self.base_dir}/data/adapt.dat", f"{self.base_dir}/data/adapt.dat0"
+            ),
         ]
         self.mock_copy.assert_has_calls(copy_calls)
 
-    def test_set_input_files(self, mocker):
+    def test_set_input_files(self, tracker):
         """Check set_input_files correctly sets attributes."""
-        tracker = self._setup_tracker(mocker)
-
-        tracker.set_input_files("input")
-
-        assert tracker._input_files == ["input"]
+        assert tracker._input_files == [tracker._input_files[0]]
         assert tracker._nx == self.nx
         assert tracker._ny == self.ny
 
-    def test_set_input_files_missing(self, mocker):
+    def test_set_input_files_missing(self, tracker):
         """Check set_input_files fails for missing files."""
-        tracker = self._setup_tracker(mocker, mock_input_file=False)
-
         with pytest.raises(FileNotFoundError, match="Input file does not exist"):
-            tracker.set_input_files("missing")
+            tracker.set_input_files(str(self.tmp_path / "missing.nc"))
 
-    def test_set_input_files_multiple(self, mocker):
+    def test_set_input_files_multiple(self, tracker):
         """Check set_input_files fails for multiple input files."""
-        tracker = self._setup_tracker(mocker)
-
         with pytest.raises(ValueError, match="TRACK only accepts one input"):
-            tracker.set_input_files(["file1", "file2"])
+            tracker.set_input_files([self.input_file, self.input_file])
 
-    def test_export_inputs(self, mocker):
+    def test_verify_inputs_valid(self, tracker):
+        """Check _verify_inputs succeeds for a valid Gaussian grid file."""
+        assert tracker._ny == self.ny
+        assert tracker._nx == self.nx
+
+    @pytest.mark.parametrize("missing_dim", ["lat", "lon", "time"])
+    def test_verify_inputs_missing_dim(self, tracker, missing_dim: str):
+        """Check _verify_inputs raises error when required dimension is missing."""
+        input_file = self._create_nc_input_file(
+            self.tmp_path, filename=f"missing_{missing_dim}.nc", missing_dim=missing_dim
+        )
+        with pytest.raises(
+            ValueError, match=f"missing required dimension '{missing_dim}'"
+        ):
+            tracker.set_input_files(input_file)
+
+    def test_verify_inputs_missing_eastward_wind(self, tracker):
+        """Check _verify_inputs raises error when eastward wind is missing."""
+        input_file = self._create_nc_input_file(
+            self.tmp_path, filename="no_u.nc", wind_vars=("va",)
+        )
+        with pytest.raises(ValueError, match="missing eastward wind variable 'ua'"):
+            tracker.set_input_files(input_file)
+
+    def test_verify_inputs_missing_northward_wind(self, tracker):
+        """Check _verify_inputs raises error when northward wind is missing."""
+        input_file = self._create_nc_input_file(
+            self.tmp_path, filename="no_v.nc", wind_vars=("ua",)
+        )
+        with pytest.raises(ValueError, match="missing northward wind variable 'va'"):
+            tracker.set_input_files(input_file)
+
+    def test_verify_inputs_non_gaussian_grid(self, tracker):
+        """Check _verify_inputs raises error when grid is not Gaussian."""
+        linear_lats = np.linspace(-90, 90, self.ny)
+        input_file = self._create_nc_input_file(
+            self.tmp_path, filename="linear_grid.nc", lat_coords=linear_lats
+        )
+        with pytest.raises(ValueError, match="must be on a regular Gaussian grid"):
+            tracker.set_input_files(input_file)
+
+    def test_verify_inputs_odd_latitudes(self, tracker):
+        """Check _verify_inputs raises error when number of latitudes is odd."""
+        input_file = self._create_nc_input_file(
+            self.tmp_path, filename="odd_lat.nc", ny=9
+        )
+        with pytest.raises(ValueError, match="odd number of latitudes"):
+            tracker.set_input_files(input_file)
+
+    def test_export_inputs(self):
         """Check the command line inputs are correctly exported."""
-        tracker = self._setup_tracker(mocker, mock_input_file=False)
+        tracker = TRACKTracker(TRACKParameters(base_dir=self.base_dir))
         tracker.parameters.export_inputs = True
 
         command_name = "export"
@@ -154,29 +195,29 @@ class TestTrackTracker:
         assert file_path.read_text() == expected_result
         file_path.unlink()  # cleanup
 
-    def test_export_inputs_no_directory(self, mocker, tmp_path: Path):
+    def test_export_inputs_no_directory(self):
         """Check a directory is created when it doesn't exist."""
-        tracker = self._setup_tracker(mocker)
+        tracker = TRACKTracker(TRACKParameters(base_dir=self.base_dir))
 
-        tracker.parameters.inputs_directory = str(tmp_path / "a" / "b")
+        tracker.parameters.inputs_directory = str(self.tmp_path / "a" / "b")
         tracker.parameters.export_inputs = True
 
         command_name = "missing_dir"
         _ = tracker._prepare_inputs(command_name, ["param1"])
 
-        file_path = tmp_path / "a" / "b" / f"{command_name}.in"
+        file_path = self.tmp_path / "a" / "b" / f"{command_name}.in"
         assert file_path.exists()
 
-    def test_read_inputs(self, mocker, tmp_path: Path):
+    def test_read_inputs(self):
         """Check reading of exported command line inputs is correct."""
-        tracker = self._setup_tracker(mocker)
+        tracker = TRACKTracker(TRACKParameters(base_dir=self.base_dir))
         tracker.parameters.read_inputs = True
-        tracker.parameters.inputs_directory = str(tmp_path)
+        tracker.parameters.inputs_directory = str(self.tmp_path)
         command_name = "read"
 
         # Create file to read from
         input_commands = "param1\nparam2\n"
-        inputs_file = tmp_path / f"{command_name}.in"
+        inputs_file = self.tmp_path / f"{command_name}.in"
         inputs_file.write_text(input_commands)
 
         with pytest.warns(
@@ -187,9 +228,9 @@ class TestTrackTracker:
 
         assert result == input_commands
 
-    def test_read_inputs_missing_file(self, mocker):
+    def test_read_inputs_missing_file(self):
         """Check reading inputs warns when the file doesn't exist."""
-        tracker = self._setup_tracker(mocker)
+        tracker = TRACKTracker(TRACKParameters(base_dir=self.base_dir))
         tracker.parameters.read_inputs = True
 
         inputs = ["param1", "param2"]
@@ -201,11 +242,9 @@ class TestTrackTracker:
 
         assert result == "\n".join(inputs) + "\n"
 
-    def test_calculate_vorticity(self, mocker):
+    def test_calculate_vorticity(self, tracker):
         """Check calculate_vorticity calls TRACK with the expected inputs."""
-        tracker = self._setup_tracker(mocker)
-        input_file = "input"
-        tracker.set_input_files(input_file)
+        input_file = self.input_file
 
         # Run the method
         tracker.calculate_vorticity()
@@ -215,12 +254,12 @@ class TestTrackTracker:
             *["n", "0", "4", "n", "1", "y", "ua", "n", "85000", "n", "g"],
             *["n", "1", str(self.nx), "1", str(self.ny), "y", "12", "0", "2", "y"],
             *["ua", "85000", "va", "85000", "1", "1", "10000", "1", "1"],
-            *["10000", "y", "dir/indat/vor.dat", "0", "10", "0", "0", "0"],
+            *["10000", "y", f"{self.base_dir}/indat/vor.dat", "0", "10", "0", "0", "0"],
         ]
 
         # Check call to subprocess.run is as expected
         self.mock_subprocess_run.assert_called_once_with(
-            ["dir/bin/track.run", "-i", input_file, "-f", "track_out"],
+            [f"{self.base_dir}/bin/track.run", "-i", input_file, "-f", "track_out"],
             input="\n".join(input_params) + "\n",
             check=True,
             capture_output=True,
@@ -230,11 +269,10 @@ class TestTrackTracker:
         )
 
         # Check call to shutil.copy is as expected
-        self.mock_copy.assert_called_once_with(input_file, "dir/indat/")
+        self.mock_copy.assert_called_once_with(input_file, f"{self.base_dir}/indat/")
 
-    def test_spectral_filtering(self, mocker):
+    def test_spectral_filtering(self, tracker):
         """Check spectral_filtering calls TRACK with the expected inputs."""
-        tracker = self._setup_tracker(mocker)
         tracker._nx = self.nx
         tracker._ny = self.ny
 
@@ -252,7 +290,7 @@ class TestTrackTracker:
 
         # Check call to subprocess.run is as expected
         self.mock_subprocess_run.assert_called_once_with(
-            ["dir/bin/track.run", "-i", input_file, "-f", "track_out"],
+            [f"{self.base_dir}/bin/track.run", "-i", input_file, "-f", "track_out"],
             input="\n".join(input_params) + "\n",
             check=True,
             capture_output=True,
@@ -263,14 +301,12 @@ class TestTrackTracker:
 
         # Check call to shutil.copy is as expected
         self.mock_copy.assert_called_once_with(
-            "dir/outdat/specfil.track_out_band001",
-            "dir/indat/" + tracker.parameters.filt_vorticity_file,
+            f"{self.base_dir}/outdat/specfil.track_out_band001",
+            f"{self.base_dir}/indat/" + tracker.parameters.filt_vorticity_file,
         )
 
-    def test_tracking(self, mocker):
+    def test_tracking(self, tracker):
         """Check tracking calls TRACK with the expected inputs."""
-        tracker = self._setup_tracker(mocker)
-
         # Run the method
         tracker.tracking()
 
@@ -293,7 +329,7 @@ class TestTrackTracker:
 
         # Check call to subprocess.run is as expected
         self.mock_subprocess_run.assert_called_once_with(
-            ["dir/bin/track.run", "-i", input_file, "-f", "track_out"],
+            [f"{self.base_dir}/bin/track.run", "-i", input_file, "-f", "track_out"],
             input="\n".join(input_params) + "\n",
             check=True,
             capture_output=True,
@@ -302,10 +338,8 @@ class TestTrackTracker:
             cwd=None,
         )
 
-    def test_filter_trajectories(self, mocker):
+    def test_filter_trajectories(self, tracker):
         """Check filter_trajectories calls TRACK with the expected inputs."""
-        tracker = self._setup_tracker(mocker)
-
         # Run the method
         tracker.filter_trajectories()
 
@@ -314,14 +348,22 @@ class TestTrackTracker:
         input_params = [
             *["n", "0"],
             *self.initialisation_inputs,
-            *["y", "1", "n", "1", "1", "dir/outdat/objout.new.track_out"],
-            *["dir/outdat/tdump.track_out", "1", "n", "8", "1000000", "n", "n"],
+            *["y", "1", "n", "1", "1", f"{self.base_dir}/outdat/objout.new.track_out"],
+            *[
+                f"{self.base_dir}/outdat/tdump.track_out",
+                "1",
+                "n",
+                "8",
+                "1000000",
+                "n",
+                "n",
+            ],
             *["n", "n", "a", "n", "n", "n", "0"],
         ]
 
         # Check call to subprocess.run is as expected
         self.mock_subprocess_run.assert_called_once_with(
-            ["dir/bin/track.run", "-i", input_file, "-f", "track_out"],
+            [f"{self.base_dir}/bin/track.run", "-i", input_file, "-f", "track_out"],
             input="\n".join(input_params) + "\n",
             check=True,
             capture_output=True,
@@ -362,37 +404,69 @@ class TestTrackTracker:
             lat[:] = [0, -1, -2, -3, -4]
             intensity[:] = [0, 10, 20, 30, 40]
 
-    def _create_nc_input_file(self, tmp_path: Path):
-        """Create a minimal NetCDF input file with defined times."""
-        file_path = tmp_path / "input.nc"
+    def _create_nc_input_file(
+        self,
+        tmp_path: Path,
+        *,
+        filename: str = "input.nc",
+        lat_coords: np.ndarray | None = None,
+        wind_vars: tuple[str, ...] = ("ua", "va"),
+        missing_dim: str | None = None,
+        ny: int | None = None,
+    ):
+        """Create a NetCDF input file with defined times, grid, and wind variables."""
+        file_path = tmp_path / filename
+        actual_ny = ny if ny is not None else self.ny
 
         with Dataset(file_path, "w", format="NETCDF4") as nc:
             # Dimensions
-            nc.createDimension("lon", self.nx)
-            nc.createDimension("lat", self.ny)
-            nc.createDimension("time", None)  # unlimited
+            if missing_dim != "lon":
+                nc.createDimension("lon", self.nx)
+            if missing_dim != "lat":
+                nc.createDimension("lat", actual_ny)
+            if missing_dim != "time":
+                nc.createDimension("time", None)  # unlimited
 
             # Time data
-            time = nc.createVariable("time", "f4", ("time",))
-            time[:] = [0, 0.5, 1, 1.5, 2]
-            time.standard_name = "time"
-            time.long_name = "time"
-            time.units = "days since 1950-01-01"
-            time.calendar = "360_day"
-            time.axis = "T"
+            time_len = 5
+            if missing_dim != "time":
+                time = nc.createVariable("time", "f4", ("time",))
+                time[:] = [0, 0.5, 1, 1.5, 2]
+                time.standard_name = "time"
+                time.long_name = "time"
+                time.units = "days since 1950-01-01"
+                time.calendar = "360_day"
+                time.axis = "T"
+
+            if missing_dim not in ("lat", "lon"):
+                if actual_ny % 2 == 0:
+                    lats, lons = gaussian_grid(actual_ny // 2)
+                else:
+                    lats = np.linspace(-90, 90, actual_ny)
+                    lons = np.linspace(0, 360, self.nx)
+                if lat_coords is not None:
+                    lats = lat_coords
+                lat_var = nc.createVariable("lat", "f4", ("lat",))
+                lat_var[:] = lats
+                lon_var = nc.createVariable("lon", "f4", ("lon",))
+                lon_var[:] = lons
+
+            dims = tuple(d for d in ("time", "lat", "lon") if d != missing_dim)
+            shape = tuple(
+                time_len if d == "time" else (actual_ny if d == "lat" else self.nx)
+                for d in dims
+            )
+            for v in wind_vars:
+                if v:
+                    var = nc.createVariable(v, "f4", dims)
+                    var[:] = np.zeros(shape)
 
         return str(file_path)
 
-    def test_read_trajectories(self, mocker, tmp_path: Path):
+    def test_read_trajectories(self, tracker):
         """Check read_trajectories correctly reads in the output netcdf file."""
-        # Create the temporary input and output files
-        self._create_nc_output_file(tmp_path)
-        input_file = self._create_nc_input_file(tmp_path)
-
-        # Set up the tracker pointing to the created files
-        params = {"base_dir": str(tmp_path)}
-        tracker = self._setup_tracker(mocker, mock_input_file=False, params_dict=params)
-        tracker.set_input_files(input_file)
+        # Create the output file
+        self._create_nc_output_file(self.tmp_path)
 
         # Get the trajectories
         trajectories = tracker.read_trajectories()
@@ -422,22 +496,15 @@ class TestTrackTracker:
         )
         assert_array_equal(t2.data["time"], times2)
 
-    def test_read_trajectories_missing_output(self, mocker):
+    def test_read_trajectories_missing_output(self, tracker):
         """Check read_trajectories fails when the TRACK output file doesn't exist."""
-        tracker = self._setup_tracker(mocker)
-        mocker.stopall()
         with pytest.raises(
             FileNotFoundError, match="TRACK output trajectory file does not exist"
         ):
             tracker.read_trajectories()
 
-    def test_variable_metadata(self, mocker, tmp_path: Path):
+    def test_variable_metadata(self, tracker):
         """Test variable_metadata is defined correctly by set_metadata."""
-        input_file = self._create_nc_input_file(tmp_path)
-        params = {"base_dir": str(tmp_path)}
-        tracker = self._setup_tracker(mocker, mock_input_file=False, params_dict=params)
-        tracker.set_input_files(input_file)
-
         tracker.set_metadata()
         metadata = tracker.variable_metadata
 
@@ -461,13 +528,8 @@ class TestTrackTracker:
         assert metadata["intensity"].constructs == expected_constructs
         assert metadata["intensity"].construct_kwargs == expected_construct_kwargs
 
-    def test_time_metadata(self, mocker, tmp_path: Path):
+    def test_time_metadata(self, tracker):
         """Test time_metadata is defined correctly by set_metadata."""
-        input_file = self._create_nc_input_file(tmp_path)
-        params = {"base_dir": str(tmp_path)}
-        tracker = self._setup_tracker(mocker, mock_input_file=False, params_dict=params)
-        tracker.set_input_files(input_file)
-
         tracker.set_metadata()
 
         assert tracker.time_metadata is not None
@@ -478,13 +540,8 @@ class TestTrackTracker:
             "end_time": cftime.datetime(1950, 1, 3, 0, calendar="360_day"),
         }
 
-    def test_global_metadata(self, mocker, tmp_path: Path):
+    def test_global_metadata(self, tracker):
         """Test global_metadata is defined correctly by set_metadata."""
-        input_file = self._create_nc_input_file(tmp_path)
-        params = {"base_dir": str(tmp_path)}
-        tracker = self._setup_tracker(mocker, mock_input_file=False, params_dict=params)
-        tracker.set_input_files(input_file)
-
         tracker.set_metadata()
 
         assert tracker.global_metadata is not None
@@ -496,23 +553,12 @@ class TestTrackTracker:
             ),
         }
 
-    def test_run_tracker(self, mocker, tmp_path):
+    def test_run_tracker(self, tracker):
         """Check run_tracker runs successfully and produces."""
-        # Create the input and intermediate output files
-        input_file = self._create_nc_input_file(tmp_path)
-        self._create_nc_output_file(tmp_path)
-
-        # Mock subprocess.run to simulate successful execution
-        mock_subprocess_run = mocker.patch("subprocess.run")
-        mock_subprocess_run.side_effect = mocker.MagicMock(
-            returncode=0, stdout="Success"
-        )
-
-        # Create the tracker
-        params = {"base_dir": str(tmp_path)}
-        tracker = self._setup_tracker(mocker, mock_input_file=False, params_dict=params)
+        # Create the intermediate output files
+        self._create_nc_output_file(self.tmp_path)
 
         # Run the tracker and check if the output file is created
-        output_file = tmp_path / "output.nc"
-        tracker.run_tracker(input_file, str(output_file))
+        output_file = self.tmp_path / "output.nc"
+        tracker.run_tracker(self.input_file, str(output_file))
         assert output_file.exists()
