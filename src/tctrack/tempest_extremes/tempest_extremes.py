@@ -109,6 +109,15 @@ class TETracker(TCTracker):
             variables = [output["var"] for output in dn_params.output_commands]
             sn_params.in_fmt = ["lon", "lat", *variables]
 
+    @property
+    def _search_variable(self) -> str:
+        """The primary search variable used by TempestExtremes."""
+        return (
+            self.detect_parameters.search_by_min
+            or self.detect_parameters.search_by_max
+            or "PSL"
+        )
+
     def _check_te_grid_consistency(
         self, filename: str, current_info: dict, ref_file: str, ri: dict
     ) -> None:
@@ -146,13 +155,8 @@ class TETracker(TCTracker):
 
     def _check_te_required_variables(self, all_vars: set[str]) -> None:
         """Check that all required detection variables exist in input files."""
-        search_var = (
-            self.detect_parameters.search_by_min
-            or self.detect_parameters.search_by_max
-            or "PSL"
-        )
-        if search_var not in all_vars:
-            msg = f"Search variable '{search_var}' not found in input files."
+        if self._search_variable not in all_vars:
+            msg = f"Search variable '{self._search_variable}' not found in input files."
             raise ValueError(msg)
 
         criteria_groups = [
@@ -172,9 +176,8 @@ class TETracker(TCTracker):
     def _check_input_times(self) -> None:
         """Check that the time ranges of the input variables are consistent.
 
-        The times of the primary search variable (:attr:`search_by_min`, or
-        :attr:`search_by_max` if that is not set, or ``"PSL"`` if neither are set) must
-        all be included in the times of every other variable in the input files.
+        The times of the primary search variable must all be included in the times of
+        every other variable in the input files.
 
         Variables that have no time dimension are not checked. If a `time_filter` is set
         the requirements on the times are different, so no check is made.
@@ -204,7 +207,7 @@ class TETracker(TCTracker):
         fields: cf.FieldList = cf.read(self._input_files, backend="netCDF4")  # type: ignore[operator]
 
         # Get the times for the primary search variable
-        primary_name = dn_params.search_by_min or dn_params.search_by_max or "PSL"
+        primary_name = self._search_variable
         primary_times = get_times(fields, primary_name)
         if primary_times is None:
             msg = (
@@ -704,18 +707,13 @@ class TETracker(TCTracker):
         coordinate of the search variable in the first input file. Assumes other
         files match.
         """
-        variable_name = (
-            self.detect_parameters.search_by_min
-            or self.detect_parameters.search_by_max
-            or "PSL"
-        )
-        fields = cf.read(
+        fields = cf.read(  # type: ignore[operator]
             self._input_files,
-            select=f"ncvar%{variable_name}",  # type: ignore[operator]
+            select=f"ncvar%{self._search_variable}",
             backend="netCDF4",
         )
         if not fields:
-            msg = f"Variable '{variable_name}' not found in input files."
+            msg = f"Variable '{self._search_variable}' not found in input files."
             raise ValueError(msg)
         _, time_coord = fields[0].construct_item("time")
         time_arr = time_coord.datetime_array
