@@ -244,7 +244,8 @@ class TestTrackTracker:
 
     def test_calculate_vorticity(self, tracker):
         """Check calculate_vorticity calls TRACK with the expected inputs."""
-        input_file = self.input_file
+        input_path = self.input_file
+        input_filename = Path(input_path).name
 
         # Run the method
         tracker.calculate_vorticity()
@@ -259,7 +260,7 @@ class TestTrackTracker:
 
         # Check call to subprocess.run is as expected
         self.mock_subprocess_run.assert_called_once_with(
-            [f"{self.base_dir}/bin/track.run", "-i", input_file, "-f", "track_out"],
+            [f"{self.base_dir}/bin/track.run", "-i", input_filename, "-f", "track_out"],
             input="\n".join(input_params) + "\n",
             check=True,
             capture_output=True,
@@ -269,7 +270,7 @@ class TestTrackTracker:
         )
 
         # Check call to shutil.copy is as expected
-        self.mock_copy.assert_called_once_with(input_file, f"{self.base_dir}/indat/")
+        self.mock_copy.assert_called_once_with(input_path, f"{self.base_dir}/indat/")
 
     def test_spectral_filtering(self, tracker):
         """Check spectral_filtering calls TRACK with the expected inputs."""
