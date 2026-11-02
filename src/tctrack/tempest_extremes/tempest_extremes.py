@@ -169,45 +169,15 @@ class TETracker(TCTracker):
                         msg = f"{label} variable '{v}' not found in input files."
                         raise ValueError(msg)
 
-    def _variable_times(self, variable_name: str) -> set | None:
-        """Read the times of a variable from the input files.
-
-        Parameters
-        ----------
-        variable_name : str
-            The NetCDF variable name to look for in the input files.
-
-        Returns
-        -------
-        set | None
-            The set of times for which the variable has data in any of the input files,
-            or ``None`` if the variable is not found or has no time dimension.
-        """
-        fields = cf.read(  # type: ignore[operator]
-            self._input_files, select=f"ncvar%{variable_name}", backend="netCDF4"
-        )
-        times: set | None = None
-        for (
-            field
-        ) in fields:  # There should only be one field but this is not guaranteed
-            time_coord = field.coordinate("time", default=None)
-            if time_coord is None:
-                continue
-            times = (times or set()) | set(time_coord.datetime_array)
-        return times
-
     def _check_input_times(self) -> None:
         """Check that the time ranges of the input variables are consistent.
 
         The times of the primary search variable (:attr:`search_by_min`, or
         :attr:`search_by_max` if that is not set, or ``"PSL"`` if neither are set) must
-        all be included in the times of every other variable used in the detection
-        step (those in :attr:`closed_contours`, :attr:`no_closed_contours`,
-        :attr:`thresholds` and :attr:`output_commands`).
+        all be included in the times of every other variable in the input files.
 
-        Variables that are not found in the input files, or that have no time
-        dimension, are not checked. If a `time_filter` is set the requirements on the
-        times are different, so no check is made.
+        Variables that have no time dimension are not checked. If a `time_filter` is set
+        the requirements on the times are different, so no check is made.
 
         Raises
         ------
@@ -215,44 +185,50 @@ class TETracker(TCTracker):
             If a variable is missing times that are present for the primary variable,
             or if the variables use time coordinates with different calendars.
         """
-        dn_params = self.detect_parameters
+
+        def get_times(fields: cf.FieldList, ncvar: str) -> set | None:
+            times: set | None = None
+            for field in fields.select_by_ncvar(ncvar):
+                for key in field.constructs.filter_by_type("dimension_coordinate"):
+                    coord = field.construct(key)
+                    if not coord.Units.isreftime:
+                        continue
+                    times = (times or set()) | set(coord.datetime_array)
+            return times
 
         # Currently does not perform the check for manually-defined time ranges
+        dn_params = self.detect_parameters
         if dn_params.time_filter is not None:
             return
 
-        primary_name = dn_params.search_by_min or dn_params.search_by_max or "PSL"
-        primary_times = self._variable_times(primary_name)
-        if not primary_times:
-            return
+        fields: cf.FieldList = cf.read(self._input_files, backend="netCDF4")  # type: ignore[operator]
 
-        other_names = dict.fromkeys(
-            command["var"]
-            for commands in (
-                dn_params.closed_contours,
-                dn_params.no_closed_contours,
-                dn_params.thresholds,
-                dn_params.output_commands,
+        # Get the times for the primary search variable
+        primary_name = dn_params.search_by_min or dn_params.search_by_max or "PSL"
+        primary_times = get_times(fields, primary_name)
+        if primary_times is None:
+            msg = (
+                f"The primary search variable '{primary_name}' does not have a valid "
+                "time dimension."
             )
-            for command in commands or []
-        )
-        for name in other_names:
-            if name == primary_name:
-                continue
-            times = self._variable_times(name)
+            raise ValueError(msg)
+
+        # For each variable check it includes the times of the primary search variable
+        for var_name in {field.nc_get_variable() for field in fields}:
+            times = get_times(fields, var_name)
             if times is None:
                 continue
             try:
                 missing = sorted(primary_times - times)
             except TypeError as err:
                 msg = (
-                    f"Variables '{primary_name}' and '{name}' use different calendars "
-                    "for their time coordinates in the input files."
+                    f"Variables '{primary_name}' and '{var_name}' use different "
+                    "calendars for their time coordinates in the input files."
                 )
                 raise ValueError(msg) from err
             if missing:
                 msg = (
-                    f"Variable '{name}' is missing {len(missing)} of the "
+                    f"Variable '{var_name}' is missing {len(missing)} of the "
                     f"{len(primary_times)} times of the search variable "
                     f"'{primary_name}' in the input files (first missing time: "
                     f"{missing[0]})."
