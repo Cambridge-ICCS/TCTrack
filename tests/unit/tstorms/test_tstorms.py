@@ -344,7 +344,7 @@ class TestTSTORMSTracker:
             output_dir=str(tmp_path / "tstorms/output"),
         )
         detect_params = TSTORMSDetectParameters(use_sfc_wind=False)
-        tracker = TSTORMSTracker(base_params, detect_params=detect_params)
+        tracker = TSTORMSTracker(base_params, detect_params)
 
         inputs = self._create_valid_tstorms_files(tmp_path, use_sfc_wind=False)
         tracker.set_input_files(inputs)

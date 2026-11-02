@@ -92,7 +92,6 @@ class TRACKTracker(TCTracker):
             raise ValueError(msg)
 
         filename = self._input_files[0]
-        self._ny, self._nx = lat_lon_sizes(filename)
 
         with Dataset(filename, "r") as nc_file:
             # Check dimensions
@@ -104,6 +103,9 @@ class TRACKTracker(TCTracker):
                     )
                     raise ValueError(msg)
 
+        self._ny, self._nx = lat_lon_sizes(filename)
+
+        with Dataset(filename, "r") as nc_file:
             # Check required wind variables
             u_var, v_var = self.parameters.wind_var_names
             if u_var not in nc_file.variables:
