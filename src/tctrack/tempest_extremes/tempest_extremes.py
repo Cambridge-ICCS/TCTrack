@@ -149,6 +149,65 @@ class TETracker(TCTracker):
             )
             raise ValueError(msg)
 
+    def _check_te_grids(self) -> set[str]:
+        """Check the grids of the input files are consistent.
+
+        Each input file must have the latitude and longitude dimensions named in
+        :attr:`detect_parameters`, with sizes and coordinate values consistent
+        across files.
+
+        Returns
+        -------
+        set[str]
+            The names of all variables in the input files.
+
+        Raises
+        ------
+        ValueError
+            If a file is missing a required dimension or the grids are
+            inconsistent.
+        """
+        lat_name = self.detect_parameters.lat_name
+        lon_name = self.detect_parameters.lon_name
+
+        all_vars: set[str] = set()
+        ref_info = None
+
+        for filename in self._input_files:
+            with Dataset(filename, "r") as nc_file:
+                for req_dim in (lat_name, lon_name):
+                    if req_dim not in nc_file.dimensions:
+                        msg = (
+                            f"TempestExtremes input file '{filename}' is missing "
+                            f"required dimension '{req_dim}'."
+                        )
+                        raise ValueError(msg)
+
+                for var_name in nc_file.variables:
+                    all_vars.add(var_name)
+
+                current_info = {
+                    "lat_size": len(nc_file.dimensions[lat_name]),
+                    "lon_size": len(nc_file.dimensions[lon_name]),
+                    "lat": (
+                        nc_file.variables[lat_name][:]
+                        if lat_name in nc_file.variables
+                        else None
+                    ),
+                    "lon": (
+                        nc_file.variables[lon_name][:]
+                        if lon_name in nc_file.variables
+                        else None
+                    ),
+                }
+                if ref_info is None:
+                    ref_info = (filename, current_info)
+                else:
+                    self._check_te_grid_consistency(
+                        filename, current_info, ref_info[0], ref_info[1]
+                    )
+        return all_vars
+
     def _check_te_required_variables(self, all_vars: set[str]) -> None:
         """Check that all required detection variables exist in input files."""
         if self._search_variable not in all_vars:
@@ -246,48 +305,8 @@ class TETracker(TCTracker):
             msg = "At least one input file must be provided."
             raise ValueError(msg)
 
-        lat_name = self.detect_parameters.lat_name
-        lon_name = self.detect_parameters.lon_name
-
-        all_vars: set[str] = set()
-        ref_info = None
-
-        for filename in self._input_files:
-            with Dataset(filename, "r") as nc_file:
-                for req_dim in (lat_name, lon_name):
-                    if req_dim not in nc_file.dimensions:
-                        msg = (
-                            f"TempestExtremes input file '{filename}' is missing "
-                            f"required dimension '{req_dim}'."
-                        )
-                        raise ValueError(msg)
-
-                for var_name in nc_file.variables:
-                    all_vars.add(var_name)
-
-                current_info = {
-                    "lat_size": len(nc_file.dimensions[lat_name]),
-                    "lon_size": len(nc_file.dimensions[lon_name]),
-                    "lat": (
-                        nc_file.variables[lat_name][:]
-                        if lat_name in nc_file.variables
-                        else None
-                    ),
-                    "lon": (
-                        nc_file.variables[lon_name][:]
-                        if lon_name in nc_file.variables
-                        else None
-                    ),
-                }
-                if ref_info is None:
-                    ref_info = (filename, current_info)
-                else:
-                    self._check_te_grid_consistency(
-                        filename, current_info, ref_info[0], ref_info[1]
-                    )
-
+        all_vars = self._check_te_grids()
         self._check_te_required_variables(all_vars)
-
         self._check_input_times()
 
     @property
