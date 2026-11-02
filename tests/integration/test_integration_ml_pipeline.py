@@ -51,6 +51,7 @@ def tracker() -> MLTracker:
         return MLTracker(MLParameters(input_file=str(SAMPLE_FILE)))
     except (OSError, HfHubHTTPError) as error:
         pytest.skip(f"Requires the model from the HuggingFace Hub: {error}")
+        raise AssertionError from error  # unreachable: pytest.skip never returns
 
 
 def test_pipeline(tracker: MLTracker) -> None:
