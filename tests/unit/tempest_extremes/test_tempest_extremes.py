@@ -12,17 +12,28 @@ from dataclasses import asdict
 from pathlib import Path
 
 import cf
+import numpy as np
 import pytest
 from cftime import datetime
+from netCDF4 import Dataset
 
 from tctrack.core import TCTrackerMetadata
 from tctrack.tempest_extremes import (
     TEContour,
     TEDetectParameters,
+    TEDetectThreshold,
     TEOutputCommand,
     TEStitchParameters,
     TEThreshold,
     TETracker,
+    parameter_set,
+    parameter_set_owz,
+    parameter_set_uz,
+)
+from tctrack.tempest_extremes.parameters import (
+    GRAVITY,
+    _nc_names_defaults_owz,
+    _nc_names_defaults_uz,
 )
 
 
@@ -31,7 +42,7 @@ class TestTETypes:
 
     def test_detect_parameters_defaults(self) -> None:
         """Check the default values for TEDetectParameters."""
-        params = TEDetectParameters(in_data=["input_file.nc"])
+        params = TEDetectParameters()
         # Check values of all defaults
         assert params.out_header is False
         assert params.output_dir == ""
@@ -39,9 +50,11 @@ class TestTETypes:
         assert params.search_by_min is None
         assert params.search_by_max is None
         assert params.closed_contours is None
+        assert params.no_closed_contours is None
+        assert params.thresholds is None
         assert params.merge_dist == 0.0
-        assert params.lat_name == "lat"
-        assert params.lon_name == "lon"
+        assert params.lat_name == "latitude"
+        assert params.lon_name == "longitude"
         assert params.min_lat == 0.0
         assert params.max_lat == 0.0
         assert params.min_lon == 0.0
@@ -129,6 +142,17 @@ class TestTETypes:
         # Check item created is a dict as expected
         assert output_command == {"var": "psl", "operator": "min", "dist": 0.0}
 
+    def test_te_detect_threshold(self) -> None:
+        """Test that TEDetectThreshold creates the appropriate typed dict."""
+        threshold = TEDetectThreshold(var="sfcWind", op=">=", value=16, dist=1)
+        # Check attributes are set properly and can be called from object
+        assert threshold["var"] == "sfcWind"
+        assert threshold["op"] == ">="
+        assert threshold["value"] == 16
+        assert threshold["dist"] == 1
+        # Check item created is a dict as expected
+        assert threshold == {"var": "sfcWind", "op": ">=", "value": 16, "dist": 1}
+
     def test_te_threshold(self) -> None:
         """Test that TEThreshold creates the appropriate typed dict."""
         threshold = TEThreshold(var="lat", op="<=", value=40, count=10)
@@ -141,24 +165,351 @@ class TestTETypes:
         assert threshold == {"var": "lat", "op": "<=", "value": 40, "count": 10}
 
 
+class TestTEParameterSets:
+    """Tests for the parameter set functions."""
+
+    def test_parameter_set_returns_independent_parameters(self) -> None:
+        """Check modifying one returned parameter set does not modify another."""
+        first_detect, _ = parameter_set("UZ")
+        second_detect, _ = parameter_set("UZ")
+
+        first_detect.closed_contours[0]["delta"] = 0.0  # type: ignore[index]
+        assert second_detect.closed_contours[0]["delta"] == 200.0  # type: ignore[index]
+
+    def test_parameter_set_invalid_name(self) -> None:
+        """Check parameter_set fails for unknown names."""
+        with pytest.raises(ValueError, match="Unknown parameter set: unknown"):
+            parameter_set("unknown")
+
+    def test_parameter_set_uz(self) -> None:
+        """Check the UZ parameter set defaults."""
+        detect, stitch = parameter_set("UZ")
+
+        assert detect == TEDetectParameters(
+            search_by_min="msl",
+            time_filter="6hr",
+            merge_dist=6.0,
+            closed_contours=[
+                TEContour(var="msl", delta=200.0, dist=5.5, minmaxdist=0.0),
+                TEContour(
+                    var="_DIFF(zg(300hPa),zg(500hPa))",
+                    delta=-6.0,
+                    dist=6.5,
+                    minmaxdist=1.0,
+                ),
+            ],
+            lon_name="longitude",
+            lat_name="latitude",
+            out_header=True,
+            output_commands=[
+                TEOutputCommand(var="msl", operator="min", dist=0.0),
+                TEOutputCommand(var="orog", operator="max", dist=0.0),
+                TEOutputCommand(var="si10", operator="max", dist=2.0),
+            ],
+        )
+        assert stitch == TEStitchParameters(
+            caltype="360_day",
+            max_sep=8.0,
+            min_time="54h",
+            max_gap="24h",
+            min_endpoint_dist=8.0,
+            threshold_filters=[
+                TEThreshold(var="lat", op="<=", value=50, count=10),
+                TEThreshold(var="lat", op=">=", value=-50, count=10),
+                TEThreshold(var="orog", op="<=", value=150, count=10),
+                TEThreshold(var="si10", op=">=", value=10, count=10),
+            ],
+        )
+
+    def test_parameter_set_uz_geopotential(self) -> None:
+        """Check the UZ parameter set uses geopotential when z or zdiff is set."""
+        detect, _ = parameter_set_uz({"z": "z_new"})
+
+        assert detect.closed_contours is not None
+        assert detect.closed_contours[1] == TEContour(
+            var="_DIFF(z_new(300hPa),z_new(500hPa))",
+            delta=-6.0 * GRAVITY,
+            dist=6.5,
+            minmaxdist=1.0,
+        )
+
+    def test_parameter_set_uz_nc_names_unchanged(self) -> None:
+        """Check a dictionary passed to parameter_set_uz does not get modified."""
+        nc_names = {
+            "latitude": "latitude_new",
+            "msl": "msl_new",
+            "orog": "orog_new",
+            "si10": "si10_new",
+            "zg": "zg_new",
+        }
+        nc_names_before = nc_names.copy()
+        _ = parameter_set_uz(nc_names)
+
+        assert nc_names == nc_names_before
+
+    def test_parameter_set_owz(self) -> None:
+        """Check the OWZ parameter set defaults."""
+        detect, stitch = parameter_set("OWZ")
+
+        assert (detect, stitch) == (
+            TEDetectParameters(
+                search_by_max="owz(850hPa)",
+                time_filter="6hr",
+                merge_dist=5.0,
+                thresholds=[
+                    TEDetectThreshold(var="owz(850hPa)", op=">=", value=5e-5, dist=2),
+                    TEDetectThreshold(var="owz(500hPa)", op=">=", value=4e-5, dist=2),
+                    TEDetectThreshold(var="r(950hPa)", op=">=", value=70, dist=2),
+                    TEDetectThreshold(var="r(700hPa)", op=">=", value=50, dist=2),
+                    TEDetectThreshold(
+                        var="_VECMAG(_DIFF(u(850hPa),u(200hPa)),_DIFF(v(850hPa),v(200hPa)))",
+                        op="<=",
+                        value=25,
+                        dist=2,
+                    ),
+                    TEDetectThreshold(var="q(950hPa)", op=">=", value=0.01, dist=2),
+                ],
+                lon_name="longitude",
+                lat_name="latitude",
+                out_header=True,
+                output_commands=[
+                    TEOutputCommand(var="owz(500hPa)", operator="max", dist=2),
+                    TEOutputCommand(var="r(950hPa)", operator="max", dist=2),
+                    TEOutputCommand(var="r(700hPa)", operator="max", dist=2),
+                    TEOutputCommand(
+                        var="_VECMAG(_DIFF(u(850hPa),u(200hPa)),_DIFF(v(850hPa),v(200hPa)))",
+                        operator="min",
+                        dist=1,
+                    ),
+                    TEOutputCommand(var="q(950hPa)", operator="max", dist=2),
+                    TEOutputCommand(var="msl", operator="min", dist=3),
+                    TEOutputCommand(var="_VECMAG(u10,v10)", operator="max", dist=2),
+                    TEOutputCommand(
+                        var="_VECMAG(u(925hPa),v(925hPa))", operator="max", dist=2
+                    ),
+                    TEOutputCommand(var="vo(850hPa)", operator="max", dist=2),
+                ],
+            ),
+            TEStitchParameters(
+                caltype="360_day",
+                max_sep=5.0,
+                min_time="48h",
+                max_gap="24h",
+                threshold_filters=[
+                    TEThreshold(var="owz(850hPa)", op=">=", value=6e-5, count=9),
+                    TEThreshold(var="owz(500hPa)", op=">=", value=5e-5, count=9),
+                    TEThreshold(var="r(950hPa)", op=">=", value=85, count=9),
+                    TEThreshold(var="r(700hPa)", op=">=", value=70, count=9),
+                    TEThreshold(
+                        var="_VECMAG(_DIFF(u(850hPa),u(200hPa)),_DIFF(v(850hPa),v(200hPa)))",
+                        op="<=",
+                        value=12.5,
+                        count=9,
+                    ),
+                    TEThreshold(var="q(950hPa)", op=">=", value=0.014, count=9),
+                    TEThreshold(var="_VECMAG(u10,v10)", op=">=", value=16, count=1),
+                ],
+            ),
+        )
+
+    def test_parameter_set_owz_nc_names_unchanged(self) -> None:
+        """Check a dictionary passed to parameter_set_owz does not get modified."""
+        nc_names = {
+            "owz": "owz_new",
+            "r": "r_new",
+            "q": "q_new",
+            "vo": "vo_new",
+            "u": "u_new",
+            "v": "v_new",
+            "u10": "u10_new",
+            "v10": "v10_new",
+            "ws": "ws_new",
+        }
+        nc_names_before = nc_names.copy()
+        _ = parameter_set_owz(nc_names)
+
+        assert nc_names == nc_names_before
+
+    def test_nc_names_uz_base_names(self) -> None:
+        """Check the UZ base names correctly override defaults."""
+        overrides = {
+            "latitude": "latitude_new",
+            "msl": "msl_new",
+            "orog": "orog_new",
+            "si10": "si10_new",
+            "zg": "zg_new",
+        }
+        nc_names = overrides.copy()
+        _nc_names_defaults_uz(nc_names)
+
+        for key, value in overrides.items():
+            assert nc_names[key] == value
+        assert nc_names["zgdiff"] == "_DIFF(zg_new(300hPa),zg_new(500hPa))"
+
+    def test_nc_names_uz_derived_names(self) -> None:
+        """Check UZ derived variable names correctly override defaults."""
+        nc_names = {"zgdiff": "zgdiff_new"}
+        _nc_names_defaults_uz(nc_names)
+        assert nc_names["zgdiff"] == "zgdiff_new"
+
+    def test_nc_names_owz_base_names(self) -> None:
+        """Check OWZ base names generate the expected level / derived names."""
+        nc_names = {
+            "owz": "owz_new",
+            "r": "r_new",
+            "q": "q_new",
+            "vo": "vo_new",
+            "u": "u_new",
+            "v": "v_new",
+            "u10": "u10_new",
+            "v10": "v10_new",
+            "ws": "ws_new",
+        }
+        _nc_names_defaults_owz(nc_names)
+
+        assert nc_names["owz850"] == "owz_new(850hPa)"
+        assert nc_names["owz500"] == "owz_new(500hPa)"
+        assert nc_names["r950"] == "r_new(950hPa)"
+        assert nc_names["r700"] == "r_new(700hPa)"
+        assert nc_names["q950"] == "q_new(950hPa)"
+        assert nc_names["vo850"] == "vo_new(850hPa)"
+        assert nc_names["u925"] == "u_new(925hPa)"
+        assert nc_names["v925"] == "v_new(925hPa)"
+        assert nc_names["ws925"] == "ws_new(925hPa)"
+
+        assert nc_names["vws"] == (
+            "_VECMAG(_DIFF(u_new(850hPa),u_new(200hPa)),"
+            "_DIFF(v_new(850hPa),v_new(200hPa)))"
+        )
+        assert nc_names["si10"] == "_VECMAG(u10_new,v10_new)"
+
+    def test_nc_names_owz_level_names(self) -> None:
+        """Check OWZ level names correctly override defaults."""
+        overrides = {
+            "owz850": "owz_850",
+            "owz500": "owz_500",
+            "r950": "r_950",
+            "r700": "r_700",
+            "q950": "q_950",
+            "vo850": "vo_850",
+            "u925": "u_925",
+            "u850": "u_850",
+            "u200": "u_200",
+            "v925": "v_925",
+            "v850": "v_850",
+            "v200": "v_200",
+        }
+        nc_names = overrides.copy()
+        _nc_names_defaults_owz(nc_names)
+
+        for key, value in overrides.items():
+            assert nc_names[key] == value
+
+        assert nc_names["vws"] == "_VECMAG(_DIFF(u_850,u_200),_DIFF(v_850,v_200))"
+        assert nc_names["ws925"] == "_VECMAG(u_925,v_925)"
+
+    def test_nc_names_owz_derived_names(self) -> None:
+        """Check OWZ derived variable names correctly override defaults."""
+        overrides = {"vws": "vws_new", "si10": "si10_new", "ws925": "ws925_new"}
+        nc_names = overrides.copy()
+        _nc_names_defaults_owz(nc_names)
+
+        for key, value in overrides.items():
+            assert nc_names[key] == value
+
+
+@pytest.fixture
+def nc_input_file(tmp_path: Path):
+    """Create a netcdf file with a time/lat/lon grid and a data variable."""
+
+    def _create(
+        filepath: Path | None = None,
+        *,
+        var_name: str = "psl",
+        lat_size: int = 5,
+        lon_size: int = 5,
+        time_size: int = 10,
+        missing_dim: str | None = None,
+        lat_coords: np.ndarray | None = None,
+        lon_coords: np.ndarray | None = None,
+        time_coords: np.ndarray | None = None,
+        extra_var: str | None = None,
+        var_properties: dict | None = None,
+    ) -> str:
+        """Write a data variable on a CF time/lat/lon grid.
+
+        The dimension named in ``missing_dim`` is omitted, as are coordinate
+        values that are not given.
+        """
+        dims = {
+            "time": (
+                time_size,
+                time_coords if time_coords is not None else np.arange(time_size),
+                {
+                    "standard_name": "time",
+                    "calendar": "standard",
+                    "units": "days since 1950-01-01",
+                },
+            ),
+            "latitude": (
+                lat_size,
+                (
+                    lat_coords
+                    if lat_coords is not None
+                    else np.linspace(-60, 60, lat_size)
+                ),
+                {"standard_name": "latitude", "units": "degrees_north"},
+            ),
+            "longitude": (
+                lon_size,
+                (
+                    lon_coords
+                    if lon_coords is not None
+                    else np.linspace(0, 360, lon_size)
+                ),
+                {"standard_name": "longitude", "units": "degrees_east"},
+            ),
+        }
+        path = str(filepath or tmp_path / "inputs.nc")
+        with Dataset(path, "w", format="NETCDF4") as nc:
+            for dim, (size, coord_values, attrs) in dims.items():
+                if dim == missing_dim:
+                    continue
+                nc.createDimension(dim, size)
+                coord = nc.createVariable(dim, "f4", (dim,))
+                coord[:] = coord_values
+                for key, val in attrs.items():
+                    setattr(coord, key, val)
+
+            dim_names = tuple(d for d in dims if d != missing_dim)
+            shape = tuple(dims[d][0] for d in dim_names)
+            v = nc.createVariable(var_name, "f4", dim_names)
+            v[:] = np.zeros(shape)
+
+            if extra_var:
+                ev = nc.createVariable(extra_var, "f4", dim_names)
+                ev[:] = np.zeros(shape)
+            for k, val in (var_properties or {}).items():
+                setattr(v, k, val)
+        return path
+
+    return _create
+
+
 class TestTETracker:
     """Tests for the TETracker class and associated methods."""
 
     # Test for TETracker initialization
     def test_te_tracker_initialization(self) -> None:
         """Test initialisation of TETracker with some non-default parameters."""
-        params = TEDetectParameters(
-            in_data=["input_file.nc"],
-            output_dir="outputs",
-        )
+        params = TEDetectParameters(output_dir="outputs")
         tracker = TETracker(detect_parameters=params)
         assert tracker.detect_parameters.output_dir == "outputs"
 
     def test_te_tracker_tempfiles(self) -> None:
         """Test the definition of temporary files when not manually defined."""
-        dn_params = TEDetectParameters(in_data=["input_file.nc"])
-        tracker = TETracker(dn_params)
-        tempdir = tracker._tempdir.name  # noqa: SLF001 - private member access
+        tracker = TETracker()
+        tempdir = tracker._tempdir.name
         assert Path(tempdir).exists()
         assert tracker.detect_parameters.output_dir == tempdir
         assert tracker.stitch_parameters.in_file == tempdir + "/nodes.txt"
@@ -168,46 +519,17 @@ class TestTETracker:
         del tracker
         assert not Path(tempdir).exists()
 
-    @pytest.fixture
-    def netcdf_psl_file(self, tmp_path: Path):
-        """Create a netcdf file with metadata given by the 'properties' argument."""
-
-        def _create_file(properties):
-            file_name = str(tmp_path / "inputs.nc")
-            field = cf.Field(properties=properties)
-            field.nc_set_variable("psl")
-            domain_axis_time = cf.DomainAxis(10)
-            domain_axis_time.nc_set_unlimited(True)
-            _ = field.set_construct(domain_axis_time)
-            data = cf.Data([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-            field.set_data(data)
-            dimension_T = cf.DimensionCoordinate(
-                properties={
-                    "standard_name": "time",
-                    "calendar": "standard",
-                    "units": "days since 1950-01-01",
-                },
-                data=cf.Data([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
-            )
-            field.set_construct(dimension_T)
-            cf.write(field, file_name)  # type: ignore[operator]
-            return file_name
-
-        return _create_file
-
-    def test_te_tracker_time_metadata(self, netcdf_psl_file):
+    def test_te_tracker_time_metadata(self, nc_input_file):
         """Test extracting valid calendar metadata from a NetCDF file."""
         properties = {
             "standard_name": "air_pressure_at_sea_level",
             "long_name": "Sea Level Pressure",
             "units": "Pa",
         }
-        file_name = netcdf_psl_file(properties)
-        dn_params = TEDetectParameters(
-            in_data=[file_name],
-            search_by_min="psl",
-        )
+        file_name = nc_input_file(var_properties=properties)
+        dn_params = TEDetectParameters(search_by_min="psl")
         tracker = TETracker(dn_params)
+        tracker.set_input_files(file_name)
 
         # Assert the metadata extracted correctly
         tracker.set_metadata()
@@ -218,34 +540,31 @@ class TestTETracker:
             "end_time": datetime(1950, 1, 10, 00, calendar="standard"),
         }
 
-    def test_te_tracker_time_metadata_variable_not_found(self, netcdf_psl_file):
+    def test_te_tracker_time_metadata_variable_not_found(self, nc_input_file):
         """Test ValueError raised when the main search variable not found in inputs."""
-        file_name = netcdf_psl_file({})
-        dn_params = TEDetectParameters(
-            in_data=[file_name],
-            search_by_min="not_psl",
-        )
+        file_name = nc_input_file(var_properties={})
+        dn_params = TEDetectParameters(search_by_min="not_psl")
         tracker = TETracker(dn_params)
 
         with pytest.raises(
-            ValueError, match=r"Variable 'not_psl' not found in input files."
+            ValueError, match=r"Search variable 'not_psl' not found in input files."
         ):
-            tracker.set_metadata()
+            tracker.set_input_files(file_name)
 
-    def test_te_tracker_variable_metadata(self, netcdf_psl_file) -> None:
+    def test_te_tracker_variable_metadata(self, nc_input_file) -> None:
         """Test the reading in of variable metadata from input NetCDF files."""
         properties = {
             "standard_name": "air_pressure_at_sea_level",
             "long_name": "Sea Level Pressure",
             "units": "Pa",
         }
-        file_name = netcdf_psl_file(properties)
+        file_name = nc_input_file(var_properties=properties)
         dn_params = TEDetectParameters(
-            in_data=[file_name],
             search_by_min="psl",
             output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
         )
         tracker = TETracker(dn_params)
+        tracker.set_input_files(file_name)
         tracker.set_metadata()
         metadata = tracker.variable_metadata
 
@@ -267,35 +586,34 @@ class TestTETracker:
             {"long_name": "latitudinal grid index"},
         )
 
-    def test_te_tracker_variable_metadata_failure(self, netcdf_psl_file) -> None:
+    def test_te_tracker_variable_metadata_failure(self, nc_input_file) -> None:
         """Check set_metadata raises ValueError for invalid inputs."""
         properties = {
             "standard_name": "air_pressure_at_sea_level",
             "long_name": "Sea Level Pressure",
             "units": "Pa",
         }
-        file_name = netcdf_psl_file(properties)
+        file_name = nc_input_file(var_properties=properties)
         dn_params = TEDetectParameters(
-            in_data=[file_name],
             search_by_min="psl",
             output_commands=[TEOutputCommand(var="invalid", operator="min", dist=1)],
         )
         tracker = TETracker(dn_params)
         with pytest.raises(
             ValueError,
-            match=r"Variable 'invalid' not found in input files.",
+            match=r"Output command variable 'invalid' not found in input files.",
         ):
-            tracker.set_metadata()
+            tracker.set_input_files(file_name)
 
-    def test_te_tracker_variable_metadata_unknown(self, netcdf_psl_file) -> None:
+    def test_te_tracker_variable_metadata_unknown(self, nc_input_file) -> None:
         """Check set_metadata for missing metadata."""
-        file_name = netcdf_psl_file({})
+        file_name = nc_input_file(var_properties={})
         dn_params = TEDetectParameters(
-            in_data=[file_name],
             search_by_min="psl",
             output_commands=[TEOutputCommand(var="psl", operator="min", dist=1)],
         )
         tracker = TETracker(dn_params)
+        tracker.set_input_files(file_name)
         tracker.set_metadata()
         metadata = tracker.variable_metadata
         assert "psl" in metadata
@@ -310,14 +628,12 @@ class TestTETracker:
         assert metadata["psl"].constructs == [expected_cell_method]
         assert metadata["psl"].construct_kwargs is None
 
-    def test_te_tracker_global_metadata(self, netcdf_psl_file) -> None:
+    def test_te_tracker_global_metadata(self, nc_input_file) -> None:
         """Check set_metadata correctly sets _global_metadata."""
-        file_name = netcdf_psl_file({})
-        dn_params = TEDetectParameters(
-            in_data=[file_name],
-            search_by_min="psl",
-        )
+        file_name = nc_input_file(var_properties={})
+        dn_params = TEDetectParameters(search_by_min="psl")
         tracker = TETracker(dn_params)
+        tracker.set_input_files(file_name)
         tracker.set_metadata()
 
         assert tracker.global_metadata is not None
@@ -547,17 +863,15 @@ class TestTETracker:
         mock_file_fixture,
         expected_trajectories,
         request,
-        netcdf_psl_file,
+        nc_input_file,
     ):
         """Test read_trajectories for different formats and multiple trajectories."""
         mock_file = request.getfixturevalue(mock_file_fixture)
-        dn_params = TEDetectParameters(
-            in_data=[netcdf_psl_file({})], search_by_min="psl"
-        )
-        tracker = TETracker(dn_params)
+        tracker = TETracker(TEDetectParameters(search_by_min="psl"))
         tracker.stitch_parameters.output_dir = str(mock_file.parent)
         tracker.stitch_parameters.output_file = mock_file.name
         tracker.stitch_parameters.out_file_format = file_format
+        tracker.set_input_files(nc_input_file(var_properties={}))
         trajectories = tracker.read_trajectories()
 
         # Assertions
@@ -576,7 +890,7 @@ class TestTETracker:
         ],
     )
     def test_read_trajectories_header_names(
-        self, file_format, mock_file_fixture, request, netcdf_psl_file
+        self, file_format, mock_file_fixture, request, nc_input_file
     ) -> None:
         """
         Test the track header names are assigned correctly when not in file.
@@ -591,7 +905,6 @@ class TestTETracker:
             TEOutputCommand(var="v2", operator="min", dist=0.0),
         ]
         dn_params = TEDetectParameters(
-            in_data=[netcdf_psl_file({})],
             search_by_min="psl",
             output_commands=output_commands,
         )
@@ -602,6 +915,7 @@ class TestTETracker:
         tracker.stitch_parameters.output_dir = str(mock_file.parent)
         tracker.stitch_parameters.output_file = mock_file.name
         tracker.stitch_parameters.out_file_format = file_format
+        tracker._input_files = [nc_input_file(var_properties={})]
         trajectories = tracker.read_trajectories()
 
         # Check the track header names are correct
@@ -618,15 +932,17 @@ class TestTETracker:
         ],
     )
     def test_to_netcdf_with_cf_read(
-        self, file_format, mock_file_fixture, netcdf_psl_file, request, tmp_path: Path
+        self, file_format, mock_file_fixture, nc_input_file, request, tmp_path: Path
     ):
         """Test the to_netcdf method by writing out and validating with cf.read."""
-        # Get the mock file and set up the TETracker
-        mock_file = request.getfixturevalue(mock_file_fixture)
-        file_name = netcdf_psl_file({})
-        dn_params = TEDetectParameters(in_data=[file_name], search_by_min="psl")
+        # Set up the TETracker
+        dn_params = TEDetectParameters(search_by_min="psl")
         sn_params = TEStitchParameters(in_fmt=["lon", "lat", "v1", "v2"])
         tracker = TETracker(dn_params, stitch_parameters=sn_params)
+        tracker.set_input_files(nc_input_file(var_properties={}))
+
+        # Set the tracker to use the mocked intermediate output file
+        mock_file = request.getfixturevalue(mock_file_fixture)
         tracker.stitch_parameters.output_dir = str(mock_file.parent)
         tracker.stitch_parameters.output_file = mock_file.name
         tracker.stitch_parameters.out_file_format = file_format
@@ -657,7 +973,7 @@ class TestTETracker:
         assert lat_coord.shape == lon_coord.shape == (trajectory_ids, observation_count)
 
     def test_run_tracker_success(
-        self, mocker, tmp_path: Path, netcdf_psl_file, mock_gfdl_file
+        self, mocker, tmp_path: Path, nc_input_file, mock_gfdl_file
     ) -> None:
         """Check run_tracker runs successfully."""
         # Mock subprocess.run to simulate successful execution
@@ -668,12 +984,11 @@ class TestTETracker:
         )
 
         # Set up psl file with metadata for time
-        file_name = netcdf_psl_file({})
-        dn_params = TEDetectParameters(in_data=[file_name], search_by_min="psl")
+        input_file_name = nc_input_file(var_properties={})
 
         # Use the mock_gfdl_file to simulate the output of StitchNodes
         sn_in_fmt = ["lon", "lat", "psl", "orog"]
-        dn_params = TEDetectParameters(in_data=[file_name], search_by_min="psl")
+        dn_params = TEDetectParameters(search_by_min="psl")
         sn_params = TEStitchParameters(
             output_dir=str(mock_gfdl_file.parent),
             output_file=mock_gfdl_file.name,
@@ -683,17 +998,18 @@ class TestTETracker:
 
         # Check run_tracker runs without error and produces an output file
         output_file = tmp_path / "trajectories.nc"
-        tracker.run_tracker(str(output_file))
+        tracker.run_tracker(input_file_name, str(output_file))
         assert output_file.exists()
 
     def test_run_tracker_failure(self, mocker) -> None:
         """Check run_tracker propagates RuntimeError from detect/stitch."""
         # Create tracker object
-        dn_params = TEDetectParameters(in_data=["input_file.nc"])
-        tracker = TETracker(dn_params)
+        tracker = TETracker()
 
         # Mock subprocess.run and define a function to mock fail for a specific command
         mocker.patch("pathlib.Path.mkdir")
+        mocker.patch("pathlib.Path.exists")
+        mocker.patch.object(TETracker, "_verify_inputs")
         mock_subprocess_run = mocker.patch("subprocess.run")
 
         def subprocess_failure(cmd, args, **_kwargs):
@@ -723,7 +1039,7 @@ class TestTETracker:
         with pytest.raises(
             RuntimeError, match="DetectNodes failed with a non-zero exit code"
         ):
-            tracker.run_tracker("trajectories.nc")
+            tracker.run_tracker("input_file.nc", "trajectories.nc")
 
         # Check a RuntimeError is correctly raised for stitch
         mock_subprocess_run.side_effect = lambda args, **kwargs: subprocess_failure(
@@ -732,7 +1048,189 @@ class TestTETracker:
         with pytest.raises(
             RuntimeError, match="StitchNodes failed with a non-zero exit code"
         ):
-            tracker.run_tracker("trajectories.nc")
+            tracker.run_tracker("input_file.nc", "trajectories.nc")
+
+
+class TestTEVerifyInputs:
+    """Test the checks on the consistency of the input files."""
+
+    @pytest.mark.parametrize("missing_dim", ["latitude", "longitude"])
+    def test_check_grids_missing_dimension(
+        self, tmp_path: Path, missing_dim: str, nc_input_file
+    ):
+        """Check verification fails when a required dimension is missing."""
+        fn = nc_input_file(tmp_path / "missing.nc", missing_dim=missing_dim)
+        tracker = TETracker()
+        with pytest.raises(
+            ValueError, match=f"missing required dimension '{missing_dim}'"
+        ):
+            tracker.set_input_files(fn)
+
+    def test_required_variables_search_var_missing(self, tmp_path: Path, nc_input_file):
+        """Check verification fails when search variable is not found."""
+        fn = nc_input_file(tmp_path / "f.nc", var_name="wind")
+        tracker = TETracker(TEDetectParameters(search_by_min="psl"))
+        with pytest.raises(
+            ValueError, match="Search variable 'psl' not found in input files"
+        ):
+            tracker.set_input_files(fn)
+
+    def test_required_variables_closed_contour_missing(
+        self, tmp_path: Path, nc_input_file
+    ):
+        """Check verification fails when closed contour variable is missing."""
+        fn = nc_input_file(tmp_path / "f.nc", var_name="psl")
+        params = TEDetectParameters(
+            search_by_min="psl",
+            closed_contours=[
+                TEContour(var="orog", delta=100.0, dist=2.0, minmaxdist=0.0)
+            ],
+        )
+        tracker = TETracker(params)
+        with pytest.raises(
+            ValueError, match="Closed contour variable 'orog' not found"
+        ):
+            tracker.set_input_files(fn)
+
+    def test_required_variables_no_closed_contour_missing(
+        self, tmp_path: Path, nc_input_file
+    ):
+        """Check verification fails when no-closed contour variable is missing."""
+        fn = nc_input_file(tmp_path / "f.nc", var_name="psl")
+        params = TEDetectParameters(
+            search_by_min="psl",
+            no_closed_contours=[
+                TEContour(var="orog", delta=100.0, dist=2.0, minmaxdist=0.0)
+            ],
+        )
+        tracker = TETracker(params)
+        with pytest.raises(
+            ValueError, match="No closed contour variable 'orog' not found"
+        ):
+            tracker.set_input_files(fn)
+
+    def test_required_variables_threshold_var_missing(
+        self, tmp_path: Path, nc_input_file
+    ):
+        """Check verification fails when threshold variable is missing."""
+        fn = nc_input_file(tmp_path / "f.nc", var_name="psl")
+        params = TEDetectParameters(
+            search_by_min="psl",
+            thresholds=[TEDetectThreshold(var="wind", op=">=", value=16.0, dist=1.0)],
+        )
+        tracker = TETracker(params)
+        with pytest.raises(ValueError, match="Threshold variable 'wind' not found"):
+            tracker.set_input_files(fn)
+
+    def test_check_grids_mismatched_horizontal_grid(
+        self, tmp_path: Path, nc_input_file
+    ):
+        """Check verification fails when input files have different horizontal grids."""
+        f1 = nc_input_file(tmp_path / "f1.nc", var_name="psl", lat_size=5, lon_size=5)
+        f2 = nc_input_file(tmp_path / "f2.nc", var_name="wind", lat_size=6, lon_size=5)
+        tracker = TETracker(TEDetectParameters(search_by_min="psl"))
+        with pytest.raises(
+            ValueError, match=r"horizontal grid dimensions .* do not match"
+        ):
+            tracker.set_input_files([f1, f2])
+
+    def test_check_grids_multiple_valid_files(self, tmp_path: Path, nc_input_file):
+        """Check verification succeeds for multiple valid files on the same grid."""
+        f1 = nc_input_file(tmp_path / "f1.nc", var_name="psl")
+        f2 = nc_input_file(tmp_path / "f2.nc", var_name="wind")
+        params = TEDetectParameters(
+            search_by_min="psl",
+            output_commands=[TEOutputCommand(var="wind", operator="max", dist=2.0)],
+        )
+        tracker = TETracker(params)
+        tracker.set_input_files([f1, f2])
+        assert tracker._input_files == [f1, f2]
+
+    @pytest.fixture
+    def netcdf_variable_file(self, tmp_path: Path):
+        """Create a function that writes a netcdf file containing a single variable."""
+
+        def _create_file(name, times=None, calendar="standard", file_name=None) -> str:
+            """Write a variable ``name``, with a time axis if ``times`` is given."""
+            path = str(tmp_path / (file_name or f"{name}.nc"))
+            axis_values = list(times) if times is not None else [0, 1, 2]
+            with Dataset(path, "w") as nc:
+                nc.createDimension("axis", len(axis_values))
+                data = nc.createVariable(name, "f4", ("axis",))
+                if times is not None:
+                    coord = nc.createVariable("axis", "i8", ("axis",))
+                    coord.units = "days since 1950-01-01"
+                    coord.calendar = calendar
+                    coord.axis = "T"
+                    coord[:] = axis_values
+                data[:] = [0.0] * len(axis_values)
+            return path
+
+        return _create_file
+
+    @pytest.fixture
+    def dn_params(self):
+        """Create parameters searching ``psl``."""
+        return TEDetectParameters(search_by_min="psl")
+
+    def test_check_times_matching(self, netcdf_variable_file, dn_params) -> None:
+        """Check files with identical time ranges are accepted."""
+        psl = netcdf_variable_file("psl", range(10))
+        wind = netcdf_variable_file("sfcWind", range(10))
+        tracker = TETracker(dn_params)
+        tracker._input_files = [psl, wind]
+        tracker._check_input_times()
+
+    def test_check_times_extra(self, netcdf_variable_file, dn_params) -> None:
+        """Check other variables may cover more times than the search variable."""
+        psl = netcdf_variable_file("psl", range(10))
+        wind = netcdf_variable_file("sfcWind", range(15))
+        tracker = TETracker(dn_params)
+        tracker._input_files = [psl, wind]
+        tracker._check_input_times()
+
+    def test_check_times_multiple_files(self, netcdf_variable_file, dn_params) -> None:
+        """Check a variable split over several files by time is accepted."""
+        psl_1 = netcdf_variable_file("psl", range(5), file_name="psl_1.nc")
+        psl_2 = netcdf_variable_file("psl", range(5, 10), file_name="psl_2.nc")
+        wind = netcdf_variable_file("sfcWind", range(10))
+        tracker = TETracker(dn_params)
+        tracker._input_files = [psl_1, psl_2, wind]
+        tracker._check_input_times()
+
+    def test_check_times_missing_times(self, netcdf_variable_file, dn_params) -> None:
+        """Check ValueError is raised when another variable is missing times."""
+        psl = netcdf_variable_file("psl", range(10))
+        wind = netcdf_variable_file("sfcWind", range(3, 13))
+        tracker = TETracker(dn_params)
+        tracker._input_files = [psl, wind]
+
+        with pytest.raises(
+            ValueError,
+            match=r"Variable 'sfcWind' is missing 3 of the 10 times of the search "
+            r"variable 'psl'",
+        ):
+            tracker._check_input_times()
+
+    def test_check_times_constant(self, netcdf_variable_file, dn_params) -> None:
+        """Check variables without a time dimension are not checked."""
+        psl = netcdf_variable_file("psl", range(10))
+        orography = netcdf_variable_file("orog")
+        tracker = TETracker(dn_params)
+        tracker._input_files = [psl, orography]
+        tracker._check_input_times()
+
+    def test_check_times_different_calendars(
+        self, netcdf_variable_file, dn_params
+    ) -> None:
+        """Check ValueError is raised when variables use different calendars."""
+        psl = netcdf_variable_file("psl", range(10))
+        wind = netcdf_variable_file("sfcWind", range(10), calendar="noleap")
+        tracker = TETracker(dn_params)
+        tracker._input_files = [psl, wind]
+
+        with pytest.raises(ValueError, match=r"different calendars"):
+            tracker._check_input_times()
 
 
 class TestTETrackerDetect:
@@ -740,6 +1238,8 @@ class TestTETrackerDetect:
 
     def test_te_tracker_detect_defaults(self, mocker) -> None:
         """Checks the correct detect call is made for defaults."""
+        mocker.patch("pathlib.Path.exists")
+
         # Mock the creation of the output directory
         mock_mkdir = mocker.patch("pathlib.Path.mkdir", autospec=True)
 
@@ -750,10 +1250,10 @@ class TestTETrackerDetect:
         )
 
         # create a TETracker with default parameters and call detect method
-        dn_params = TEDetectParameters(in_data=["input_file.nc"])
-        tracker = TETracker(dn_params)
+        tracker = TETracker()
+        tracker._input_files = ["input_file.nc"]
         result = tracker.detect()
-        outdir = tracker._tempdir.name  # noqa: SLF001 - private member access
+        outdir = tracker._tempdir.name
 
         # Check the mkdir call made as expected
         mock_mkdir.assert_called_once_with(Path(outdir), parents=True, exist_ok=True)
@@ -769,9 +1269,9 @@ class TestTETrackerDetect:
                 "--mergedist",
                 "0.0",
                 "--latname",
-                "lat",
+                "latitude",
                 "--lonname",
-                "lon",
+                "longitude",
                 "--minlat",
                 "0.0",
                 "--maxlat",
@@ -794,6 +1294,8 @@ class TestTETrackerDetect:
 
     def test_te_tracker_detect_non_defaults(self, mocker) -> None:
         """Checks the correct detect call is made for non-default values."""
+        mocker.patch("pathlib.Path.exists")
+
         # Mock the creation of the output directory
         mock_mkdir = mocker.patch("pathlib.Path.mkdir", autospec=True)
 
@@ -805,7 +1307,6 @@ class TestTETrackerDetect:
 
         # Create a TETracker with non-default parameters and call detect method
         params = TEDetectParameters(
-            in_data=["input_data.nc"],
             output_dir="custom_outputs",
             output_file="custom_nodes.txt",
             merge_dist=10.0,
@@ -817,6 +1318,7 @@ class TestTETrackerDetect:
             max_lon=180.0,
         )
         tracker = TETracker(detect_parameters=params)
+        tracker._input_files = ["input_data.nc"]
         result = tracker.detect()
 
         # Check the mkdir call made as expected
@@ -867,6 +1369,7 @@ class TestTETrackerDetect:
         """
         # Mock subprocess.run to simulate successful execution
         mocker.patch("pathlib.Path.mkdir")
+        mocker.patch("pathlib.Path.exists")
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.return_value = mocker.MagicMock(
             returncode=0, stdout="Mocked stdout output", stderr="Mocked stderr output"
@@ -874,13 +1377,16 @@ class TestTETrackerDetect:
 
         # Create a TETracker with optional parameters and call detect method
         params = TEDetectParameters(
-            in_data=["input1.nc", "input2.nc"],
             out_header=True,
             output_dir="outputs",
             search_by_min="psl",
             closed_contours=[
                 TEContour(var="psl", delta=200.0, dist=5.5, minmaxdist=0.0)
             ],
+            no_closed_contours=[
+                TEContour(var="orog", delta=100.0, dist=2.0, minmaxdist=0.0)
+            ],
+            thresholds=[TEDetectThreshold(var="sfcWind", op=">=", value=16, dist=1)],
             time_filter="3hr",
             output_commands=[
                 TEOutputCommand(var="psl", operator="min", dist=0.0),
@@ -889,6 +1395,7 @@ class TestTETrackerDetect:
             regional=True,
         )
         tracker = TETracker(detect_parameters=params)
+        tracker._input_files = ["input1.nc", "input2.nc"]
         result = tracker.detect()
 
         # Check subprocess call made as expected and returned outputs are passed back up
@@ -904,14 +1411,18 @@ class TestTETrackerDetect:
                 "psl",
                 "--closedcontourcmd",
                 "psl,200.0,5.5,0.0",
+                "--noclosedcontourcmd",
+                "orog,100.0,2.0,0.0",
+                "--thresholdcmd",
+                "sfcWind,>=,16,1",
                 "--mergedist",
                 "0.0",
                 "--timefilter",
                 "3hr",
                 "--latname",
-                "lat",
+                "latitude",
                 "--lonname",
-                "lon",
+                "longitude",
                 "--minlat",
                 "0.0",
                 "--maxlat",
@@ -939,12 +1450,13 @@ class TestTETrackerDetect:
         """Check detect raises FileNotFoundError when executable is missing."""
         # Mock subprocess.run to simulate a FileNotFoundError
         mocker.patch("pathlib.Path.mkdir")
+        mocker.patch("pathlib.Path.exists")
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.side_effect = FileNotFoundError("Executable not found")
 
         # Create a TETracker instance
-        params = TEDetectParameters(in_data=["input_data.nc"], output_file="output.txt")
-        tracker = TETracker(detect_parameters=params)
+        tracker = TETracker()
+        tracker._input_files = ["input_data.nc"]
 
         # Assert that detect raises FileNotFoundError
         with pytest.raises(
@@ -957,14 +1469,15 @@ class TestTETrackerDetect:
         """Check detect raises RuntimeError on subprocess failure."""
         # Mock subprocess.run to simulate a failure
         mocker.patch("pathlib.Path.mkdir")
+        mocker.patch("pathlib.Path.exists")
         mock_subprocess_run = mocker.patch("subprocess.run")
         mock_subprocess_run.side_effect = subprocess.CalledProcessError(
             returncode=1, cmd="DetectNodes", stderr="Error occurred"
         )
 
         # Create a TETracker instance
-        params = TEDetectParameters(in_data=["input_data.nc"], output_file="output.txt")
-        tracker = TETracker(detect_parameters=params)
+        tracker = TETracker()
+        tracker._input_files = ["input_data.nc"]
 
         # Assert that detect raises RuntimeError
         with pytest.raises(
@@ -988,10 +1501,9 @@ class TestTETrackerStitch:
         )
 
         # Create a TETracker instance with default stitch parameters
-        dn_params = TEDetectParameters(in_data=["input_data.nc"])
-        tracker = TETracker(dn_params)
+        tracker = TETracker()
         result = tracker.stitch()
-        outdir = tracker._tempdir.name  # noqa: SLF001 - private member access
+        outdir = tracker._tempdir.name
 
         # Check the mkdir call made as expected
         mock_mkdir.assert_called_once_with(Path(outdir), parents=True, exist_ok=True)
@@ -1042,7 +1554,6 @@ class TestTETrackerStitch:
         )
 
         # Create a TETracker instance with non-default stitch parameters
-        dn_params = TEDetectParameters(in_data=["input_data.nc"])
         sn_params = TEStitchParameters(
             output_dir="custom_outputs",
             output_file="custom_trajectories.txt",
@@ -1056,7 +1567,7 @@ class TestTETrackerStitch:
             out_file_format="csv",
             out_seconds=True,
         )
-        tracker = TETracker(dn_params, stitch_parameters=sn_params)
+        tracker = TETracker(stitch_parameters=sn_params)
         result = tracker.stitch()
 
         # Check the mkdir call made as expected
@@ -1133,13 +1644,12 @@ class TestTETrackerStitch:
         )
 
         # Create a TETracker instance with threshold filters
-        dn_params = TEDetectParameters(in_data=["input_data.nc"])
         sn_params = TEStitchParameters(
             output_dir="outputs",
             in_file="nodes.txt",
             threshold_filters=threshold_filters,
         )
-        tracker = TETracker(dn_params, stitch_parameters=sn_params)
+        tracker = TETracker(stitch_parameters=sn_params)
         result = tracker.stitch()
 
         # Check subprocess call made as expected and returned outputs are passed back up
@@ -1181,14 +1691,13 @@ class TestTETrackerStitch:
         "dn_params, sn_params, expected",
         [
             pytest.param(
-                TEDetectParameters(in_data=["infile.txt"]),
+                None,
                 None,
                 [None, None],
                 id="Check defaults",
             ),
             pytest.param(
                 TEDetectParameters(
-                    in_data=["infile.txt"],
                     output_dir="outputs",
                     output_file="file.txt",
                     output_commands=[
@@ -1202,7 +1711,6 @@ class TestTETrackerStitch:
             ),
             pytest.param(
                 TEDetectParameters(
-                    in_data=["infile.txt"],
                     output_dir="outputs",
                     output_commands=[
                         TEOutputCommand(var="v1", operator="min", dist=0.0),
@@ -1231,8 +1739,7 @@ class TestTETrackerStitch:
         mock_subprocess_run.side_effect = FileNotFoundError("Executable not found")
 
         # Create a TETracker instance
-        dn_params = TEDetectParameters(in_data=["input_data.nc"])
-        tracker = TETracker(dn_params)
+        tracker = TETracker()
 
         # Assert that stitch raises FileNotFoundError
         with pytest.raises(
@@ -1251,8 +1758,7 @@ class TestTETrackerStitch:
         )
 
         # Create a TETracker instance
-        dn_params = TEDetectParameters(in_data=["input_data.nc"])
-        tracker = TETracker(dn_params)
+        tracker = TETracker()
 
         # Assert that stitch raises RuntimeError
         with pytest.raises(

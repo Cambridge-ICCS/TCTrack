@@ -12,6 +12,7 @@ References
 """
 
 from dataclasses import dataclass
+from typing import Iterable
 
 import cf
 
@@ -75,6 +76,10 @@ class NAMETracker(TCTracker):
         trajectories: list[Trajectory] = []
         return trajectories
 
+    def _verify_inputs(self) -> None:
+        """Verify the input files match the expected format."""
+        # Add any relevant checks for the input files (self._input_files)
+
     def _set_metadata(self) -> None:
         """Set the time and variable metadata attributes.
 
@@ -108,7 +113,7 @@ class NAMETracker(TCTracker):
             }
         )
 
-    def run_tracker(self, output_file: str) -> None:
+    def run_tracker(self, input_files: str | Iterable[str], output_file: str) -> None:
         """Run the tracker to obtain the tropical cyclone trajectories.
 
         This runs each of the individual steps of the tracking algorithm.
@@ -119,6 +124,8 @@ class NAMETracker(TCTracker):
 
         Arguments
         ---------
+        input_files : str | Iterable[str]
+            A (list of) file path(s) containing NetCDF input data to use in the tracker.
         output_file : str
             Filename to which the tropical cyclone track trajectories are saved.
 
@@ -129,12 +136,17 @@ class NAMETracker(TCTracker):
 
         >>> params = NAMEParameters(...)
         >>> tracker = NAMETracker(params)
-        >>> tracker.run_tracker("trajectories.nc")
+        >>> tracker.run_tracker("input.nc", "trajectories.nc")
         """
+        # Store the input files in the tracker
+        self.set_input_files(input_files)
+
         # Run the steps for the tracking algorithm, eg:
         # self.preprocess()
         # self.detect()
         # self.stitch()
 
         # Output the trajectories as a CF-netcdf file.
-        # self.to_netcdf(output_file)
+        # If the tracking algorithm doesn't write the trajectories to an intermediate
+        # output file you can instead provide these with the `trajectories` argument
+        self.to_netcdf(output_file)

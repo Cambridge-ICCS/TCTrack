@@ -18,12 +18,14 @@ import cf
 import numpy as np
 import pytest
 from cftime import datetime
+from netCDF4 import Dataset
 
 from tctrack.tstorms import (
     TSTORMSBaseParameters,
     TSTORMSDetectParameters,
     TSTORMSStitchParameters,
     TSTORMSTracker,
+    parameter_set,
 )
 
 
@@ -193,15 +195,255 @@ class TestTSTORMSTypes:
             TSTORMSStitchParameters(do_thickness=True)
 
 
+class TestTSTORMSParameterSet:
+    """Tests for the parameter_set function."""
+
+    @pytest.mark.parametrize("name", ["default", "Vitart2001"])
+    @pytest.mark.parametrize("use_sfc_wind", [True, False])
+    def test_parameter_set_vitart(self, name, use_sfc_wind) -> None:
+        """Check the Vitart parameter set values."""
+        base, detect, stitch = parameter_set(
+            name, "/path/to/tstorms", "/path/to/output", use_sfc_wind
+        )
+
+        assert base.tstorms_dir == "/path/to/tstorms"
+        assert base.output_dir == "/path/to/output"
+        assert detect.use_sfc_wind is use_sfc_wind
+        assert detect.tm_crit == 0.5
+        assert detect.lat_bound_n == 70.0
+        assert detect.lat_bound_s == -70.0
+        assert stitch.r_crit == 800.0
+        assert stitch.wind_crit == 12.0 if use_sfc_wind else 17.0
+        assert stitch.tm_crit == 0.5
+        assert stitch.lat_bound_n == 70.0
+        assert stitch.lat_bound_s == -70.0
+
+    def test_parameter_set_invalid_name(self) -> None:
+        """Check parameter_set fails for unknown names."""
+        with pytest.raises(ValueError, match="Unknown parameter set: unknown"):
+            parameter_set("unknown", "/path/to/tstorms", "/path/to/output")
+
+
 class TestTSTORMSTracker:
     """Tests for the TSTORMS Tracker class."""
+
+    def test_initialisation_no_inputs(self, tmp_path):
+        """Test tracker initialisation without inputs in detect parameters."""
+        base_params = TSTORMSBaseParameters(
+            tstorms_dir=str(tmp_path / "tstorms"),
+            output_dir=str(tmp_path / "tstorms/output"),
+        )
+        tracker = TSTORMSTracker(base_params)
+
+        assert tracker._u_in_file is None
+        assert tracker._v_in_file is None
+        assert tracker._vort_in_file is None
+        assert tracker._tm_in_file is None
+        assert tracker._slp_in_file is None
+
+    def test_initialisation_inputs(self, tmp_path):
+        """Test tracker initialisation with inputs in detect parameters."""
+        input_dir = str(tmp_path / "tstorms/input")
+        base_params = TSTORMSBaseParameters(
+            tstorms_dir=str(tmp_path / "tstorms"),
+            output_dir=str(tmp_path / "tstorms/output"),
+            input_dir=input_dir,
+        )
+        detect_params = TSTORMSDetectParameters(
+            u_in_file="u.nc",
+            v_in_file="v.nc",
+            vort_in_file="vort.nc",
+            tm_in_file="tm.nc",
+            slp_in_file="slp.nc",
+        )
+        tracker = TSTORMSTracker(base_params, detect_params)
+
+        assert tracker._u_in_file == os.path.join(input_dir, "u.nc")
+        assert tracker._v_in_file == os.path.join(input_dir, "v.nc")
+        assert tracker._vort_in_file == os.path.join(input_dir, "vort.nc")
+        assert tracker._tm_in_file == os.path.join(input_dir, "tm.nc")
+        assert tracker._slp_in_file == os.path.join(input_dir, "slp.nc")
+
+    @staticmethod
+    def _create_valid_tstorms_files(
+        tmp_path: Path,
+        *,
+        use_sfc_wind: bool = True,
+        time_vals: np.ndarray | None = None,
+        lat_vals: np.ndarray | None = None,
+        unlimited_time: bool = True,
+        extra_var: bool = False,
+        missing_dim: str | None = None,
+    ) -> list[str]:
+        """Create valid NetCDF files for all 5 TSTORMS variables."""
+        u_var = "u_ref" if use_sfc_wind else "u850"
+        v_var = "v_ref" if use_sfc_wind else "v850"
+        var_names = [u_var, v_var, "vort850", "tm", "slp"]
+        n_lat, n_lon, n_time = 10, 20, 3
+        lats = lat_vals if lat_vals is not None else np.linspace(-60, 60, n_lat)
+        lons = np.linspace(0, 360, n_lon)
+        times = time_vals if time_vals is not None else np.array([1.0, 2.0, 3.0])
+
+        inputs = []
+        for var_name in var_names:
+            filename = str(tmp_path / f"{var_name}.nc")
+            with Dataset(filename, "w") as nc_file:
+                if missing_dim != "time":
+                    nc_file.createDimension("time", None if unlimited_time else n_time)
+                if missing_dim != "lat":
+                    nc_file.createDimension("lat", n_lat)
+                if missing_dim != "lon":
+                    nc_file.createDimension("lon", n_lon)
+
+                if missing_dim != "time":
+                    t_var = nc_file.createVariable("time", "f4", ("time",))
+                    t_var[:] = times
+                if missing_dim != "lat":
+                    la_var = nc_file.createVariable("lat", "f4", ("lat",))
+                    la_var[:] = lats
+                if missing_dim != "lon":
+                    lo_var = nc_file.createVariable("lon", "f4", ("lon",))
+                    lo_var[:] = lons
+
+                dims = tuple(d for d in ("time", "lat", "lon") if d != missing_dim)
+                shape = tuple(
+                    n_time if d == "time" else (n_lat if d == "lat" else n_lon)
+                    for d in dims
+                )
+                data_var = nc_file.createVariable(var_name, "f4", dims)
+                data_var[:] = np.zeros(shape)
+
+                if extra_var:
+                    extra = nc_file.createVariable("extra_field", "f4", dims)
+                    extra[:] = np.zeros(shape)
+            inputs.append(filename)
+        return inputs
+
+    def test_set_input_files(self, tmp_path):
+        """Test the variable input files are automatically set by set_input_files."""
+        base_params = TSTORMSBaseParameters(
+            tstorms_dir=str(tmp_path / "tstorms"),
+            output_dir=str(tmp_path / "tstorms/output"),
+        )
+        tracker = TSTORMSTracker(base_params)
+
+        inputs = self._create_valid_tstorms_files(tmp_path)
+        tracker.set_input_files(inputs)
+
+        # Check the attributes have been set correctly
+        assert tracker._u_in_file == str(tmp_path / "u_ref.nc")
+        assert tracker._v_in_file == str(tmp_path / "v_ref.nc")
+        assert tracker._vort_in_file == str(tmp_path / "vort850.nc")
+        assert tracker._tm_in_file == str(tmp_path / "tm.nc")
+        assert tracker._slp_in_file == str(tmp_path / "slp.nc")
+
+    def test_verify_inputs_use_sfc_wind_false(self, tmp_path):
+        """Test verification passes with u850/v850 when use_sfc_wind is False."""
+        base_params = TSTORMSBaseParameters(
+            tstorms_dir=str(tmp_path / "tstorms"),
+            output_dir=str(tmp_path / "tstorms/output"),
+        )
+        detect_params = TSTORMSDetectParameters(use_sfc_wind=False)
+        tracker = TSTORMSTracker(base_params, detect_params)
+
+        inputs = self._create_valid_tstorms_files(tmp_path, use_sfc_wind=False)
+        tracker.set_input_files(inputs)
+        assert tracker._u_in_file == str(tmp_path / "u850.nc")
+        assert tracker._v_in_file == str(tmp_path / "v850.nc")
+
+    @pytest.mark.parametrize("missing_dim", ["time", "lat", "lon"])
+    def test_verify_inputs_missing_dimension(self, tmp_path, missing_dim):
+        """Test verification fails when a required dimension is missing."""
+        base_params = TSTORMSBaseParameters(
+            tstorms_dir=str(tmp_path / "tstorms"),
+            output_dir=str(tmp_path / "tstorms/output"),
+        )
+        tracker = TSTORMSTracker(base_params)
+        inputs = self._create_valid_tstorms_files(tmp_path, missing_dim=missing_dim)
+        with pytest.raises(ValueError, match=f"missing dimension '{missing_dim}'"):
+            tracker.set_input_files(inputs)
+
+    def test_verify_inputs_time_not_unlimited(self, tmp_path):
+        """Test verification fails when time dimension is not unlimited."""
+        base_params = TSTORMSBaseParameters(
+            tstorms_dir=str(tmp_path / "tstorms"),
+            output_dir=str(tmp_path / "tstorms/output"),
+        )
+        tracker = TSTORMSTracker(base_params)
+        inputs = self._create_valid_tstorms_files(tmp_path, unlimited_time=False)
+        with pytest.raises(ValueError, match="must be an unlimited dimension"):
+            tracker.set_input_files(inputs)
+
+    def test_verify_inputs_negative_time(self, tmp_path):
+        """Test verification fails when time coordinates contain negative values."""
+        base_params = TSTORMSBaseParameters(
+            tstorms_dir=str(tmp_path / "tstorms"),
+            output_dir=str(tmp_path / "tstorms/output"),
+        )
+        tracker = TSTORMSTracker(base_params)
+        inputs = self._create_valid_tstorms_files(
+            tmp_path, time_vals=np.array([-1.0, 0.0, 1.0])
+        )
+        with pytest.raises(ValueError, match="only have positive values"):
+            tracker.set_input_files(inputs)
+
+    def test_verify_inputs_decreasing_latitude(self, tmp_path):
+        """Test verification fails when latitude coordinates are decreasing."""
+        base_params = TSTORMSBaseParameters(
+            tstorms_dir=str(tmp_path / "tstorms"),
+            output_dir=str(tmp_path / "tstorms/output"),
+        )
+        tracker = TSTORMSTracker(base_params)
+        inputs = self._create_valid_tstorms_files(
+            tmp_path, lat_vals=np.linspace(60, -60, 10)
+        )
+        with pytest.raises(ValueError, match="strictly increasing from south to north"):
+            tracker.set_input_files(inputs)
+
+    def test_verify_inputs_missing_required_variable(self, tmp_path):
+        """Test verification fails when not all 5 required variables are provided."""
+        base_params = TSTORMSBaseParameters(
+            tstorms_dir=str(tmp_path / "tstorms"),
+            output_dir=str(tmp_path / "tstorms/output"),
+        )
+        tracker = TSTORMSTracker(base_params)
+        inputs = self._create_valid_tstorms_files(tmp_path)
+        # Exclude slp.nc
+        inputs = [f for f in inputs if not f.endswith("slp.nc")]
+        with pytest.raises(ValueError, match="TSTORMS requires all 5 input variables"):
+            tracker.set_input_files(inputs)
+
+    def test_verify_inputs_grid_mismatch(self, tmp_path):
+        """Test verification fails when files have different coordinate grids."""
+        base_params = TSTORMSBaseParameters(
+            tstorms_dir=str(tmp_path / "tstorms"),
+            output_dir=str(tmp_path / "tstorms/output"),
+        )
+        tracker = TSTORMSTracker(base_params)
+        inputs = self._create_valid_tstorms_files(tmp_path)
+        # Overwrite slp.nc with different latitude coordinates
+        with Dataset(str(tmp_path / "slp.nc"), "w") as nc_file:
+            nc_file.createDimension("time", None)
+            nc_file.createDimension("lat", 10)
+            nc_file.createDimension("lon", 20)
+            nc_file.createVariable("time", "f4", ("time",))[:] = [1.0, 2.0, 3.0]
+            nc_file.createVariable("lat", "f4", ("lat",))[:] = np.linspace(-50, 50, 10)
+            nc_file.createVariable("lon", "f4", ("lon",))[:] = np.linspace(0, 360, 20)
+            nc_file.createVariable("slp", "f4", ("time", "lat", "lon"))[:] = np.zeros(
+                (3, 10, 20)
+            )
+
+        with pytest.raises(
+            ValueError, match=r"Latitude coordinates in .* do not match"
+        ):
+            tracker.set_input_files(inputs)
 
     def test_write_driver_namelist(self, tstorms_tracker):
         """Test the generation of the driver namelist."""
         tracker = tstorms_tracker[0]
 
         # Call the method
-        namelist_path = tracker._write_driver_namelist()  # noqa: SLF001 - Private member access
+        namelist_path = tracker._write_driver_namelist()
 
         # Verify the file was created inside tstorms_driver/
         assert os.path.exists(namelist_path)
@@ -234,7 +476,7 @@ class TestTSTORMSTracker:
         tstorms_dir = tracker.tstorms_parameters.tstorms_dir
 
         # Call the method
-        namelist_path = tracker._write_trajectory_analysis_namelist()  # noqa: SLF001 - Private member access
+        namelist_path = tracker._write_trajectory_analysis_namelist()
 
         # Verify the file was created inside tstorms_driver/
         assert os.path.exists(namelist_path)
@@ -266,7 +508,7 @@ class TestTSTORMSTracker:
         tracker = tstorms_tracker[0]
 
         # Assert the metadata extracted correctly
-        tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+        tracker._set_time_metadata()
         assert tracker.time_metadata == {
             "calendar": "360_day",
             "units": "days since 1950-01-01",
@@ -286,7 +528,7 @@ class TestTSTORMSTracker:
             os.remove(u_ref_path)
 
         with pytest.raises(FileNotFoundError):
-            tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+            tracker._set_time_metadata()
 
     def test_set_time_metadata_no_unlimited_dim(self, tstorms_tracker):
         """Test behavior when no unlimited dimension is found in the NetCDF file."""
@@ -319,7 +561,7 @@ class TestTSTORMSTracker:
                 "calendar."
             ),
         ):
-            tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+            tracker._set_time_metadata()
 
     def test_set_time_metadata_multiple_unlimited_dim(self, tstorms_tracker):
         """Test for error when multiple unlimited dimensions found in NetCDF file."""
@@ -365,7 +607,7 @@ class TestTSTORMSTracker:
                 "Multiple found: ['time', 'latitude']."
             ),
         ):
-            tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+            tracker._set_time_metadata()
 
     def test_set_time_metadata_no_coord_var(self, tstorms_tracker):
         """Test behavior when missing unlimited dimension coordinate data."""
@@ -387,7 +629,7 @@ class TestTSTORMSTracker:
             KeyError,
             match=r"Coordinate variable for unlimited dimension 'dim' not found.",
         ):
-            tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+            tracker._set_time_metadata()
 
     @pytest.mark.parametrize(
         "dimension_properties, expected_error, expected_warning, expected_metadata",
@@ -444,7 +686,7 @@ class TestTSTORMSTracker:
         # Ensure that code runs with errors/warnings raised as expected
         if expected_error:
             with pytest.raises(expected_error):
-                tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+                tracker._set_time_metadata()
         elif expected_warning:
             with pytest.warns(
                 UserWarning,
@@ -453,10 +695,10 @@ class TestTSTORMSTracker:
                     "defaulting to 'julian'"
                 ),
             ):
-                tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+                tracker._set_time_metadata()
                 assert tracker.time_metadata == expected_metadata
         else:
-            tracker._set_time_metadata()  # noqa: SLF001 - Private member access
+            tracker._set_time_metadata()
             assert tracker.time_metadata == expected_metadata
 
     def test_set_metadata(self, tstorms_tracker):
@@ -542,23 +784,22 @@ class TestTSTORMSTracker:
         }
 
         for var_name, metadata in expected_metadata.items():
-            assert var_name in tracker._variable_metadata  # noqa: SLF001 - Private member access
+            assert var_name in tracker._variable_metadata
             assert (
-                tracker._variable_metadata[var_name].properties["standard_name"]  # noqa: SLF001 - Private member access
+                tracker._variable_metadata[var_name].properties["standard_name"]
                 == metadata["standard_name"]
             )
             assert (
-                tracker._variable_metadata[var_name].properties["long_name"]  # noqa: SLF001 - Private member access
+                tracker._variable_metadata[var_name].properties["long_name"]
                 == metadata["long_name"]
             )
             assert (
-                tracker._variable_metadata[var_name].properties["units"]  # noqa: SLF001 - Private member access
+                tracker._variable_metadata[var_name].properties["units"]
                 == metadata["units"]
             )
-            assert (
-                tracker._variable_metadata[var_name].constructs  # noqa: SLF001 - Private member access
-                == [metadata["cell_method"]]
-            )
+            assert tracker._variable_metadata[var_name].constructs == [
+                metadata["cell_method"]
+            ]
 
     def test_set_metadata_missing_file(self, tstorms_tracker):
         """Test metadata behaviour when a required NetCDF file is missing."""
@@ -815,7 +1056,7 @@ class TestTSTORMSTracker:
             f.write("Mock cyclones content")
 
         output_file = os.path.join(output_dir, "trajectories.nc")
-        tracker.run_tracker(output_file)
+        tracker.run_tracker([], output_file)
         assert os.path.exists(output_file)
 
     def test_run_tracker_failure(self, mocker, tstorms_tracker, mock_trav_file) -> None:
@@ -861,7 +1102,7 @@ class TestTSTORMSTracker:
         with pytest.raises(
             RuntimeError, match="Detect failed with a non-zero exit code"
         ):
-            tracker.run_tracker("trajectories.nc")
+            tracker.run_tracker([], "trajectories.nc")
 
         # Check a RuntimeError is correctly raised for stitch (trajectory_analysis)
         mock_subprocess_run.side_effect = lambda args, **kwargs: subprocess_failure(
@@ -870,7 +1111,7 @@ class TestTSTORMSTracker:
         with pytest.raises(
             RuntimeError, match="Stitch failed with a non-zero exit code"
         ):
-            tracker.run_tracker("trajectories.nc")
+            tracker.run_tracker([], "trajectories.nc")
 
 
 class TestTSTORMSTrackerDetect:

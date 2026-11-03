@@ -3,7 +3,7 @@
 import glob
 import importlib.util
 from collections.abc import Sequence
-from typing import Any, Literal, TypeAlias, TypedDict, overload
+from typing import Any, Literal, TypeAlias, TypedDict, TypeGuard, TypeVar, overload
 
 import cf
 import numpy as np
@@ -132,80 +132,28 @@ def read_files(
     return _write_output(fields, output_file, squeeze=False)
 
 
-def select_time_range(
-    input_files: str | Sequence[str],
-    time_bounds: tuple[str, str],
-    *,
-    output_file: str | None = None,
-) -> cf.Field | list[cf.Field]:
-    """Combine files in time and select a time range.
-
-    Parameters
-    ----------
-    input_files : str | Sequence[str]
-        Input file path(s) to combine. ``glob`` pattern matching allowed.
-    time_bounds : tuple[str, str]
-        Start and end datetime strings in format ``"YYYY-MM-DD[ HH:MM]"``.
-        The end bound is open / exclusive.
-    output_file : str | None, optional
-        Output file to write the result to.
-
-    Returns
-    -------
-    list[cf.Field]
-        The list of combined fields.
-    """
-    fields = read_files(input_files)
-
-    time_interval = cf.wi(cf.dt(time_bounds[0]), cf.dt(time_bounds[1]), open_upper=True)
-    fields = [field.subspace(T=time_interval) for field in fields]
-
-    return _write_output(fields, output_file)
+T = TypeVar("T")
 
 
-def separate_variables(
-    input_files: str | Sequence[str],
-    output_files: dict[str, str],
-    *,
-    return_order: Sequence[str] | None = None,
-) -> list[cf.Field]:
-    """Split variables into separate files.
+def _is_sequence(obj: object, typ: type[T]) -> TypeGuard[Sequence[T]]:
+    return isinstance(obj, Sequence) and all(isinstance(x, typ) for x in obj)
 
-    Parameters
-    ----------
-    input_files : str | Sequence[str]
-        Input file path(s) to read. ``glob`` pattern matching allowed.
-    output_files : dict[str, str]
-        Mapping from NetCDF variable name to output file path.
-    return_order : Sequence[str] | None
-        Optional list of NetCDF variable names to specify the order of the returned
-        fields.
 
-    Returns
-    -------
-    list[cf.Field]
-        The list of fields read from the input files.
-    """
-    fields = {field.nc_get_variable(): field for field in read_files(input_files)}
+def _load_fields(sources: FieldSource) -> list[cf.Field]:
+    """Load multiple fields from input files (or use in-memory fields)."""
+    if isinstance(sources, str) or _is_sequence(sources, str):
+        return read_files(sources)
 
-    for var_name, output_file in output_files.items():
-        if var_name not in fields:
-            msg = f"A variable to save ({var_name}) is not provided in the inputs."
-            raise ValueError(msg)
-        cf.write(fields[var_name], output_file)  # type: ignore[operator]
+    elif _is_sequence(sources, cf.Field):
+        return list(sources)
 
-    if return_order is None:
-        return list(fields.values())
-    try:
-        return [fields[var_name] for var_name in return_order]
-    except KeyError as error:
-        msg = f"A variable to return ({error.args[0]}) is not provided in the inputs."
-        raise ValueError(msg) from error
+    else:
+        return [_load_field(sources)]
 
 
 def _load_field(source: FieldSource) -> cf.Field:
     """Load a single field from an in-memory field or file input."""
-    if isinstance(source, list) and all(isinstance(s, cf.Field) for s in source):
+    if _is_sequence(source, cf.Field):
         if len(source) == 1:
             return source[0]
         else:
@@ -223,7 +171,7 @@ def _load_field(source: FieldSource) -> cf.Field:
             raise ValueError(msg)
         return fields[0]
 
-    if isinstance(source, (str, Sequence)):
+    if isinstance(source, str) or _is_sequence(source, str):
         fields = read_files(source)
         if len(fields) != 1:
             msg = (
@@ -238,6 +186,37 @@ def _load_field(source: FieldSource) -> cf.Field:
         "Allowed types are cf.Field, FieldSelect, or string filepath(s)."
     )
     raise ValueError(msg)
+
+
+def select_time_range(
+    inputs: FieldSource,
+    time_bounds: tuple[str, str],
+    *,
+    output_file: str | None = None,
+) -> cf.Field | list[cf.Field]:
+    """Combine files in time and select a time range.
+
+    Parameters
+    ----------
+    inputs : FieldSource
+        The file path(s) or fields to use.
+    time_bounds : tuple[str, str]
+        Start and end datetime strings in format ``"YYYY-MM-DD[ HH:MM]"``.
+        The end bound is open / exclusive.
+    output_file : str | None, optional
+        Output file to write the result to.
+
+    Returns
+    -------
+    list[cf.Field]
+        The list of combined fields.
+    """
+    fields = _load_fields(inputs)
+
+    time_interval = cf.wi(cf.dt(time_bounds[0]), cf.dt(time_bounds[1]), open_upper=True)
+    fields = [field.subspace(T=time_interval) for field in fields]
+
+    return _write_output(fields, output_file)
 
 
 def squeeze_field(input_: FieldSource, *, output_file: str | None = None) -> cf.Field:
@@ -289,6 +268,46 @@ def flip_axis(
             direction = "increasing" if values[0] < values[-1] else "decreasing"
             coordinate.set_property("stored_direction", direction)
     return _write_output(field, output_file)
+
+
+def separate_variables(
+    input_files: FieldSource,
+    output_files: dict[str, str],
+    *,
+    return_order: Sequence[str] | None = None,
+) -> list[cf.Field]:
+    """Split variables into separate files.
+
+    Parameters
+    ----------
+    input_files : FieldSource
+        The file path(s) or fields to use.
+    output_files : dict[str, str]
+        Mapping from NetCDF variable name to output file path.
+    return_order : Sequence[str] | None
+        Optional list of NetCDF variable names to specify the order of the returned
+        fields.
+
+    Returns
+    -------
+    list[cf.Field]
+        The list of fields read from the input files.
+    """
+    fields = {field.nc_get_variable(): field for field in _load_fields(input_files)}
+
+    for var_name, output_file in output_files.items():
+        if var_name not in fields:
+            msg = f"A variable to save ({var_name}) is not provided in the inputs."
+            raise ValueError(msg)
+        cf.write(fields[var_name], output_file)  # type: ignore[operator]
+
+    if return_order is None:
+        return list(fields.values())
+    try:
+        return [fields[var_name] for var_name in return_order]
+    except KeyError as error:
+        msg = f"A variable to return ({error.args[0]}) is not provided in the inputs."
+        raise ValueError(msg) from error
 
 
 def subsample_field(
@@ -363,8 +382,7 @@ def collapse_field(
 
 
 def calculate_curl_xy(
-    input_x: FieldSource,
-    input_y: FieldSource,
+    inputs: list[FieldSource],
     nc_name: str,
     properties: dict[str, str],
     *,
@@ -374,10 +392,8 @@ def calculate_curl_xy(
 
     Parameters
     ----------
-    input_x : FieldSource
-        Field for the x component.
-    input_y : FieldSource
-        Field for the y component.
+    inputs : list[FieldSource]
+        Fields for the x and y vector components.
     nc_name : str
         NetCDF variable name for the output field.
     properties : dict[str, str]
@@ -390,8 +406,11 @@ def calculate_curl_xy(
     cf.Field
         Curl field derived from the two inputs.
     """
-    field_x = _load_field(input_x)
-    field_y = _load_field(input_y)
+    if len(inputs) != 2:  # noqa: PLR2004 - Magic number
+        msg = "A list of two field inputs were expected."
+        raise ValueError(msg)
+    field_x = _load_field(inputs[0])
+    field_y = _load_field(inputs[1])
 
     curl = cf.curl_xy(field_x, field_y, radius="earth")
 
@@ -410,8 +429,7 @@ def calculate_curl_xy(
 
 
 def calculate_vorticity(
-    input_u: FieldSource,
-    input_v: FieldSource,
+    inputs: list[FieldSource],
     *,
     nc_name: str = "vorticity",
     output_file: str | None = None,
@@ -420,10 +438,8 @@ def calculate_vorticity(
 
     Parameters
     ----------
-    input_u : FieldSource
-        Field for the eastward velocity component.
-    input_v : FieldSource
-        Field for the northward velocity component.
+    inputs : list[FieldSource]
+        Fields for the eastward and northward velocity components.
     nc_name : str, optional
         NetCDF variable name for the output field.
     output_file : str | None, optional
@@ -435,8 +451,7 @@ def calculate_vorticity(
         Vorticity field.
     """
     return calculate_curl_xy(
-        input_u,
-        input_v,
+        inputs,
         nc_name=nc_name,
         properties={
             "standard_name": "atmosphere_upward_relative_vorticity",
@@ -447,8 +462,7 @@ def calculate_vorticity(
 
 
 def calculate_norm_xy(
-    input_x: FieldSource,
-    input_y: FieldSource,
+    inputs: list[FieldSource],
     nc_name: str,
     properties: dict[str, str] | None = None,
     *,
@@ -458,10 +472,8 @@ def calculate_norm_xy(
 
     Parameters
     ----------
-    input_x : FieldSource
-        Field for the x component.
-    input_y : FieldSource
-        Field for the y component.
+    inputs : list[FieldSource]
+        Fields for the x any y vector components.
     nc_name : str
         NetCDF variable name for the output field.
     properties : dict[str, str] | None, optional
@@ -475,8 +487,11 @@ def calculate_norm_xy(
     cf.Field
         Norm field derived from the two inputs.
     """
-    field_x = _load_field(input_x)
-    field_y = _load_field(input_y)
+    if len(inputs) != 2:  # noqa: PLR2004 - Magic number
+        msg = "A list of two field inputs were expected."
+        raise ValueError(msg)
+    field_x = _load_field(inputs[0])
+    field_y = _load_field(inputs[1])
 
     norm = (field_x**2 + field_y**2) ** 0.5
 
@@ -495,8 +510,7 @@ def calculate_norm_xy(
 
 
 def calculate_wind_speed(
-    input_u: FieldSource,
-    input_v: FieldSource,
+    inputs: list[FieldSource],
     *,
     nc_name: str = "wind_speed",
     output_file: str | None = None,
@@ -505,10 +519,8 @@ def calculate_wind_speed(
 
     Parameters
     ----------
-    input_u : FieldSource
-        Field for the eastward velocity component.
-    input_v : FieldSource
-        Field for the northward velocity component.
+    inputs : list[FieldSource]
+        Fields for the eastward and northward velocity components.
     nc_name : str, optional
         NetCDF variable name for the output field.
     output_file : str | None, optional
@@ -520,8 +532,7 @@ def calculate_wind_speed(
         Wind speed field.
     """
     return calculate_norm_xy(
-        input_u,
-        input_v,
+        inputs,
         nc_name=nc_name,
         properties={"standard_name": "wind_speed", "long_name": "Wind Speed"},
         output_file=output_file,
@@ -610,7 +621,7 @@ def replace_fill_value(
     return _write_output(field, output_file)
 
 
-def set_netcdf_info(  # noqa: PLR0913  # Allow more arguments
+def set_netcdf_info(  # Allow more arguments
     input_: FieldSource,
     *,
     nc_name: str | None = None,
