@@ -1,0 +1,93 @@
+# TCTrack Dashboard - Datasette (v1) database metadata
+
+title: TCTrack Dashboard
+description: Explore and compare tropical cyclone trajectories from TCTrack.
+
+# Database and table metadata
+# Change <DATABASE_NAME> to the name of the served database (minus the extension).
+# This enables the quick filter facets to be shown for each view.
+
+databases:
+  <DATABASE_NAME>:
+    title: Cyclone Tracks
+    description_html: >-
+      <p>Cyclone trajectories imported from TCTrack NetCDF files.</p>
+      <p>Data is organised:
+        <code>collections</code> &rarr; <code>files</code> &rarr;
+        <code>trajectories</code> &rarr; <code>observations</code>
+      </p>
+    source: TCTrack
+
+    tables:
+      collections:
+        label_column: name
+        description: Named groups of imported track files.
+        columns:
+          name: Collection name.
+          created: Date the collection was created (UTC).
+
+      files:
+        label_column: filename
+        description: Individual TCTrack NetCDF files imported by build-db.
+        columns:
+          filepath: Path of the imported file on the build machine.
+          tctrack_version: TCTrack version that produced the file.
+          tracker_name: Tracking algorithm used for this file.
+          tracker_parameters: Tracker configuration for the run (JSON).
+          trajectories: Number of trajectories imported from this file.
+          observations: Total observation points imported from this file.
+          time_units: Time units of the source timestamps.
+          time_calendar: Calendar of the source timestamps.
+          created: Import timestamp (UTC).
+        facets: [collection_id, tracker_name]
+
+      trajectories:
+        description: One row per cyclone track.
+        columns:
+          start_end: Start/end marker from the source file (S, E or SE).
+        facets: [file_id, start_end]
+
+      observations:
+        description: One row per trajectory observation point.
+        columns:
+          sequence: Zero-based order of the observation within the trajectory.
+          date: Observation timestamp decoded from the NetCDF time coordinate.
+          air_pressure_at_sea_level: Sea level pressure at the observation point.
+          surface_altitude: Model surface altitude at the observation point.
+          wind_speed: Wind speed at the observation point.
+          atmosphere_relative_vorticity: Relative vorticity of the atmosphere at the observation point.
+        facets: []
+
+      points:
+        facets: [genesis]
+      points_layer_file:
+        facets: [genesis]
+      points_layer_year:
+        facets: [genesis]
+
+      tracks:
+        facets: [start_end]
+      tracks_layer_file:
+        facets: [start_end]
+      tracks_layer_year:
+        facets: [start_end]
+
+
+    # Useful queries
+
+    queries:
+      longest_tracks:
+        title: Longest tracks
+        description: Trajectories with the most observation points.
+        sql: |-
+          select
+              t.id as trajectory_id,
+              f.filename,
+              count(*) as observations,
+              min(o.date) as first_observation,
+              max(o.date) as last_observation
+          from trajectories as t
+              join files as f on f.id = t.file_id
+              join observations as o on o.trajectory_id = t.id
+          group by t.id
+          order by observations desc
