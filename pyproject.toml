@@ -70,7 +70,7 @@ doc = [
 tutorial = [
     "jupyter",
     "matplotlib",
-    "cartopy",
+    "huracanpy",
 ]
 dev = [
     "tctrack[test,lint,doc,tutorial]",
