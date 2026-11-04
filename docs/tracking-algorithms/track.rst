@@ -33,14 +33,27 @@ For full details of the TRACK API in TCTrack see the
 Installation
 ------------
 
-Using the TRACK module in TCTrack requires TRACK to be installed on a user's system.
+Using the :mod:`tctrack.track` module requires TRACK to be installed on a user's system.
 
-TRACK requires `NetCDF <https://www.unidata.ucar.edu/software/netcdf>`_ (it can
-be installed through system package managers, or see the `detailed installation
-instructions
-<https://docs.unidata.ucar.edu/nug/current/getting_and_building_netcdf.html>`_)
-as well as a C compiler, a FORTRAN 77 compiler, Make, and `makedepend`. It can
-then be installed with the following commands:
+TRACK requires `NetCDF <https://www.unidata.ucar.edu/software/netcdf>`_. This will have
+been installed with ``cf-python`` if following the conda instructions in
+:doc:`../getting-started/index` (alternatively, it can be installed through system
+package managers, or see the `detailed installation instructions
+<https://docs.unidata.ucar.edu/nug/current/getting_and_building_netcdf.html>`_).
+It also needs C, C++, and FORTRAN 77 compilers, ``ar``, ``make``, and ``makedepend``.
+On Debian-based systems (e.g. Ubuntu / Mint) these can be installed by:
+
+.. code-block:: bash
+
+   sudo apt install build-essential gfortran xutils-dev
+
+Or using conda:
+
+.. code-block:: bash
+
+   conda install -c conda-forge c-compiler cxx-compiler fortran-compiler binutils make xorg-makedepend
+
+TRACK can then be installed with the following commands:
 
 .. code-block:: bash
 
@@ -64,7 +77,7 @@ then be installed with the following commands:
 
 This will clone TRACK and checkout the most recent commit that TCTrack has been tested
 against, however there may be newer versions available. The code is then compiled using
-`make`, creating the executable at ``track/bin/track.run``.
+``make``, creating the executable at ``track/bin/track.run``.
 
 For further details about installation see the instructions `here
 <https://gitlab.act.reading.ac.uk/track/track/-/blob/master/INSTALL>`_.
