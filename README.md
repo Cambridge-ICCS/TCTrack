@@ -16,8 +16,9 @@ TCTrack is a Python library providing bindings to tracking algorithms for tropic
 cyclones in an accessible manner to generate high-quality and
 [FAIR](https://en.wikipedia.org/wiki/FAIR_data) output data.
 
-It can be used for tracking cyclones in simulations and observations, and to compare
-the output of different algorithms for a variety of data sources.
+It can be used for tracking cyclones – or, more broadly, for tracking different types of
+features – in simulations and observations, and to compare the output of different
+algorithms for a variety of data sources.
 
 
 ## Installation
