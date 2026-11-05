@@ -50,6 +50,7 @@ jobs:
           python=${{ matrix.python-version }}
           udunits2
           esmpy
+          pytorch-cpu
         cache-environment: true
 
     - name: Install Package and Dependencies

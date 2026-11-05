@@ -38,7 +38,7 @@ initialised with the below command. This can also be added to your shell rc file
 Then create and activate the conda virtual environment with the relevant dependencies
 installed::
 
-    conda create -n tctrack-env -c conda-forge python=3.14 udunits2 esmpy
+    conda create -n tctrack-env -c conda-forge python=3.14 udunits2 esmpy pytorch
     conda activate tctrack-env
 
 When finished using TCTrack this environment can be turned off with ``conda deactivate``.
