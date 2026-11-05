@@ -20,7 +20,7 @@ Installation
 Environment
 ~~~~~~~~~~~
 
-TCTrack is a Python package and requires Python version 3.11 or later.
+TCTrack is a Python package and requires a Python version between 3.11 and 3.14 (inclusive).
 
 Before installing TCTrack ensure that any external :ref:`dependencies
 <getting-started/index:dependencies>` are installed. This can be done manually as
@@ -38,7 +38,7 @@ initialised with the below command. This can also be added to your shell rc file
 Then create and activate the conda virtual environment with the relevant dependencies
 installed::
 
-    conda create -n tctrack-env -c conda-forge cf-python cf-plot udunits2 esmpy
+    conda create -n tctrack-env -c conda-forge python=3.14 udunits2 esmpy
     conda activate tctrack-env
 
 When finished using TCTrack this environment can be turned off with ``conda deactivate``.
@@ -50,7 +50,7 @@ The individual tracking algorithms will also need to be :ref:`installed separate
 Installation from PyPI
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Once the environment has been set up TCTrack can be installed. It is easiest to do this
+Once the conda environment has been set up and activated TCTrack can be installed. It is easiest to do this
 from PyPI using pip::
 
      pip install tctrack
@@ -64,7 +64,7 @@ Alternatively, it can be installed from source by cloning the repository from Gi
     git clone https://github.com/Cambridge-ICCS/TCTrack
     cd TCTrack
 
-pip can then be run to install the code from the source into the environment::
+With the conda environment activated, pip can be run to install the code from the source::
 
     pip install .
 

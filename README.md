@@ -24,13 +24,13 @@ algorithms for a variety of data sources.
 ## Installation
 
 ### Dependencies
-The package requires Python 3 (>=3.11).
+The package requires Python 3 (>=3.11, <3.15).
 
 ### Package Installation
 We recommend using a Conda virtual environment for TCTrack in order to simplify the
-installation of dependencies (cf-python, esmpy/ESMF, UDUNITS).
+installation of dependencies (esmpy/ESMF, UDUNITS).
 ```sh
-conda create -n tctrack-env -c conda-forge cf-python cf-plot udunits2 esmpy
+conda create -n tctrack-env -c conda-forge udunits2 esmpy
 conda activate tctrack-env
 ```
 When finished using TCTrack this can be turned off with `conda deactivate`.
