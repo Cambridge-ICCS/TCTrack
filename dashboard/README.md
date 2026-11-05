@@ -33,8 +33,6 @@ Dashboard configuration files for metadata and style are located in the `dashboa
 
 View a running dashboard at http://localhost:8001
 
-This opens the Datasette homepage. Selecting the database displays a list of tables and views that can be explored. The views contain the most useful data structures and also trigger the map view.
-
 
 ### Linking the Metadata
 

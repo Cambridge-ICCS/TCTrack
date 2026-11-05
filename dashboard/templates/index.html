@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% macro cyclone_marks(view) %}
+    {% if view == 'Points' %}
+    <g fill="currentColor">
+        <circle cx="29" cy="56" r="3"/><circle cx="39" cy="50" r="3.5"/>
+        <circle cx="46" cy="40" r="4"/><circle cx="49" cy="28" r="3"/>
+        <circle cx="57" cy="56" r="3"/><circle cx="66" cy="47" r="3.5"/>
+        <circle cx="70" cy="35" r="4"/>
+    </g>
+    {% else %}
+    <g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+        <path d="M29 56 Q48 49 49 28"/>
+        <path d="M57 56 Q69 49 70 35"/>
+    </g>
+    <g fill="currentColor">
+        <circle cx="49" cy="28" r="3"/><circle cx="70" cy="35" r="3"/>
+    </g>
+    {% endif %}
+{% endmacro %}
+
+{% block title %}TCTrack Dashboard{% endblock %}
+
+{% block extra_head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ urls.path('/static/home.css') }}">
+{% endblock %}
+
+{% block content %}
+<header class="home-title-bar">
+	<img class="home-title-image" src="{{ urls.path('/static/TCTrack.svg') }}" alt="TCTrack Dashboard">
+</header>
+<div class="tctrack-home">
+
+    {% set databases = databases|rejectattr('name', 'equalto', '_memory')|list %}
+    {% for database in databases %}
+
+    <section class="home-database" aria-label="{{ database.name }}">
+    	<h2>{{ database.name }}</h2>
+        {% for view in ('Points', 'Tracks') %}
+        <section class="home-view-row" aria-label="{{ view }}">
+            <div class="home-views">
+                {% for suffix, label, icon in (
+                    ('', 'All ' ~ view|lower, 'all'),
+					(' - Collection Layer', 'Collection', 'collection'),
+                    (' - File Layer', 'File', 'file'),
+                    (' - ENSO Layer', 'ENSO', 'enso')
+                ) %}
+                <a class="home-button" href="{{ urls.table(database.name, view ~ suffix) }}{% if suffix %}?Ocean=NAT{% endif %}" aria-label="{{ view }}: {{ label }}">
+                    <svg class="home-illustration" viewBox="0 0 100 80" aria-hidden="true" focusable="false" data-icon="{{ view|lower }}-{{ icon }}">
+                        {% if icon == 'collection' %}
+                        <g class="home-icon-detail" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+                            <path d="M12 49 50 30 88 49 50 73Z"/>
+                            <path d="M12 39 50 20 88 39 50 63Z" fill="var(--surface)"/>
+                        </g>
+                        {{ cyclone_marks(view) }}
+                        {% elif icon == 'file' %}
+                        <g class="home-icon-detail" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+                            <path d="M19 17H14V74H72V69"/>
+                            <path d="M22 8H66L82 24V66H22Z M66 8V24H82"/>
+                        </g>
+                        {{ cyclone_marks(view) }}
+                        {% elif icon == 'enso' %}
+                        {{ cyclone_marks(view) }}
+                        <g class="home-icon-detail" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                            <path d="M15 69Q23 59 31 69T47 69T63 69T79 69"/>
+                        </g>
+                        {% else %}
+                        <circle class="home-icon-detail" cx="50" cy="41" r="33" fill="none" stroke="currentColor" stroke-width="2"/>
+                        {{ cyclone_marks(view) }}
+                        {% endif %}
+                    </svg>
+                    <span>{{ label }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+    </section>
+    {% else %}
+    <p>No databases are available. Load a TCTrack database to start exploring.</p>
+    {% endfor %}
+</div>
+<footer class="home-inspire-footer">
+    <img class="home-inspire-logo" src="{{ urls.path('/static/inigo_inspire.png') }}" alt="INIGO InSPIRe — INIGO Storm Prediction &amp; Impact Research">
+</footer>
+{% endblock %}

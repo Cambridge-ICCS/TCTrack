@@ -1,0 +1,117 @@
+section.content {
+	margin: 0;
+}
+
+.home-title-bar {
+    display: flex;
+    justify-content: left;
+    margin: 0;
+    padding: 1rem;
+    background: var(--surface-raised);
+}
+
+.home-title-image {
+    height: 60px;
+    max-width: 100%;
+}
+
+.tctrack-home {
+    max-width: 600px;
+    padding: 2em;
+}
+
+h2 {
+	font-family: sans-serif;
+	font-weight: normal;
+    letter-spacing: -0.04em;
+}
+
+.tctrack-home .home-database + .home-database {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
+}
+
+.tctrack-home .home-views {
+    display: grid;
+    grid-template-columns: repeat(4, 132px);
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+.tctrack-home h2 {
+    margin: 0 0 1rem;
+    font-size: 1.5rem;
+}
+
+.tctrack-home .home-view-row + .home-view-row {
+    margin-top: 3rem;
+}
+
+
+.tctrack-home .home-button {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    box-sizing: border-box;
+    width: 120px;
+    aspect-ratio: 1;
+    text-align: center;
+    overflow: hidden;
+    padding: 0.5rem;
+    border: 2px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    color: var(--link);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.tctrack-home .home-button:hover,
+.tctrack-home .home-button:focus-visible {
+    border-color: var(--link);
+    background: var(--surface-raised);
+    color: var(--link-hover);
+}
+
+.tctrack-home .home-illustration {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    object-fit: cover;
+    color: var(--accent-strong);
+}
+
+.tctrack-home .home-icon-detail {
+    color: var(--link);
+    opacity: 0.65;
+}
+
+.tctrack-home .home-browse {
+    margin-top: 2.5rem;
+}
+
+.home-inspire-footer {
+    display: flex;
+    justify-content: left;
+    margin: 0;
+    padding: 1rem;
+    background: #231f20;
+}
+
+.home-inspire-logo {
+    height: 80px;
+    max-width: 100%;
+}
+
+footer.ft {
+	margin-top: 0;
+}
+
+@media (max-width: 620px) {
+    .tctrack-home .home-views {
+        grid-template-columns: repeat(2, 132px);
+    }
+}
