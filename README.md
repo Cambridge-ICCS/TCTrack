@@ -30,7 +30,7 @@ The package requires Python 3 (>=3.11, <3.15).
 We recommend using a Conda virtual environment for TCTrack in order to simplify the
 installation of dependencies (esmpy/ESMF, UDUNITS).
 ```sh
-conda create -n tctrack-env -c conda-forge udunits2 esmpy
+conda create -n tctrack-env -c conda-forge python=3.14 udunits2 esmpy pytorch
 conda activate tctrack-env
 ```
 When finished using TCTrack this can be turned off with `conda deactivate`.
