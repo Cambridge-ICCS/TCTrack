@@ -286,7 +286,7 @@ class TSTORMSTracker(TCTracker):
         verbosity : int
             Controls tracker subprocess output. Defaults to 1.
         """
-        super().__init__(verbosity=verbosity)
+        self.set_verbosity(verbosity)
         self.tstorms_parameters: TSTORMSBaseParameters = tstorms_parameters
         self.detect_parameters: TSTORMSDetectParameters = detect_parameters
 
@@ -942,7 +942,7 @@ class TSTORMSTracker(TCTracker):
         time = list(map(int, line[-4:]))
         return time, return_vars
 
-    def run_tracker(self, output_file: str):
+    def run_tracker(self, output_file: str, verbosity: int | None = None) -> None:
         """Run TSTORMS tracker to obtain tropical cyclone track trajectories.
 
         This first runs :meth:`detect` to get TC candidates at each time. Then
@@ -953,6 +953,11 @@ class TSTORMSTracker(TCTracker):
         ---------
         output_file : str
             Filename to which the tropical cyclone trajectories are saved.
+        verbosity : int | None
+            (Optional) Updates the verbosity level to control how much output is shown:
+            0 = No output gets printed.
+            1 = Reduced summary, first and last 12 lines printed.
+            2 = Entire output is streamed in real-time.
 
         Raises
         ------
@@ -972,6 +977,8 @@ class TSTORMSTracker(TCTracker):
         >>> my_tracker = TSTORMSTracker(tstorms_params, detect_params, stitch_params)
         >>> my_tracker.run_tracker()
         """
+        if verbosity is not None:
+            self.set_verbosity(verbosity)
         self.detect()
         self.stitch()
         self.to_netcdf(output_file)

@@ -133,13 +133,18 @@ class TCTracker(ABC):
     _time_metadata: TCTrackerTimeMetadata | None = None
     _global_metadata: dict[str, str]
 
-    def __init__(self, verbosity: int = 1):
-        """Initialise common tracker settings.
+    def set_verbosity(self, verbosity: int) -> None:
+        """Set the verbosity level for tracker subprocess output.
 
         Parameters
         ----------
         verbosity : int
             Controls tracker subprocess output. Must be 0, 1, or 2.
+
+        Raises
+        ------
+        ValueError
+            If ``verbosity`` is not 0, 1, or 2.
         """
         if verbosity not in (0, 1, 2):
             msg = "Verbosity must be 0, 1, or 2."
@@ -702,7 +707,7 @@ class TCTracker(ABC):
         cf.write(fields, output_file)  # type: ignore[operator]
 
     @abstractmethod
-    def run_tracker(self, output_file: str) -> None:
+    def run_tracker(self, output_file: str, verbosity: int | None = None) -> None:
         """
         Run the tracker to obtain tropical cyclone track trajectories as NetCDF file.
 
@@ -720,4 +725,9 @@ class TCTracker(ABC):
         ---------
         output_file : str
             Filename to which the tropical cyclone trajectories are saved.
+        verbosity : int | None
+            (Optional) Updates the verbosity level to control how much output is shown:
+            0 = No output gets printed.
+            1 = Reduced summary, first and last 12 lines printed.
+            2 = Entire output is streamed in real-time.
         """

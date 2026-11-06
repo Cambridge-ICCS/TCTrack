@@ -924,7 +924,7 @@ class MLTracker(TCMLTracker):
 
         cf.write(fields, output_file)  # type: ignore[operator]
 
-    def run_tracker(self, output_file: str) -> None:
+    def run_tracker(self, output_file: str, verbosity: int | None = None) -> None:
         """Run the tracker to obtain the tropical cyclone trajectories.
 
         Runs :meth:`detect` to locate the cyclones at each timestep - which
@@ -939,6 +939,11 @@ class MLTracker(TCMLTracker):
         ---------
         output_file : str
             Filename to which the tropical cyclone track trajectories are saved.
+        verbosity : int | None
+            (Optional) Updates the verbosity level to control how much output is shown:
+            0 = No output gets printed.
+            1 = Reduced summary.
+            2 = Entire output.
 
         Examples
         --------
@@ -949,6 +954,8 @@ class MLTracker(TCMLTracker):
         >>> tracker = MLTracker(params)
         >>> tracker.run_tracker("trajectories.nc")
         """
+        if verbosity is not None:
+            self.set_verbosity(verbosity)
         self.detect()
         self.stitch()
         self.to_netcdf(output_file)

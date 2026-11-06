@@ -112,7 +112,7 @@ class TRACKTracker(TCTracker):
         FileNotFoundError
             If the input file does not exist.
         """
-        super().__init__(verbosity=verbosity)
+        self.set_verbosity(verbosity)
         self.parameters: TRACKParameters = parameters
 
         # Get sizes from input file
@@ -704,7 +704,7 @@ class TRACKTracker(TCTracker):
             construct_kwargs=[{"key": "plev"}, {"axes": "plev"}],
         )
 
-    def run_tracker(self, output_file: str):
+    def run_tracker(self, output_file: str, verbosity: int | None = None) -> None:
         """Run the TRACK tracker to obtain the tropical cyclone track trajectories.
 
         This runs the relevant methods in order:
@@ -725,6 +725,11 @@ class TRACKTracker(TCTracker):
         ---------
         output_file : str
             Filename to which the tropical cyclone track trajectories are saved.
+        verbosity : int | None
+            (Optional) Updates the verbosity level to control how much output is shown:
+            0 = No output gets printed.
+            1 = Reduced summary, first and last 12 lines printed.
+            2 = Entire output is streamed in real-time.
 
         Raises
         ------
@@ -742,6 +747,9 @@ class TRACKTracker(TCTracker):
         >>> my_tracker = TRACKTracker(track_params)
         >>> my_tracker.run_tracker("trajectories.nc")
         """
+        if verbosity is not None:
+            self.set_verbosity(verbosity)
+
         self.calculate_vorticity()
         self.spectral_filtering()
         self.tracking()
