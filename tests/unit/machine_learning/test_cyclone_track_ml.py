@@ -293,7 +293,8 @@ class TestPreprocess:
         return tracker
 
     @pytest.fixture(scope="class")
-    def fields(self):
+    @classmethod
+    def fields(cls):
         """Return the fields in the sample file, for comparison with the tensor."""
         return cf.read(str(SAMPLE_FILE))
 
