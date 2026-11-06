@@ -432,6 +432,7 @@ class TETracker(TCTracker):
         self,
         detect_parameters: TEDetectParameters,
         stitch_parameters: TEStitchParameters | None = None,
+        verbosity: int = 1,
     ):
         """
         Construct the TempestExtremes class.
@@ -443,7 +444,10 @@ class TETracker(TCTracker):
         stitch_parameters : TEStitchParameters | None
             Class containing the parameters for the stitching step
             Defaults to the default values in TEStitchParameters Class
+        verbosity : int
+            Controls tracker subprocess output. Defaults to 1.
         """
+        super().__init__(verbosity=verbosity)
         self.detect_parameters: TEDetectParameters = detect_parameters
 
         if stitch_parameters is not None:

@@ -133,6 +133,19 @@ class TCTracker(ABC):
     _time_metadata: TCTrackerTimeMetadata | None = None
     _global_metadata: dict[str, str]
 
+    def __init__(self, verbosity: int = 1):
+        """Initialise common tracker settings.
+
+        Parameters
+        ----------
+        verbosity : int
+            Controls tracker subprocess output. Must be 0, 1, or 2.
+        """
+        if verbosity not in (0, 1, 2):
+            msg = "Verbosity must be 0, 1, or 2."
+            raise ValueError(msg)
+        self.verbosity = verbosity
+
     @property
     @abstractmethod
     def _parameters(self) -> list[TCTrackerParameters]:
@@ -266,14 +279,14 @@ class TCTracker(ABC):
         }
         self._set_metadata()
 
-    def run_tracker_subprocess(  # noqa: PLR0912, PLR0913
+    def run_tracker_subprocess(  # noqa: PLR0912, PLR0913, PLR0915, PLR0917
         self,
         command_name: str,
         command_list: list[str],
         input_file: str | None = None,
         input_str: str | None = None,
         cwd: str | None = None,
-        verbosity: int = 1,
+        verbosity: int | None = None,
     ) -> dict:
         """Run a subprocess command for a cyclone tracking algorithm.
 
@@ -291,12 +304,12 @@ class TCTracker(ABC):
             Cannot be used together with input_file. Defaults to None.
         cwd : str | None
             Working directory in which to execute the command. Defaults to None.
-        verbosity : int
+        verbosity : int | None
             Controls how much output is shown:
             0 = No output gets printed.
-            1 = summary, first and last 12 lines printed (default).
+            1 = summary, first and last 12 lines printed.
             2 = Entire output is streamed in real-time.
-            Defaults to 1.
+            If None, uses the tracker's verbosity level. Defaults to None.
 
         Returns
         -------
@@ -308,7 +321,7 @@ class TCTracker(ABC):
         ValueError
             If both input_file and input_str are provided simultaneously.
         ValueError
-            If verbosity is not 0, 1, or 2.
+            If verbosity is not None, 0, 1, or 2.
         """
         stdin_context: Union[IO, AbstractContextManager]
 
@@ -318,7 +331,9 @@ class TCTracker(ABC):
         if not command_list:
             msg = "command_list cannot be empty"
             raise ValueError(msg)
-        if verbosity not in (0, 1, 2):
+        if verbosity is None:
+            verbosity = self.verbosity
+        elif verbosity not in (0, 1, 2):
             msg = "Verbosity must be 0, 1, or 2."
             raise ValueError(msg)
         if verbosity != 0:
