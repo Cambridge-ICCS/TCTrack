@@ -447,7 +447,7 @@ class TETracker(TCTracker):
         verbosity : int
             Controls tracker subprocess output. Defaults to 1.
         """
-        super().__init__(verbosity=verbosity)
+        self.set_verbosity(verbosity)
         self.detect_parameters: TEDetectParameters = detect_parameters
 
         if stitch_parameters is not None:
@@ -1060,7 +1060,7 @@ class TETracker(TCTracker):
                     cell_method = cf.CellMethod("area", method, qualifiers=qualifier)
                 self._variable_metadata[var_name].constructs = [cell_method]
 
-    def run_tracker(self, output_file: str):
+    def run_tracker(self, output_file: str, verbosity: int | None = None) -> None:
         """Run TempestExtremes tracker to obtain tropical cyclone track trajectories.
 
         This first runs :meth:`detect` to get TC candidates at each time. Then
@@ -1071,6 +1071,11 @@ class TETracker(TCTracker):
         ---------
         output_file : str
             Filename to which the tropical cyclone trajectories are saved.
+        verbosity : int | None
+            (Optional) Updates the verbosity level to control how much output is shown:
+            0 = No output gets printed.
+            1 = Reduced summary, first and last 12 lines printed.
+            2 = Entire output is streamed in real-time.
 
         Raises
         ------
@@ -1090,6 +1095,8 @@ class TETracker(TCTracker):
         >>> my_tracker = TETracker(detect_params, stitch_params)
         >>> my_tracker.run_tracker()
         """
+        if verbosity is not None:
+            self.set_verbosity(verbosity)
         self.detect()
         self.stitch()
         self.to_netcdf(output_file)

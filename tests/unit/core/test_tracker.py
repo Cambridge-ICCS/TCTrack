@@ -113,7 +113,7 @@ class TestTCTracker:
         """Concrete implementation of TCTracker for testing purposes."""
 
         def __init__(self, example_trajectories, verbosity=1):
-            super().__init__(verbosity=verbosity)
+            self.set_verbosity(verbosity)
             self._example_trajectories = example_trajectories
             self.params = ExampleParameters(42, "test")
 
@@ -133,7 +133,7 @@ class TestTCTracker:
             """Implement a dummy of the read_trajectories abstractmethod."""
             return self._example_trajectories
 
-        def run_tracker(self, output_file: str) -> None:  # noqa:ARG002 unused arg
+        def run_tracker(self, output_file: str, verbosity: int | None = None) -> None:  # noqa:ARG002 unused arg
             """Implement a dummy of the run_tracker abstractmethod."""
             return None
 

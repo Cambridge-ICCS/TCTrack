@@ -53,7 +53,7 @@ class NAMETracker(TCTracker):
         verbosity : int
             Controls tracker subprocess output. Defaults to 1.
         """
-        super().__init__(verbosity=verbosity)
+        self.set_verbosity(verbosity)
         self.parameters: NAMEParameters = parameters
 
         # Set any private attributes, make changes to parameters, setup, etc
@@ -111,7 +111,7 @@ class NAMETracker(TCTracker):
             }
         )
 
-    def run_tracker(self, output_file: str) -> None:
+    def run_tracker(self, output_file: str, verbosity: int | None = None) -> None:
         """Run the tracker to obtain the tropical cyclone trajectories.
 
         This runs each of the individual steps of the tracking algorithm.
@@ -124,6 +124,11 @@ class NAMETracker(TCTracker):
         ---------
         output_file : str
             Filename to which the tropical cyclone track trajectories are saved.
+        verbosity : int | None
+            (Optional) Updates the verbosity level to control how much output is shown:
+            0 = No output gets printed.
+            1 = Reduced summary.
+            2 = Entire output.
 
         Examples
         --------
@@ -134,6 +139,9 @@ class NAMETracker(TCTracker):
         >>> tracker = NAMETracker(params)
         >>> tracker.run_tracker("trajectories.nc")
         """
+        # if verbosity is not None:
+        #     self.set_verbosity(verbosity)
+
         # Run the steps for the tracking algorithm, eg:
         # self.preprocess()
         # self.detect()
