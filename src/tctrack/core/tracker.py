@@ -731,7 +731,8 @@ class TCTracker(ABC):
     def run_tracker(
         self,
         input_files: str | Iterable[str],
-        output_file: str, verbosity: int | None = None,
+        output_file: str,
+        verbosity: int | None = None,
     ) -> None:
         """
         Run the tracker to obtain tropical cyclone track trajectories as NetCDF file.
