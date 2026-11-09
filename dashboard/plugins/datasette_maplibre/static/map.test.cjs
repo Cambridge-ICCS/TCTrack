@@ -18,7 +18,7 @@ function loadScript(config = {}, data = {}) {
 		fetch: async () => ({ ok: true, json: async () => data }),
 	});
 	vm.runInContext(source, context, { filename: "map.js" });
-	return vm.runInContext("({ buildGeoJSON, buildGeoJSONFromPairs, loadGeoJSON })", context);
+	return vm.runInContext("({ buildGeoJSON, buildGeoJSONFromPairs, loadGeoJSON, featureAtPoint })", context);
 }
 
 // Normalize VM-realm objects for strict comparisons with test expectations.
@@ -48,6 +48,42 @@ test("missing coordinates and malformed JSON report clear errors", () => {
 			rows: [["[]", 10, 20], [value, 30, 40]],
 		}), { name: "SyntaxError" });
 	}
+});
+
+test("hit testing prefers exact hits and expands only line queries by five pixels", () => {
+	const { featureAtPoint } = loadScript();
+	const position = { x: 100, y: 200 };
+	const layers = ["points", "tracks"];
+	const line_layers = ["tracks"];
+	const exact = { properties: { name: "point" } };
+	const nearby = { properties: { name: "line" } };
+	const calls = [];
+	let results;
+	const map = {
+		queryRenderedFeatures(geometry, options) {
+			calls.push(plain({ geometry, options }));
+			return results.shift();
+		},
+	};
+
+	results = [[exact]];
+	assert.equal(featureAtPoint(map, position, layers, line_layers), exact);
+	assert.deepEqual(calls.splice(0), [{ geometry: position, options: { layers } }]);
+
+	results = [[], [nearby]];
+	assert.equal(featureAtPoint(map, position, layers, line_layers), nearby);
+	assert.deepEqual(calls.splice(0), [
+		{ geometry: position, options: { layers } },
+		{ geometry: [[95, 195], [105, 205]], options: { layers: line_layers } },
+	]);
+
+	results = [[], []];
+	assert.equal(featureAtPoint(map, position, layers, line_layers), undefined);
+	assert.equal(calls.splice(0).length, 2);
+
+	results = [[]];
+	assert.equal(featureAtPoint(map, position, ["points"], []), undefined);
+	assert.equal(calls.length, 1);
 });
 
 test("observation rows retain points, properties and longitude unwrapping", () => {

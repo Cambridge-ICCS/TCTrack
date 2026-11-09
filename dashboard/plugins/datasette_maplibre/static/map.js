@@ -197,6 +197,20 @@ function calcGeoJSONBounds(geojson) {
 
 
 
+// Prefer exact hits; only lines get a larger hit area.
+function featureAtPoint(map, point, layers, line_layers) {
+	const [feature] = map.queryRenderedFeatures(point, { layers });
+	if (feature || line_layers.length === 0) return feature;
+
+	const tolerance = 5;
+	const bounds = [
+		[point.x - tolerance, point.y - tolerance],
+		[point.x + tolerance, point.y + tolerance],
+	];
+	return map.queryRenderedFeatures(bounds, { layers: line_layers })[0];
+}
+
+
 /**
 	Load a JSON value from browser local storage.
 
@@ -459,20 +473,19 @@ function init() {
 			layers_added.push({id: BASEMAP.outline.name, name: BASEMAP.outline.name});
 		}
 
-		// Set pointer style for all added layers
-		for (const layer of layers_added) {
-			map.on("mouseenter", layer.id, () => {
-				map.getCanvas().style.cursor = "pointer";
-			});
-			map.on("mouseleave", layer.id, () => {
-				map.getCanvas().style.cursor = "";
-			});
-		}
+		const interactive_layers = layers_added.map(layer => layer.id);
+		const line_layers = interactive_layers.filter(id => map.getLayer(id).type === "line");
+
+		map.on("mousemove", (ev) => {
+			const feature = featureAtPoint(map, ev.point, interactive_layers, line_layers);
+			map.getCanvas().style.cursor = feature ? "pointer" : "";
+		});
+		map.getCanvas().addEventListener("mouseleave", () => {
+			map.getCanvas().style.cursor = "";
+		});
 
 		map.on("click", (ev) => {
-			const [feature] = map.queryRenderedFeatures(ev.point, {
-				layers: layers_added.map(layer => layer.id),
-			});
+			const feature = featureAtPoint(map, ev.point, interactive_layers, line_layers);
 			if (feature) properties_control.setProperties(feature.properties);
 		});
 
