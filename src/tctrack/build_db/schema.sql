@@ -272,6 +272,7 @@ select
 	"WS Min", "WS Max", "WS Median", "WS Mean",
 	"SLP Min", ACE,
 	"SSTA Mean", "RONI Mean",
-	"Start/End", File,
+	"Start/End",
+	Collection, File,
 	lat_lon
 from Tracks;

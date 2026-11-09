@@ -12,14 +12,45 @@ section.content:not(:has(> #datasette-maplibre))::before {
     margin-bottom: 1rem;
 }
 
-.maplibregl-popup-content dl.properties {
-	margin: 0.5rem;
+.properties-control {
+	box-sizing: border-box;
+	width: min(300px, calc(100vw - 100px));
+	max-height: calc(100dvh - 40px);
+	overflow: auto;
+	padding: 1rem;
+	border-radius: 6px;
+	background: color-mix(in srgb, var(--surface, #fff) 70%, transparent);
+	color: var(--text, #222);
+	box-shadow: 0 0 0 2px rgb(0 0 0 / 10%);
 	font-size: 1rem;
+	overflow-wrap: anywhere;
 }
 
-.maplibregl-popup-content dl.properties dt {
-	margin-top: 0.5em;
+.properties-control summary {
+	cursor: pointer;
 	font-weight: bold;
+}
+
+.properties-control[open] summary {
+	margin-bottom: 0.75rem;
+}
+
+.properties-control dl {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 0.5em 1em;
+	margin: 0;
+}
+
+.properties-control dt {
+	margin: 0;
+	font-weight: bold;
+	white-space: nowrap;
+}
+
+.properties-control dd {
+	margin: 0;
+	white-space: pre-wrap;
 }
 
 /* Hide zoom control help text when scrolling */

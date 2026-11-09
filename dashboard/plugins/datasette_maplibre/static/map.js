@@ -1,5 +1,6 @@
 import * as maplibregl from "https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.mjs";
 import { LayerControl } from "https://unpkg.com/maplibre-gl-layer-control@0.17.5/dist/index.mjs";
+import { PropertiesControl } from "./properties-control.js";
 
 // Pick up config passed from Python __init__ layer
 const TABLE_NAME = window.DATASETTE_MAPLIBRE_TABLE_NAME || "Data";
@@ -195,20 +196,6 @@ function calcGeoJSONBounds(geojson) {
 }
 
 
-/**
-	Make an HTML element for Feature properties.
-*/
-function propertiesHtml(properties) {
-	const entries = Object.entries(properties || {});
-	if (entries.length == 0) return "";
-
-	const items = entries
-		.map(([k, v]) => `<dt>${k}</dt><dd>${String(v)}</dd>`)
-		.join("");
-
-	return `<dl class="properties">${items}</dl>`;
-}
-
 
 /**
 	Load a JSON value from browser local storage.
@@ -262,6 +249,8 @@ function init() {
 	});
 	map.addControl(new maplibregl.NavigationControl({ showCompass: true }));
 	map.addControl(new maplibregl.GlobeControl(), 'top-right');
+	const properties_control = new PropertiesControl();
+	map.addControl(properties_control, "top-left");
 
 	// Restore the persisted view settings (globe and camera position)
 	const view = loadStored(STORAGE_KEY);
@@ -470,7 +459,7 @@ function init() {
 			layers_added.push({id: BASEMAP.outline.name, name: BASEMAP.outline.name});
 		}
 
-		// Set on-click popups and pointer style for all added layers
+		// Set pointer style for all added layers
 		for (const layer of layers_added) {
 			map.on("mouseenter", layer.id, () => {
 				map.getCanvas().style.cursor = "pointer";
@@ -478,16 +467,14 @@ function init() {
 			map.on("mouseleave", layer.id, () => {
 				map.getCanvas().style.cursor = "";
 			});
-
-			map.on("click", layer.id, (ev) => {
-				const feature = ev.features[0];
-				const html = propertiesHtml(feature.properties);
-				new maplibregl.Popup()
-					.setLngLat(ev.lngLat)
-					.setHTML(html || "(no properties)")
-					.addTo(map);
-			});
 		}
+
+		map.on("click", (ev) => {
+			const [feature] = map.queryRenderedFeatures(ev.point, {
+				layers: layers_added.map(layer => layer.id),
+			});
+			if (feature) properties_control.setProperties(feature.properties);
+		});
 
 		console.log(`Map load: ${Math.round(performance.now() - t0)}ms`);
 
