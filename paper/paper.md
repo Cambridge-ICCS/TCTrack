@@ -170,10 +170,11 @@ development.
 
 # AI Usage Disclosure
 
-During the development of this software AI tools (ChatGPT, Devstral) were used to understand usage
-of functions, review written code to suggest issues and improvements, and for generating
-boilerplate and parameterisation of tests. Any code suggestions by AI were thoroughly
-checked and double checked during code review by a second person.
+During the development of this software AI tools (ChatGPT, OpenCode / Claude Code agents
+running Devstral and GLM-5.3) were used to investigate and understand external software,
+plan and review changes to the code, and for the generation of tests. Any code
+suggestions by AI were thoroughly checked and double checked during code review by a
+second person.
 During the preparation of this paper, AI was used to refactor an initial draft to align
 with the changes to the JOSS scope. This was thoroughly checked and built upon
 thereafter.
