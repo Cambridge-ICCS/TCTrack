@@ -228,7 +228,7 @@ class TETracker(TCTracker):
             if criteria:
                 for item in criteria:
                     v = item["var"] if isinstance(item, dict) else item.var
-                    if v not in all_vars:
+                    if v not in all_vars and not v.startswith("_"):
                         msg = f"{label} variable '{v}' not found in input files."
                         raise ValueError(msg)
 

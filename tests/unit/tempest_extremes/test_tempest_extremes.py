@@ -1122,6 +1122,18 @@ class TestTEVerifyInputs:
         with pytest.raises(ValueError, match="Threshold variable 'wind' not found"):
             tracker.set_input_files(fn)
 
+    def test_required_variables_operations_valid(self, tmp_path: Path, nc_input_file):
+        """Check verification doesn't fail when functional operations are provided."""
+        fn = nc_input_file(tmp_path / "f.nc", var_name="psl")
+        params = TEDetectParameters(
+            search_by_min="psl",
+            closed_contours=[
+                TEContour(var="_DIFF(a,b)", delta=0, dist=0, minmaxdist=0)
+            ],
+        )
+        tracker = TETracker(params)
+        tracker.set_input_files(fn)
+
     def test_check_grids_mismatched_horizontal_grid(
         self, tmp_path: Path, nc_input_file
     ):
