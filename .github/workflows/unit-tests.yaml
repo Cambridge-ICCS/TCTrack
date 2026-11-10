@@ -59,4 +59,7 @@ jobs:
 
     - name: Run unit tests
       shell: micromamba-shell {0}
+      # This prevents networking to avoid a bug due to esmpy initialising MPI
+      env:
+        UCX_TLS: self,sm
       run: pytest tests/unit
