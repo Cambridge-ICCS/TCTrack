@@ -150,8 +150,13 @@ established algorithms that have been extensively used and validated in the clim
 TCTrack's approach differs fundamentally: it enables researchers to use proven methods
 whilst addressing the practical challenges of usability, interoperability, and metadata
 standards.
-TCTrack is also extensible in that additional tracking algorithms can be integrated
+
+TCTrack is also extensible in that additional tracking algorithms can be integrated by
 following the contributor guidelines and building on the abstract base class design.
+Furthermore, despite the package being primarily focussed upon tropical cyclone tracking
+many of the existing tracking algorithms could also be used for extratropical cyclones.
+Indeed, provided an appropriate tracking algorithm, any sort of feature that could be
+represented by a time-based trajectory could be supported by TCTrack.
 
 The decision to build TCTrack rather than change the data format/running procedures of
 multiple existing projects comes from the desire to also provide a unified interface
