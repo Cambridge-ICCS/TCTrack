@@ -28,7 +28,7 @@ rsecon26: accepted
 # Summary
 
 TCTrack is a Python package providing a unified, user-friendly interface to multiple
-established tropical cyclone tracking algorithms: TRACK [@Hodges2017],
+established tropical cyclone tracking algorithms, including TRACK [@Hodges2017],
 TempestExtremes [@Ullrich2021], and TSTORMS [@Vitart1997].
 Whilst these algorithms are widely used in the climate science community, each has its
 own unique interface, input requirements, and output format, making intercomparison
@@ -121,13 +121,21 @@ This includes installation guidance, API reference, and worked examples.
 TCTrack addresses a need within the community for simple, accessible tooling for exploring
 the differences in tropical cyclone tracks and statistics produced by different tracking
 algorithms and conducting intercomparison studies.
+
 It has been used in climate science research as part of CMIP6 model comparison studies
-by researchers at the University of Cambridge, with results presented to
+by researchers at the University of Cambridge, with some initial results presented to
 the scientific community in @Atkinson2026. This work also aims to reproduce and
 update the findings of @Knutson2020 to project the response of tropical cyclone activity
-to future climate change using more recent CMIP6 data.
+to future climate change using more recent and higher resoultion CMIP6 data (paper in
+preparation).
 TCTrack is also being used in industry by INIGO Insurance to generate tracks in a
 robust, standardised format for downstream use in data analysis and presentation.
+
+TCTrack has received collaboration from researchers and external users, who have
+opened feature requests and made direct code contributions.
+Notably, one researcher has integrated their new detection algorithm, based on a
+machine-learning classifier, in order to make use of TCTrack's software architecture and
+metadata pipeline.
 
 
 # State of the Field
