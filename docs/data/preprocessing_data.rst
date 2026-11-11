@@ -173,7 +173,7 @@ Using TCTrack:
 .. code-block:: python
 
     tctrack.preprocessing.calculate_vorticity(
-        "u_file.nc", "v_file.nc", output_file="vorticity_file.nc"
+        ["u_file.nc", "v_file.nc"], output_file="vorticity_file.nc"
     )
 
 Or to take a mean over a coordinate:

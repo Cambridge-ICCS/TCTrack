@@ -9,7 +9,8 @@ from abc import ABC, abstractmethod
 from contextlib import AbstractContextManager, nullcontext
 from dataclasses import asdict, dataclass, fields
 from datetime import timedelta
-from typing import IO, TypedDict, Union
+from pathlib import Path
+from typing import IO, Iterable, TypedDict, Union
 
 import cf
 from cftime import date2num, datetime
@@ -126,12 +127,15 @@ class TCTracker(ABC):
         A dictionary containing global metadata about the data and TCTrack parameters.
         This will be populated by the base class, but additional subclass-specific
         metadata can be added using the :meth:`_set_metadata` method.
+    _input_files : list[str]
+        A list of file paths of NetCDF input files.
     """
 
     # Private attributes
     _variable_metadata: dict[str, TCTrackerMetadata] | None = None
     _time_metadata: TCTrackerTimeMetadata | None = None
     _global_metadata: dict[str, str]
+    _input_files: list[str]
 
     def set_verbosity(self, verbosity: int) -> None:
         """Set the verbosity level for tracker subprocess output.
@@ -211,6 +215,39 @@ class TCTracker(ABC):
             raise AttributeError(err_msg)
         return self._global_metadata
 
+    def set_input_files(self, input_files: str | Iterable[str]):
+        """Store the input file(s) as a list in a class attribute."""
+        if isinstance(input_files, str):
+            self._input_files = [input_files]
+        elif isinstance(input_files, Iterable) and all(
+            isinstance(f, str) for f in input_files
+        ):
+            self._input_files = list(input_files)
+        else:
+            msg = "input_files must be a str or an iterable of str"
+            raise TypeError(msg)
+
+        for file in self._input_files:
+            if not Path(file).exists():
+                msg = f"Input file does not exist ({file})."
+                raise FileNotFoundError(msg)
+
+        self._verify_inputs()
+
+    @abstractmethod
+    def _verify_inputs(self) -> None:
+        """Abstract method to verify that input files match the expected format.
+
+        This method is called by :meth:`set_input_files` to verify that the
+        provided input files conform to the requirements of the tracking
+        algorithm (e.g. required variables, dimensions, coordinates, and grids).
+
+        Raises
+        ------
+        ValueError
+            If the input files do not obey the expected format.
+        """
+
     @abstractmethod
     def _set_metadata(self) -> None:
         """Abstract method to initialize subclass-specific metadata.
@@ -284,7 +321,7 @@ class TCTracker(ABC):
         }
         self._set_metadata()
 
-    def run_tracker_subprocess(  # noqa: PLR0912, PLR0913, PLR0915
+    def run_tracker_subprocess(  # noqa: PLR0912, PLR0915
         self,
         command_name: str,
         command_list: list[str],
@@ -620,7 +657,8 @@ class TCTracker(ABC):
         lat_lon_fill = -999.9
         lat_data = cf.Data(
             [
-                trajectory.data["lat"] + [None] * (max_obs - trajectory.observations)
+                trajectory.data["lat"]
+                + [lat_lon_fill] * (max_obs - trajectory.observations)
                 for trajectory in trajectories
             ],
             fill_value=lat_lon_fill,
@@ -637,7 +675,8 @@ class TCTracker(ABC):
 
         lon_data = cf.Data(
             [
-                trajectory.data["lon"] + [None] * (max_obs - trajectory.observations)
+                trajectory.data["lon"]
+                + [lat_lon_fill] * (max_obs - trajectory.observations)
                 for trajectory in trajectories
             ],
             fill_value=lat_lon_fill,
@@ -693,7 +732,7 @@ class TCTracker(ABC):
             variable_data = cf.Data(
                 [
                     trajectory.data[variable]
-                    + [None] * (max_obs - trajectory.observations)
+                    + [field_fill] * (max_obs - trajectory.observations)
                     for trajectory in trajectories
                 ],
                 fill_value=field_fill,
@@ -713,7 +752,12 @@ class TCTracker(ABC):
         cf.write(fields, output_file)  # type: ignore[operator]
 
     @abstractmethod
-    def run_tracker(self, output_file: str, verbosity: int | None = None) -> None:
+    def run_tracker(
+        self,
+        input_files: str | Iterable[str],
+        output_file: str,
+        verbosity: int | None = None,
+    ) -> None:
         """
         Run the tracker to obtain tropical cyclone track trajectories as NetCDF file.
 
@@ -729,6 +773,8 @@ class TCTracker(ABC):
 
         Arguments
         ---------
+        input_files : str | Iterable[str]
+            A (list of) file path(s) containing NetCDF input data to use in the tracker.
         output_file : str
             Filename to which the tropical cyclone trajectories are saved.
         verbosity : int | None

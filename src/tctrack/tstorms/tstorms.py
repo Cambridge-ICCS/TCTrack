@@ -9,244 +9,19 @@ import os
 import tempfile
 import textwrap
 import warnings
-from dataclasses import dataclass
+from typing import Iterable
 
 import cf
+import numpy as np
 from cftime import num2date
 from netCDF4 import Dataset
 
 from tctrack.core import TCTracker, TCTrackerMetadata, TCTrackerParameters, Trajectory
-
-
-@dataclass(repr=False)
-class TSTORMSBaseParameters(TCTrackerParameters):
-    """
-    Dataclass containing values used in configuring the TSTORMS install.
-
-    This class is intended to configure the install so that executables can be run
-    correctly and data stored in a desired location.
-    Configuration of the actual cyclone detection algorithm is done using
-    :class:`TSTORMSDetectParameters` and :class:`TSTORMSStitchParameters`.
-    """
-
-    tstorms_dir: str
-    """
-    Full path to the TSTORMS installation directory. This will be likely be a directory
-    named `tropical_storms_pub/` and should contain `tstorms_driver/` and
-    `trajectory_analysis/` subdirectories.
-    """
-
-    output_dir: str
-    """
-    Full path to the directory where TSTORMS outputs should be deposited.
-    """
-
-    input_dir: str = ""
-    """
-    Full path to the directory where TSTORMS input files can be found.
-    Defaults to empty string which will load from current directory.
-    """
-
-
-@dataclass(repr=False)
-class TSTORMSDetectParameters(TCTrackerParameters):
-    """
-    Dataclass of values used by the Driver operation of TSTORMS for candidate detection.
-
-    Default values are set to match those in the TSTORMS tstorms_driver source-code.
-
-    Raises
-    ------
-    ValueError
-        - If northern latitude bound is less than the southern latitude bound.
-        - If any of the input file filenames are left as ``None``.
-    UserWarning
-        - If do_thickness is set to True as this has no effect.
-    """
-
-    u_in_file: str
-    """
-    Filename of the u (zonal) velocity input file.
-    This should be a NetCDF file containing a single lat-lon slice of the u field named
-    ``u_ref`` (if :attr:`use_sfc_wind` is ``True``) or ``u850``.
-    This should be the full path unless the location of input files was specified in
-    :class:`TSTORMSBaseParameters`' ``input_dir``.
-    """
-
-    v_in_file: str
-    """
-    Filename of the v (meridional) velocity input file.
-    This should be a NetCDF file containing a single lat-lon slice of the v field named
-    ``v_ref`` (if :attr:`use_sfc_wind` is ``True``) or ``v850``.
-    This should be the full path unless the location of input files was specified in
-    :class:`TSTORMSBaseParameters`' ``input_dir``.
-    """
-
-    vort_in_file: str
-    """
-    Filename of the vorticity input file.
-    This should be a NetCDF file containing a single lat-lon slice of the vorticity
-    field named ``vort850`` at the 850 hPa level.
-    This should be the full path unless the location of input files was specified in
-    :class:`TSTORMSBaseParameters`' ``input_dir``.
-    """
-
-    tm_in_file: str
-    """
-    Filename of the temperature input file.
-    This should be a NetCDF file containing a single lat-lon slice of the mean
-    temperature of the warm-core layer named ``tm``.
-    This should be the full path unless the location of input files was specified in
-    :class:`TSTORMSBaseParameters`' ``input_dir``.
-    """
-
-    slp_in_file: str
-    """
-    Filename of the sea-level pressure input file.
-    This should be a NetCDF file containing a single lat-lon slice of sea-level pressure
-    named ``slp``.
-    This should be the full path unless the location of input files was specified in
-    :class:`TSTORMSBaseParameters`' ``input_dir``.
-    """
-
-    use_sfc_wind: bool = True
-    """
-    Whether to use surface winds (``True``), or winds at 850 hPa level.
-    """
-
-    vort_crit: float = 3.5e-5
-    """
-    Critical vorticity threshold [s-1] to be exceeded to qualify as a candidate storm.
-    """
-
-    tm_crit: float = 0.5
-    """
-    Critical warm core local maximum to be exceeded to qualify as a candidate storm.
-    """
-
-    thick_crit: float = 50.0
-    """
-    Critical thickness threshold to be exceeded to qualify as a candidate storm.
-    Note that thickness calculations are not yet implemented in TSTORMS.
-    """
-
-    dist_crit: float = 4.0
-    """
-    Critical radius [degrees] within which vorticity, sea-level pressure, and other
-    maxima/minima must lie within each other to qualify as a candidate storm.
-    """
-
-    lat_bound_n: float = 90.0
-    """
-    Northern latitude bound [degrees] below which storm detection should occur.
-    """
-
-    lat_bound_s: float = -90.0
-    """
-    Southern latitude bound [degrees] above which storm detection should occur.
-    """
-
-    do_spline: bool = False
-    """
-    Whether to use splines for detecting minma instead of gridpointwise search.
-    """
-
-    do_thickness: bool = False
-    """
-    Whether to use thickness of the 200-1000 hPa layer as a variable for detecting
-    candidate storms. Note that this functionality is not yet implemented in TSTORMS.
-    """
-
-    def __post_init__(self):
-        """Validate parameters."""
-        if self.lat_bound_n < self.lat_bound_s:
-            msg = (
-                f"Northern latitude bound ({self.lat_bound_n}) is less than "
-                f"Southern latitude bound ({self.lat_bound_s})."
-            )
-            raise ValueError(msg)
-        if self.do_thickness:
-            msg = (
-                "`do_thickness` is set, but will have no effect as this feature is not "
-                "implemented in TSTORMS."
-            )
-            warnings.warn(msg, category=UserWarning, stacklevel=3)
-
-
-@dataclass(repr=False)
-class TSTORMSStitchParameters(TCTrackerParameters):
-    """
-    Dataclass containing values used by the stitching trajectory operation of TSTORMS.
-
-    Default values are set to match those in the TSTORMS trajectory_analysis
-    source-code.
-
-    Raises
-    ------
-    ValueError
-        If northern latitude bound is less than the southern latitude bound.
-    UserWarning
-        If do_thickness is set to True as this has no effect.
-    """
-
-    r_crit: float = 900.0
-    """Maximum daily track length [km] between succcessive points in a trajectory."""
-
-    wind_crit: float = 17.0
-    """Critical wind speed [m/s] for trajectory calculations."""
-
-    vort_crit: float = 3.5e-5
-    """Critical vorticity threshold [s-1] for trajectory calculations."""
-
-    tm_crit: float = 0.5
-    """Critical warm core threshold for trajectory calculations."""
-
-    thick_crit: float = 50.0
-    """Critical thickness threshold for trajectory calculations."""
-
-    n_day_crit: int = 2
-    """Minimum number of days a trajectory must last to be valid."""
-
-    do_filter: bool = True
-    r"""
-    Whether to apply filtering of trajectories.
-    Filtering is based on landmask and lat-lon bounds to generate \*_filt output files.
-    """
-
-    lat_bound_n: float = 40.0
-    """Northern latitude bound [degrees] for trajectory filtering."""
-
-    lat_bound_s: float = -40.0
-    """Southern latitude bound [degrees] for trajectory filtering."""
-
-    do_spline: bool = False
-    """
-    Whether to use splines for trajectory calculations.
-    Should match the value used in the Driver routine.
-    If splines used then :attr:`twc_crit` and :attr:`thick_crit` will not be used in
-    comparisons.
-    """
-
-    do_thickness: bool = False
-    """
-    Whether to use thickness of the 200-1000 hPa layer as a variable for detecting
-    candidate storms. Note that this functionality is not yet implemented in TSTORMS.
-    """
-
-    def __post_init__(self):
-        """Validate parameters."""
-        if self.lat_bound_n < self.lat_bound_s:
-            msg = (
-                f"Northern latitude bound ({self.lat_bound_n}) is less than "
-                f"Southern latitude bound ({self.lat_bound_s})."
-            )
-            raise ValueError(msg)
-        if self.do_thickness:
-            msg = (
-                "`do_thickness` is set, but will have no effect as this feature is not "
-                "implemented in TSTORMS."
-            )
-            warnings.warn(msg, category=UserWarning, stacklevel=3)
+from tctrack.tstorms import (
+    TSTORMSBaseParameters,
+    TSTORMSDetectParameters,
+    TSTORMSStitchParameters,
+)
 
 
 class TSTORMSTracker(TCTracker):
@@ -262,11 +37,16 @@ class TSTORMSTracker(TCTracker):
 
     # Private attributes
     _tempdir: tempfile.TemporaryDirectory
+    _u_in_file: str | None = None
+    _v_in_file: str | None = None
+    _vort_in_file: str | None = None
+    _tm_in_file: str | None = None
+    _slp_in_file: str | None = None
 
     def __init__(
         self,
         tstorms_parameters: TSTORMSBaseParameters,
-        detect_parameters: TSTORMSDetectParameters,
+        detect_parameters: TSTORMSDetectParameters | None = None,
         stitch_parameters: TSTORMSStitchParameters | None = None,
         verbosity: int = 1,
     ):
@@ -277,9 +57,10 @@ class TSTORMSTracker(TCTracker):
         ----------
         tstorms_parameters : TSTORMSBaseParameters
             Class containing the parameters for setting up TSTORMS usage.
-        detect_parameters : TSTORMSDetectParameters
+        detect_parameters : TSTORMSDetectParameters | None
             Class containing the parameters for the node detection in TSTORMS.
             Used to create the namelists for `tstorms_driver`.
+            Defaults to the default values in TSTORMSDetectParameters Class
         stitch_parameters : TSTORMSStitchParameters | None
             Class containing the parameters for the stitching algorithm of TSTORMS
             Defaults to the default values in TSTORMSStitchParameters Class
@@ -288,12 +69,26 @@ class TSTORMSTracker(TCTracker):
         """
         self.set_verbosity(verbosity)
         self.tstorms_parameters: TSTORMSBaseParameters = tstorms_parameters
-        self.detect_parameters: TSTORMSDetectParameters = detect_parameters
+
+        if detect_parameters is not None:
+            self.detect_parameters: TSTORMSDetectParameters = detect_parameters
+        else:
+            self.detect_parameters = TSTORMSDetectParameters()
 
         if stitch_parameters is not None:
             self.stitch_parameters: TSTORMSStitchParameters = stitch_parameters
         else:
             self.stitch_parameters = TSTORMSStitchParameters()
+
+        # Set any manually defined input file attributes
+        for var in ["u", "v", "vort", "tm", "slp"]:
+            file_param = getattr(self.detect_parameters, f"{var}_in_file")
+            if file_param is not None:
+                setattr(
+                    self,
+                    f"_{var}_in_file",
+                    os.path.join(self.tstorms_parameters.input_dir, file_param),
+                )
 
         # Ensure the output directory exists, create if not.
         output_dir = self.tstorms_parameters.output_dir
@@ -303,6 +98,186 @@ class TSTORMSTracker(TCTracker):
     def _parameters(self) -> list[TCTrackerParameters]:
         """A list of the parameter objects that is accessible from the base class."""
         return [self.tstorms_parameters, self.detect_parameters, self.stitch_parameters]
+
+    def set_input_files(self, input_files: str | Iterable[str]):
+        """Check the input files and set the appropriate input file parameters."""
+        super().set_input_files(input_files)
+
+        # Set the input files for each variable if they are not set
+        use_sfc_wind = self.detect_parameters.use_sfc_wind
+        for filename in self._input_files:
+            with Dataset(filename, "r") as nc_file:
+                variables = nc_file.variables
+
+                if self._u_in_file is None and (
+                    (use_sfc_wind and "u_ref" in variables)
+                    or (not use_sfc_wind and "u850" in variables)
+                ):
+                    self._u_in_file = os.path.abspath(filename)
+
+                if self._v_in_file is None and (
+                    (use_sfc_wind and "v_ref" in variables)
+                    or (not use_sfc_wind and "v850" in variables)
+                ):
+                    self._v_in_file = os.path.abspath(filename)
+
+                if self._vort_in_file is None and "vort850" in variables:
+                    self._vort_in_file = os.path.abspath(filename)
+
+                if self._tm_in_file is None and "tm" in variables:
+                    self._tm_in_file = os.path.abspath(filename)
+
+                if self._slp_in_file is None and "slp" in variables:
+                    self._slp_in_file = os.path.abspath(filename)
+
+    def _check_tstorms_grid_consistency(
+        self, filename: str, current_grid: dict, ref_file: str, rg: dict
+    ) -> None:
+        """Check grid dimensions and coordinates consistency across TSTORMS files."""
+        if (
+            current_grid["lat_size"] != rg["lat_size"]
+            or current_grid["lon_size"] != rg["lon_size"]
+            or current_grid["time_size"] != rg["time_size"]
+        ):
+            msg = (
+                f"Grid size mismatch between '{filename}' and '{ref_file}'. "
+                "All TSTORMS variables must be on the same grid."
+            )
+            raise ValueError(msg)
+        if (
+            current_grid["lat"] is not None
+            and rg["lat"] is not None
+            and not np.allclose(current_grid["lat"], rg["lat"])
+        ):
+            msg = f"Latitude coordinates in '{filename}' do not match '{ref_file}'."
+            raise ValueError(msg)
+        if (
+            current_grid["lon"] is not None
+            and rg["lon"] is not None
+            and not np.allclose(current_grid["lon"], rg["lon"])
+        ):
+            msg = f"Longitude coordinates in '{filename}' do not match '{ref_file}'."
+            raise ValueError(msg)
+        if (
+            current_grid["time"] is not None
+            and rg["time"] is not None
+            and not np.allclose(current_grid["time"], rg["time"])
+        ):
+            msg = f"Time coordinates in '{filename}' do not match '{ref_file}'."
+            raise ValueError(msg)
+
+    def _verify_tstorms_file(
+        self, filename: str, nc_file: Dataset, expected_vars: set[str]
+    ) -> dict:
+        """Check individual TSTORMS file dimensions, coords, and variable dims."""
+        for req_dim in ("time", "lat", "lon"):
+            if req_dim not in nc_file.dimensions:
+                msg = (
+                    f"TSTORMS input file '{filename}' is missing dimension "
+                    f"'{req_dim}'. Required dimensions are ('time', 'lat', 'lon')."
+                )
+                raise ValueError(msg)
+
+        if not nc_file.dimensions["time"].isunlimited():
+            msg = f"Time dimension in '{filename}' must be an unlimited dimension."
+            raise ValueError(msg)
+
+        if "time" in nc_file.variables:
+            time_vals = nc_file.variables["time"][:]
+            if np.any(time_vals < 0):
+                msg = (
+                    f"Time coordinate values in '{filename}' must only have "
+                    "positive values."
+                )
+                raise ValueError(msg)
+
+        if "lat" in nc_file.variables:
+            lat_vals = nc_file.variables["lat"][:]
+            if len(lat_vals) > 1 and not np.all(np.diff(lat_vals) > 0):
+                msg = (
+                    f"Latitude coordinates in '{filename}' must be strictly "
+                    "increasing from south to north."
+                )
+                raise ValueError(msg)
+
+        for var in expected_vars:
+            if var in nc_file.variables:
+                var_dims = nc_file.variables[var].dimensions
+                if var_dims != ("time", "lat", "lon"):
+                    msg = (
+                        f"Variable '{var}' in '{filename}' must have dimensions "
+                        f"('time', 'lat', 'lon'), got {var_dims}."
+                    )
+                    raise ValueError(msg)
+
+        return {
+            "lat_size": len(nc_file.dimensions["lat"]),
+            "lon_size": len(nc_file.dimensions["lon"]),
+            "time_size": len(nc_file.dimensions["time"]),
+            "lat": (
+                nc_file.variables["lat"][:] if "lat" in nc_file.variables else None
+            ),
+            "lon": (
+                nc_file.variables["lon"][:] if "lon" in nc_file.variables else None
+            ),
+            "time": (
+                nc_file.variables["time"][:] if "time" in nc_file.variables else None
+            ),
+        }
+
+    def _verify_inputs(self) -> None:
+        """Verify that the input files obey the expected format for TSTORMS.
+
+        Raises
+        ------
+        ValueError
+            If input files do not obey TSTORMS requirements.
+        """
+        if not self._input_files:
+            return
+
+        use_sfc_wind = self.detect_parameters.use_sfc_wind
+        u_var = "u_ref" if use_sfc_wind else "u850"
+        v_var = "v_ref" if use_sfc_wind else "v850"
+        expected_vars = {u_var, v_var, "vort850", "tm", "slp"}
+        found_vars: set[str] = set()
+        ref_grid = None
+
+        for filename in self._input_files:
+            with Dataset(filename, "r") as nc_file:
+                grid_info = self._verify_tstorms_file(filename, nc_file, expected_vars)
+
+                if ref_grid is None:
+                    ref_grid = (filename, grid_info)
+                else:
+                    self._check_tstorms_grid_consistency(
+                        filename, grid_info, ref_grid[0], ref_grid[1]
+                    )
+
+                for var in expected_vars:
+                    if var in nc_file.variables:
+                        found_vars.add(var)
+
+        missing = [v for v in sorted(expected_vars) if v not in found_vars]
+        if missing:
+            msg = (
+                f"TSTORMS requires all 5 input variables: {missing} are missing. "
+                "All five variables must be provided."
+            )
+            raise ValueError(msg)
+
+    def _in_file(self, var: str) -> str:
+        """Get the filepath for one of the input files."""
+        file_attr = f"_{var}_in_file"
+
+        if getattr(self, file_attr) is None:
+            msg = (
+                f"`{file_attr}` not set. Ensure that the input files include all "
+                "required variables and that `set_input_files` has been called."
+            )
+            raise RuntimeError(msg)
+
+        return getattr(self, file_attr)
 
     def _write_driver_namelist(self) -> str:
         """
@@ -330,7 +305,6 @@ class TSTORMSTracker(TCTracker):
         namelist_path = os.path.join(output_dir, "nml_driver")
 
         # Format the namelist content
-        input_dir = self.tstorms_parameters.input_dir
         detect_params = self.detect_parameters
         namelist_content = textwrap.dedent(f"""
          &nml_tstorms
@@ -344,11 +318,11 @@ class TSTORMSTracker(TCTracker):
           do_thickness= {".true." if detect_params.do_thickness else ".false."}
          &end
          &input
-           fn_u    = '{os.path.join(input_dir, detect_params.u_in_file)}'
-           fn_v    = '{os.path.join(input_dir, detect_params.v_in_file)}'
-           fn_vort = '{os.path.join(input_dir, detect_params.vort_in_file)}'
-           fn_tm   = '{os.path.join(input_dir, detect_params.tm_in_file)}'
-           fn_slp  = '{os.path.join(input_dir, detect_params.slp_in_file)}'
+           fn_u    = '{self._in_file("u")}'
+           fn_v    = '{self._in_file("v")}'
+           fn_vort = '{self._in_file("vort")}'
+           fn_tm   = '{self._in_file("tm")}'
+           fn_slp  = '{self._in_file("slp")}'
            use_sfc_wnd = {".true." if detect_params.use_sfc_wind else ".false."}
          &end
         """)
@@ -670,7 +644,6 @@ class TSTORMSTracker(TCTracker):
         ValueError
             If a variable is not found in the input files.
         """
-        input_dir = self.tstorms_parameters.input_dir
         detect_params = self.detect_parameters
         var_outputs: list[dict] = [
             {
@@ -679,7 +652,7 @@ class TSTORMSTracker(TCTracker):
                     "Surface Wind Speed" if detect_params.use_sfc_wind else "Wind Speed"
                 ),
                 "tstorms_name": ("u_ref" if detect_params.use_sfc_wind else "u850"),
-                "filename": os.path.join(input_dir, detect_params.u_in_file),
+                "filename": self._in_file("u"),
                 "cellmethod": cf.CellMethod(
                     "area",
                     "maximum",
@@ -694,7 +667,7 @@ class TSTORMSTracker(TCTracker):
                 "std_name": "air_pressure_at_mean_sea_level",
                 "long_name": "Air Pressure at Mean Sea Level",
                 "tstorms_name": "slp",
-                "filename": os.path.join(input_dir, detect_params.slp_in_file),
+                "filename": self._in_file("slp"),
                 "cellmethod": cf.CellMethod(
                     "area",
                     "maximum",
@@ -709,7 +682,7 @@ class TSTORMSTracker(TCTracker):
                 "std_name": "atmosphere_upward_relative_vorticity",
                 "long_name": "Atmosphere Upward Relative Vorticity",
                 "tstorms_name": "vort850",
-                "filename": os.path.join(input_dir, detect_params.vort_in_file),
+                "filename": self._in_file("vort"),
                 "cellmethod": cf.CellMethod(
                     "area",
                     "maximum",
@@ -789,9 +762,7 @@ class TSTORMSTracker(TCTracker):
             If the 'calendar' attribute is missing for the coordinate variable.
             Defaults to 'julian'.
         """
-        input_u_file = os.path.join(
-            self.tstorms_parameters.input_dir, self.detect_parameters.u_in_file
-        )
+        input_u_file = self._in_file("u")
 
         with Dataset(input_u_file, "r") as nc_file:
             unlimited_dims = [
@@ -942,7 +913,12 @@ class TSTORMSTracker(TCTracker):
         time = list(map(int, line[-4:]))
         return time, return_vars
 
-    def run_tracker(self, output_file: str, verbosity: int | None = None) -> None:
+    def run_tracker(
+        self,
+        input_files: str | Iterable[str],
+        output_file: str,
+        verbosity: int | None = None,
+    ) -> None:
         """Run TSTORMS tracker to obtain tropical cyclone track trajectories.
 
         This first runs :meth:`detect` to get TC candidates at each time. Then
@@ -951,6 +927,8 @@ class TSTORMSTracker(TCTracker):
 
         Arguments
         ---------
+        input_files : str | Iterable[str]
+            A (list of) file path(s) containing NetCDF input data to use in the tracker.
         output_file : str
             Filename to which the tropical cyclone trajectories are saved.
         verbosity : int | None
@@ -971,14 +949,16 @@ class TSTORMSTracker(TCTracker):
         To set the parameters, instantiate a :class:`TSTORMSTracker` instance and run
         `run_tracker()`:
 
+        >>> input_files = [...]
         >>> tstorms_params = TSTORMSBaseParameters(...)
         >>> detect_params = TSTORMSDetectParameters(...)
         >>> stitch_params = TSTORMSStitchParameters(...)
         >>> my_tracker = TSTORMSTracker(tstorms_params, detect_params, stitch_params)
-        >>> my_tracker.run_tracker()
+        >>> my_tracker.run_tracker(input_files, "trajectories.nc")
         """
         if verbosity is not None:
             self.set_verbosity(verbosity)
+        self.set_input_files(input_files)
         self.detect()
         self.stitch()
         self.to_netcdf(output_file)
