@@ -147,8 +147,8 @@ The codebase includes comprehensive unit tests using pytest and continuous integ
 via GitHub Actions to ensure validity and compatibility across multiple Python versions.
 Code quality is maintained through static analysis to provide robustness and maintainability.
 
-The package is available via GitHub at https://github.com/Cambridge-ICCS/TCTrack and
-extensively documented at https://tctrack.readthedocs.io/.
+The package is available via GitHub at <https://github.com/Cambridge-ICCS/TCTrack> and
+extensively documented at <https://tctrack.readthedocs.io/>.
 This includes installation guidance, API reference, and worked examples.
 
 # Research Impact Statement
