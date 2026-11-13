@@ -83,6 +83,41 @@ TCTrack facilitates such studies by providing a common framework whilst preservi
 distinct characteristics of each underlying algorithm.
 
 
+# State of the Field
+
+Three tracking algorithms provided by TCTrack (TRACK, TempestExtremes, and
+TSTORMS) are established, peer-reviewed methods used in the climate science
+community.
+TRACK uses a feature-tracking approach based on vorticity maxima and has been applied
+to assess tropical cyclones in reanalysis datasets [@Hodges2017],
+TempestExtremes employs geometric criteria on multiple variables [@Ullrich2021],
+and TSTORMS searches for co-located vorticity and temperature maxima and sea-level
+pressure minima [@Vitart1997].
+However, their native interfaces are command-line based with algorithm-specific input
+formats and minimal output metadata, creating barriers to adoption and intercomparison.
+
+Alternative Python-based tracking tools exist, such as tobac [@Heikenfeld2019], which
+provides general feature tracking capabilities primarily for meteorological applications.
+However, tobac implements new tracking methodologies rather than providing access to the
+established algorithms that have been extensively used and validated in the climate community.
+TCTrack's approach differs fundamentally: it enables researchers to use proven methods
+whilst addressing the practical challenges of usability, interoperability, and metadata
+standards.
+
+TCTrack is also extensible in that additional tracking algorithms can be integrated by
+following the contributor guidelines and building on the abstract base class design.
+Furthermore, despite the package being primarily focussed upon tropical cyclone tracking
+many of the existing tracking algorithms could also be used for extratropical cyclones.
+Indeed, provided an appropriate tracking algorithm, any sort of feature that could be
+represented by a time-based trajectory could be supported by TCTrack.
+
+The decision to build TCTrack rather than change the data format/running procedures of
+multiple existing projects comes from the desire to also provide a unified interface
+for researchers as well as improved data representation.
+TCTrack's focus on usability and FAIR data builds on what the existing tools offer,
+making it a valuable part of the ecosystem.
+
+
 # Software Design
 
 TCTrack is implemented as a Python package built using object-oriented design.
@@ -136,41 +171,6 @@ opened feature requests and made direct code contributions.
 Notably, one researcher has integrated their new detection algorithm, based on a
 machine-learning classifier, in order to make use of TCTrack's software architecture and
 metadata pipeline.
-
-
-# State of the Field
-
-The three tracking algorithms provided by TCTrack (TRACK, TempestExtremes, and
-TSTORMS) are established, peer-reviewed methods used in the climate science
-community.
-TRACK uses a feature-tracking approach based on vorticity maxima and has been applied
-to assess tropical cyclones in reanalysis datasets [@Hodges2017],
-TempestExtremes employs geometric criteria on multiple variables [@Ullrich2021],
-and TSTORMS searches for co-located vorticity and temperature maxima and sea-level
-pressure minima [@Vitart1997].
-However, their native interfaces are command-line based with algorithm-specific input
-formats and minimal output metadata, creating barriers to adoption and intercomparison.
-
-Alternative Python-based tracking tools exist, such as tobac [@Heikenfeld2019], which
-provides general feature tracking capabilities primarily for meteorological applications.
-However, tobac implements new tracking methodologies rather than providing access to the
-established algorithms that have been extensively used and validated in the climate community.
-TCTrack's approach differs fundamentally: it enables researchers to use proven methods
-whilst addressing the practical challenges of usability, interoperability, and metadata
-standards.
-
-TCTrack is also extensible in that additional tracking algorithms can be integrated by
-following the contributor guidelines and building on the abstract base class design.
-Furthermore, despite the package being primarily focussed upon tropical cyclone tracking
-many of the existing tracking algorithms could also be used for extratropical cyclones.
-Indeed, provided an appropriate tracking algorithm, any sort of feature that could be
-represented by a time-based trajectory could be supported by TCTrack.
-
-The decision to build TCTrack rather than change the data format/running procedures of
-multiple existing projects comes from the desire to also provide a unified interface
-for researchers as well as improved data representation.
-TCTrack's focus on usability and FAIR data builds on what the existing tools offer,
-making it a valuable part of the ecosystem.
 
 
 # Acknowledgments
