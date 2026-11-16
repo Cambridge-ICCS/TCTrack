@@ -19,7 +19,8 @@
     --grey-900: #212121;
 
     /* Material Blue (accent) */
-    --blue-50:  #E3F2FD;
+    --blue-30:  #F0F7FD;
+	--blue-50:  #E3F2FD;
     --blue-100: #BBDEFB;
     --blue-200: #90CAF9;
     --blue-300: #64B5F6;
@@ -184,11 +185,6 @@ h3.table-summary {
 	font-size: 1rem;
 }
 
-/* Hide mini export links under the filters */
-.export-links {
-	display: none;
-}
-
 .page-action-menu .icon-text {
     background: var(--accent-strong);
     color: #fff;
@@ -212,6 +208,15 @@ h3.table-summary {
 }
 
 /* Tables ------------------------------------------------------------------ */
+.table-wrapper:has(> table.rows-and-columns),
+table.rows-and-columns {
+    --card: var(--surface);
+    --paper: var(--surface-raised);
+    --ink: var(--text);
+    --muted: var(--text-muted);
+    --rule: var(--border);
+    --row-hover: rgba(33, 150, 243, 0.07);
+}
 .table-wrapper {
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -256,6 +261,9 @@ table.rows-and-columns tbody tr:nth-child(even) td {
 table.rows-and-columns tbody tr:hover td {
     background: rgba(33, 150, 243, 0.07);
 }
+table.rows-and-columns tbody tr:first-child td {
+    border-top: 0;
+}
 
 /* NULLs and secondary cell annotations */
 table.rows-and-columns td em {
@@ -277,18 +285,59 @@ a.blob-download {
     animation-name: none;
 }
 
-/* Columns ----------------------------------------------------------------- */
+/* Pagination bar ---------------------------------------------------------- */
+nav.page-position {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text-secondary);
+}
+.page-position-text code {
+    background: var(--grey-200);
+    color: var(--text);
+}
+.page-position a.page-position-first,
+.page-position a.page-position-next {
+    border-color: var(--blue-300);
+    background: var(--surface);
+    color: var(--link);
+}
+.page-position a.page-position-first:hover,
+.page-position a.page-position-first:focus,
+.page-position a.page-position-next:hover,
+.page-position a.page-position-next:focus {
+    background: var(--blue-300);
+    border-color: var(--blue-300);
+    color: #fff;
+}
+.page-position a.page-position-next {
+    background: var(--blue-400);
+    color: #fff;
+}
+.page-position a.page-position-next:hover,
+.page-position a.page-position-next:focus {
+    background: var(--blue-500);
+    border-color: var(--blue-500);
+}
 
-/* Hide lat/lon column */
-.col-lat_lon {
+/* Hide the top page navigation bar */
+nav.page-position:first-of-type {
 	display: none;
 }
 
-/* Don't wrap... */
-td.col-Date.type-str,
-td.col-Collection.type-str,
-td.col-File.type-str {
-    white-space: nowrap;
+/* Columns ----------------------------------------------------------------- */
+
+/* Hide lat/lon columns */
+.col-lat_lon,
+.col-Latitude,
+.col-Longitude {
+	display: none;
+}
+
+/* Don't wrap table data types */
+td.type-float,
+td.type-int,
+td.type-str {
+    white-space: nowrap !important;
 }
 
 /* Forms ------------------------------------------------------------------- */
@@ -397,31 +446,66 @@ form.sql .cm-editor {
     border-color: var(--accent);
 }
 
+/* Link buttons ------------------------------------------------------------ */
+.quiet-button,
+a.quiet-button:link,
+a.quiet-button:visited,
+.filters a.filters-clear,
+.suggested-facets a.suggested-facet {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text-secondary);
+}
+.quiet-button:hover,
+a.quiet-button:hover,
+.quiet-button:focus-visible,
+.filters a.filters-clear:hover,
+.filters a.filters-clear:focus,
+.suggested-facets a.suggested-facet:hover,
+.suggested-facets a.suggested-facet:focus-visible {
+    background: var(--grey-200);
+    border-color: var(--blue-300);
+    color: var(--text);
+}
+.suggested-facet-type {
+    background: var(--grey-200);
+    color: var(--text-muted);
+}
+
 /* Facets and cards -------------------------------------------------------- */
 .facet-info {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 6px;
-    padding: 0.75rem 1rem;
-    margin-bottom: 1rem;
     width: fit-content;
 }
-.facet-info a:link {
-    text-decoration: none;
-}
-.facet-info a:hover {
-    text-decoration: underline;
+.facet-count {
+	margin-left: 1rem;
 }
 
-.facet-info ul.tight-bullets {
-	padding-left: 0.4rem;
+.facet-results .facet-info li > a:first-child {
+    color: var(--text);
 }
-.facet-info ul.tight-bullets li {
-	list-style-type: none;
-	font-family: var(--font-mono);
+.facet-results .facet-info li:has(> a:first-child):hover {
+    background-color: var(--blue-50);
 }
-.facet-info ul.tight-bullets li a {
-	padding-right: 1rem;
+.facet-results .facet-info li:has(> a:first-child):hover > a:first-child {
+    color: var(--text);
+}
+/* Proportion bars */
+.facet-results .facet-info li {
+    background-image: linear-gradient(
+        to right,
+        var(--blue-30) var(--facet-proportion, 0%),
+        transparent var(--facet-proportion, 0%)
+    );
+}
+.facet-results .facet-info li.facet-selected {
+    background-color: transparent;
+    color: var(--text);
+}
+.facet-count {
+    color: var(--text-muted);
 }
 
 .advanced-export {

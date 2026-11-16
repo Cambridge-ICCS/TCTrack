@@ -57,3 +57,31 @@ section.content:not(:has(> #datasette-maplibre))::before {
 .maplibregl-cooperative-gesture-screen {
     display: none;
 }
+
+/* MapLibre control buttons (zoom, compass, layer control) */
+.maplibregl-ctrl-group,
+.maplibregl-ctrl-group button,
+.maplibregl-ctrl button {
+	background: var(--surface-raised, #fff);
+	color: var(--text, #222);
+}
+.maplibregl-ctrl-group button + button {
+	border-top-color: var(--border, #ccc);
+}
+.maplibregl-ctrl-group button:hover,
+.maplibregl-ctrl button:hover {
+	background: var(--border-strong, #eee);
+}
+.maplibregl-ctrl-group button:focus-visible,
+.maplibregl-ctrl button:focus-visible {
+	outline: 2px solid var(--accent-hover, #1a56db);
+	outline-offset: -2px;
+}
+/* Invert control icons based on the var, --map-icon-filter */
+.maplibregl-ctrl button .maplibregl-ctrl-icon {
+	filter: var(--map-icon-filter, none);
+}
+.maplibregl-popup-content {
+	background: var(--surface-raised, #fff);
+	color: var(--text, #222);
+}

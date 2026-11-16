@@ -77,8 +77,8 @@ plugins:
 
 
 settings:
-  max_returned_rows: 140000
-  sql_time_limit_ms: 3600
-  facet_time_limit_ms: 600
+  max_returned_rows: 100000
+  sql_time_limit_ms: 4000
+  facet_time_limit_ms: 1000
   suggest_facets: off
   default_allow_sql: off
