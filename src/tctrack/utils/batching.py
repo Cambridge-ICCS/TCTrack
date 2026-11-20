@@ -283,7 +283,7 @@ def _expand_batch_time_range(
     time_range: TimeRange, full_time_range: TimeRange, config: "BatchingConfig"
 ) -> TimeRange:
     """Expand the batch time range, without extending beyond the overall range."""
-    buffer_period = config.get("buffer_period")
+    buffer_period = config.get("buffer_period", timedelta(days=10))
     start_buffer_period = config.get("start_buffer_period", timedelta(days=1))
 
     if buffer_period is None:
@@ -363,7 +363,7 @@ class BatchingConfig(TypedDict, total=False):
     delete_batch_dirs: bool
     """Whether to delete the ``batch_[i]/`` directories. Default: ``True``."""
     buffer_period: timedelta | None
-    """Extra time included at the end of each batch. Default: ``None``."""
+    """Extra time included at the end of each batch. Default: 10 days."""
     start_buffer_period: timedelta
     """Extra time included at the start of each batch. Defaults to one day when
     ``buffer_period`` is set, otherwise not used."""
@@ -458,7 +458,7 @@ def batching(
            * - ``buffer_period``
              - ``timedelta`` for extra time at the end of each batch |br|
                so tracks reaching a batch boundary are not cut off. |br|
-               Default: ``None``.
+               Default: 10 days.
            * - ``start_buffer_period``
              - ``timedelta`` for extra time included at the start |br|
                of each batch. This ensures that any tracks starting |br|

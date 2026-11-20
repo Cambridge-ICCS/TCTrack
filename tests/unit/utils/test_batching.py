@@ -137,6 +137,7 @@ def config(tmp_path: Path):
         "output_dir": tmp_path,
         "combine_outputs": False,
         "delete_batch_dirs": False,
+        "buffer_period": None,
     }
 
 
