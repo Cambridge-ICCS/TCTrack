@@ -64,7 +64,7 @@ mapdata = [
     "scipy",
 ]
 dashboard = [
-    "datasette>=0.65",
+    "datasette==1.0a44",
     "datasette-maplibre @ file:dashboard/plugins/datasette_maplibre",
 ]
 dev = [

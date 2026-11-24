@@ -9,7 +9,7 @@ version = "0.2.0"
 readme = "README.md"
 authors = [{ name="Simon Sadler" }]
 requires-python = ">=3.11"
-dependencies = ["datasette>=1.0a43"]
+dependencies = ["datasette==1.0a44"]
 
 [project.entry-points.datasette]
 maplibre = "datasette_maplibre"

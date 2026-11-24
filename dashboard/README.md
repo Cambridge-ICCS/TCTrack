@@ -69,7 +69,7 @@ Scrolling via scroll-wheel or trackpad defaults to scrolling the whole page so t
 
 ### Configuration
 
-The map can be configured in the `datasette-maplibre` section of the `metadata.yaml` file. *The `datasette` server process must be restarted for changes to take effect*.
+The map can be configured in the `datasette-maplibre` section of the `datasette.yaml` file. *The `datasette` server process must be restarted for changes to take effect*.
 
 The following settings are available:
 
