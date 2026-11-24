@@ -4,7 +4,7 @@
 -- Hierarchy:
 --  collections              Named collections of trajectories.
 --  └─ files                 Individual files from TCTrack.
---     └─ trajectories       Single cyclone tracks with GeoJSON geometry.
+--     └─ trajectories       Single cyclone tracks.
 --        └─ observations    Attributes from each trajectory observation.
 
 pragma foreign_keys = on;
@@ -45,18 +45,12 @@ create table files (
 create index files_collection_idx on files(collection_id);
 
 -- Trajectories
--- A single cyclone trajectory stored as GeoJSON.
---
--- geojson_track  LineString for the full vector path.
--- geojson_points FeatureCollection with a Point for each observation.
+-- A single cyclone trajectory.
 create table trajectories (
     id              integer primary key,
     file_id         integer not null references files(id) on delete cascade,
 
-    start_end       text    check (start_end in ('S', 'E', 'SE')),
-
-    geojson_track   text    not null,
-    geojson_points  text    not null
+    start_end       text    check (start_end in ('S', 'E', 'SE'))
 );
 
 create index trajectories_file_idx on trajectories(file_id);
@@ -85,12 +79,51 @@ create index surface_altitude_idx on observations(surface_altitude);
 create index wind_speed_idx on observations(wind_speed);
 
 
--- Observation view
-create view observation_view as
-select file_id, files.filename, trajectory_id,
-	ob.sequence, ob.date, ob.latitude, ob.longitude,
-	ob.air_pressure_at_sea_level, ob.surface_altitude, ob.wind_speed, ob.atmosphere_relative_vorticity,
-	cast(ob.sequence = 0 as integer) as genesis
-from observations ob
+-- Views used for map display
+
+-- Points only (trajectory_id renamed so it is not grouped into tracks as per the metadata group_by setting)
+create view points as
+select
+	files.filename,
+	trajectory_id as track_id,
+	cast(substr(date, 1, 4) as integer) as year,
+	sequence, date, latitude, longitude,
+	air_pressure_at_sea_level, surface_altitude, wind_speed,
+	cast(sequence = 0 as integer) as genesis
+from
+	observations ob
 	join trajectories on trajectories.id = trajectory_id
 	join files on files.id = file_id;
+
+-- Points layered by year
+create view points_layer_year as
+select *, year as layer_year from points;
+
+-- Points layered by filename
+create view points_layer_file as
+select *, filename as layer_file from points;
+
+
+-- Tracks
+create view tracks as
+select
+	files.filename,
+	trajectory_id,
+	tr.start_end,
+	cast(substr(date, 1, 4) as integer) as year,
+	sequence, date, latitude, longitude,
+	air_pressure_at_sea_level, surface_altitude, wind_speed
+from
+	observations ob
+	join trajectories tr on tr.id = ob.trajectory_id
+	join files on files.id = file_id
+order by
+	trajectory_id, sequence;
+
+-- Tracks layered by year
+create view tracks_layer_year as
+select *, year as layer_year from tracks;
+
+-- Tracks layered by filename
+create view tracks_layer_file as
+select *, filename as layer_file from tracks;

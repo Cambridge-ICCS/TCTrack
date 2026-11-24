@@ -1,0 +1,82 @@
+# TCTrack Dashboard - Datasette (v1) configuration
+
+extra_css_urls:
+  - url: /static/light.css
+  # - url: /static/dark.css
+
+plugins:
+  datasette-maplibre:
+    basemap:
+      style: https://tiles.openfreemap.org/styles/positron  # light
+      # style: https://tiles.openfreemap.org/styles/dark  # dark
+      outline:
+        name: Coastline
+        tile_source: openmaptiles
+        tile_layer: water
+        tile_class: ocean
+        colour: '#000000'
+        opacity: 0.6
+    group_by:
+      column: trajectory_id
+      properties: [filename, year]
+    point:
+      radius: 4
+      opacity: 0.4
+      radius_property:
+        column: wind_speed
+        min: [0, 2]
+        max: [30, 10]
+        exponential: 1.2
+    line:
+      thickness: 2
+      opacity: 0.2
+    heatmap:
+      weight_property:
+        column: wind_speed
+        min: [0, 0]
+        max: [30, 1]
+        exponential: 1.2
+      influence_radius: 20
+      max_zoom: 8
+      # light map heatmap
+      palette:
+        low: '#81d4fa'
+        mid: '#ffeb3b'
+        high: '#ffa000'
+      # dark map heatmap
+      # palette:
+      #   low: '#1a237e'
+      #   mid: '#ad1457'
+      #   high: '#ffeb3b'
+      opacity: 0.8
+
+    # light palette
+    palette:
+      single: '#33bbee'
+      layers:
+        - '#33bbee'
+        - '#ee7733'
+        - '#0077bb'
+        - '#ee3377'
+        - '#cc3311'
+        - '#009988'
+        - '#bbbbbb'
+    # dark palette
+    # palette:
+    #   single: '#d0b100'
+    #   layers:
+    #     - '#d0b100'
+    #     - '#0077bb'
+    #     - '#33bbee'
+    #     - '#ee3377'
+    #     - '#009988'
+    #     - '#bbbbbb'
+    #     - '#cc3311'
+
+
+settings:
+  max_returned_rows: 140000
+  sql_time_limit_ms: 3600
+  facet_time_limit_ms: 600
+  suggest_facets: off
+  default_allow_sql: off
